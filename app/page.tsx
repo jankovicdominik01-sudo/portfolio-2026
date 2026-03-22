@@ -20,6 +20,7 @@ import Lenis from "@studio-freight/lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion, AnimatePresence } from "framer-motion";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { 
   Home, FolderOpen, Mail, Rocket, CheckCircle2, ArrowUpRight, 
   Layout, Code2, Zap, Terminal, ChevronDown, ShieldCheck, X, 
