@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 // 1. IMPORT PRÉMIOVÉHO KURZORA (Uisti sa, že máš tento súbor vytvorený)
 import CustomCursor from "@/components/ui/CustomCursor";
@@ -105,6 +106,7 @@ export default function RootLayout({
         {children}
         {/* 2. NOISE OVERLAY - PRIDANÉ TU */}
       <div className="noise-overlay" />
+      <SpeedInsights />
       </body>
     </html>
   );
