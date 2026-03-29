@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>DACMG — Cold Mail Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ────────────── TOKENS ────────────── */
+:root{
+  --bg:#05050e;
+  --s1:#0b0b18;
+  --s2:#10101f;
+  --b1:#1c1c30;
+  --b2:#272740;
+  --b3:#343456;
+  --t1:#eeeeff;
+  --t2:#8688a8;
+  --t3:#38395a;
+  --c:#22c8db;
+  --cd:#0b3540;
+  --cb:#12505e;
+  --bl:#4e52d4;
+  --bld:#0c0d2c;
+  --blb:#1c1e48;
+  --p:#9040a0;
+  --fh:'Syne',sans-serif;
+  --fm:'JetBrains Mono',monospace;
+  --r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;height:100dvh}
+body{
+  background:var(--bg);color:var(--t1);font-family:var(--fh);
+  height:100%;height:100dvh;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+
+/* ── KEYFRAMES ── */
+@keyframes fade    {from{opacity:0}to{opacity:1}}
+@keyframes up      {from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes sx      {from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes sc      {from{opacity:0;transform:scale(.93)}to{opacity:1;transform:none}}
+@keyframes row     {from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+@keyframes blink   {0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes pdot    {0%,100%{opacity:1;box-shadow:0 0 7px var(--c)}50%{opacity:.3;box-shadow:none}}
+@keyframes floatY  {0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes grad    {0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes glow    {0%,100%{box-shadow:0 0 10px rgba(34,200,219,.35)}50%{box-shadow:0 0 22px rgba(78,82,212,.45)}}
+@keyframes toast   {from{opacity:0;transform:translateX(-50%) translateY(20px) scale(.95)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+@keyframes shimUp  {from{transform:translateY(100%)}to{transform:none}}
+
+/* ── SHELL ── */
+#bgc{position:fixed;inset:0;z-index:0;opacity:.18;pointer-events:none}
+body::after{
+  content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.028'/%3E%3C/svg%3E");
+}
+#app{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;
+  height:100%;height:100dvh;
+  overflow:hidden;
+}
+
+/* ── NAV ── */
+nav{
+  flex-shrink:0;height:50px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  border-bottom:1px solid var(--b1);
+  background:rgba(5,5,14,.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  z-index:30;animation:fade .4s ease;
+}
+.nav-left{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden}
+.logo-img{height:24px;width:auto;flex-shrink:0;filter:drop-shadow(0 0 5px rgba(34,200,219,.28));transition:filter .3s}
+.logo-div{width:1px;height:15px;background:var(--b2);flex-shrink:0}
+.logo-tag{font-family:var(--fm);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);white-space:nowrap}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.live{display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:9px;color:var(--c);letter-spacing:.06em;white-space:nowrap}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--c);animation:pdot 2.4s ease-in-out infinite;flex-shrink:0}
+#nav-pill{
+  font-family:var(--fm);font-size:9px;color:var(--t3);
+  padding:3px 9px;border:1px solid var(--b1);border-radius:3px;
+  display:none;white-space:nowrap;
+}
+#nav-pill b{color:var(--t1);font-weight:500}
+
+/* ── PHASE BAR ── */
+.phases{
+  flex-shrink:0;height:34px;
+  display:flex;align-items:center;padding:0 16px;gap:2px;
+  border-bottom:1px solid var(--b1);background:rgba(11,11,24,.6);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.phases::-webkit-scrollbar{display:none}
+.ph{
+  display:flex;align-items:center;gap:5px;
+  padding:0 10px;height:100%;
+  font-size:10px;font-weight:600;letter-spacing:.04em;
+  color:var(--t3);white-space:nowrap;flex-shrink:0;
+  border-bottom:2px solid transparent;
+  transition:color .25s,border-color .25s;
+}
+.ph.on{color:var(--c);border-bottom-color:var(--c)}
+.ph.past{color:var(--t2)}
+.ph-num{
+  width:15px;height:15px;border-radius:50%;border:1px solid currentColor;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--fm);font-size:7px;font-weight:600;flex-shrink:0;
+  transition:background .25s;
+}
+.ph.on .ph-num{background:rgba(34,200,219,.14)}
+.ph-arrow{color:var(--b2);font-size:10px;flex-shrink:0;margin:0 1px}
+
+/* ── CONTENT ── */
+#content{flex:1;overflow:hidden;position:relative;min-height:0}
+.screen{
+  position:absolute;inset:0;
+  overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  display:none;flex-direction:column;
+}
+.screen.on{display:flex;animation:up .3s cubic-bezier(.16,1,.3,1) both}
+
+/* ════════════════════════════════════
+   HOME  —  mobile-first
+════════════════════════════════════ */
+#s-home{padding:0}
+
+/* HERO */
+.hero{
+  padding:clamp(28px,6vw,60px) clamp(16px,5vw,56px) clamp(24px,4vw,44px);
+  position:relative;overflow:hidden;
+  border-bottom:1px solid var(--b1);
+}
+.hero::before{
+  content:'';position:absolute;
+  top:-40%;left:10%;width:80%;height:120%;
+  background:radial-gradient(ellipse,rgba(34,200,219,.07) 0%,transparent 65%);
+  pointer-events:none;
+}
+.eyebrow{
+  font-family:var(--fm);font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--t3);display:flex;align-items:center;gap:8px;margin-bottom:16px;
+  animation:sx .5s ease .08s both;
+}
+.eyebrow::before{content:'';width:14px;height:1px;background:var(--c);flex-shrink:0}
+
+/* THE BIG HEADLINE */
+.h1{
+  font-size:clamp(44px,12vw,100px);
+  font-weight:800;line-height:.96;letter-spacing:-.04em;
+  margin-bottom:clamp(14px,3vw,22px);
+  animation:up .5s ease .12s both;
+}
+.h1 .line{display:block}
+.h1 .accent{
+  display:block;
+  background:linear-gradient(120deg,var(--c) 0%,var(--bl) 45%,var(--p) 100%);
+  background-size:220% 220%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:grad 5s ease infinite;
+}
+.h1-sub{
+  font-size:clamp(13px,2.2vw,16px);
+  color:var(--t2);line-height:1.7;
+  max-width:520px;
+  animation:up .5s ease .18s both;
+}
+
+/* STEPS STRIP */
+.steps-row{
+  display:grid;gap:8px;
+  grid-template-columns:repeat(2,1fr);
+  padding:clamp(16px,4vw,24px) clamp(16px,5vw,56px);
+  border-bottom:1px solid var(--b1);
+}
+.step{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 12px;border:1px solid var(--b1);border-radius:var(--r);
+  background:var(--s1);transition:border-color .2s,transform .18s;
+  animation:up .4s cubic-bezier(.16,1,.3,1) both;
+}
+.step:nth-child(1){animation-delay:.06s}
+.step:nth-child(2){animation-delay:.1s}
+.step:nth-child(3){animation-delay:.14s}
+.step:nth-child(4){animation-delay:.18s}
+.step:hover{border-color:var(--cb);transform:translateY(-2px)}
+.step-ico{
+  width:28px;height:28px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--s2);border:1px solid var(--b1);
+  transition:border-color .2s,background .2s;
+}
+.step:hover .step-ico{border-color:var(--cb);background:rgba(34,200,219,.07)}
+.step-n{font-family:var(--fm);font-size:9px;color:var(--c);letter-spacing:.08em}
+.step-t{font-size:11px;font-weight:700;color:var(--t1);line-height:1.3}
+
+/* FORM */
+.form-section{
+  padding:clamp(16px,4vw,28px) clamp(16px,5vw,40px);
+  flex:1;
+}
+.sec-label{
+  font-family:var(--fm);font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--t3);margin-bottom:10px;display:block;
+}
+.m-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
+.mcard{
+  border:1px solid var(--b1);border-radius:var(--r);
+  padding:13px 13px;background:var(--s1);cursor:pointer;
+  transition:border-color .2s,transform .15s;
+  position:relative;overflow:hidden;
+}
+.mcard::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(34,200,219,.05),transparent);
+  opacity:0;transition:opacity .2s;
+}
+.mcard:hover::before,.mcard.sel::before{opacity:1}
+.mcard.sel{border-color:var(--c)}
+.mcard:hover{border-color:var(--cb)}
+.mcard-top{display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap;gap:6px}
+.mcard-title{font-size:12px;font-weight:700}
+.mcard-badge{font-family:var(--fm);font-size:8px;padding:2px 6px;border-radius:2px;background:var(--cd);color:var(--c);border:1px solid var(--cb);white-space:nowrap;margin-left:auto}
+.mcard-desc{font-size:10px;color:var(--t2);line-height:1.6;margin-top:4px}
+
+/* panels */
+.panel{display:none;animation:up .22s ease both}
+.panel.on{display:block}
+
+/* inputs */
+.ilbl{font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:5px;display:block}
+.inp{
+  width:100%;background:var(--s1);border:1px solid var(--b1);color:var(--t1);
+  padding:12px 14px;border-radius:6px;font-size:15px;font-family:var(--fh);
+  outline:none;transition:border-color .15s,box-shadow .15s;
+  -webkit-appearance:none;
+}
+.inp:focus{border-color:var(--b2);box-shadow:0 0 0 3px rgba(34,200,219,.07)}
+.inp::placeholder{color:var(--t3)}
+.inp-row{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-bottom:10px}
+.inp-grp{margin-bottom:10px}
+select.inp{appearance:none;-webkit-appearance:none;cursor:pointer}
+
+/* drop zone */
+.dz{
+  border:1.5px dashed var(--b2);border-radius:var(--r);background:var(--s1);
+  position:relative;overflow:hidden;transition:all .2s;
+}
+.dz:hover,.dz.drag{border-color:var(--c);background:rgba(34,200,219,.025)}
+.dz input[type=file]{
+  position:absolute;inset:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;z-index:2;
+}
+.dz-body{
+  padding:28px 16px;text-align:center;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.dz-ico{
+  width:44px;height:44px;border-radius:10px;
+  background:var(--s2);border:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:center;
+  animation:floatY 3.5s ease-in-out infinite;
+}
+.dz-t{font-size:14px;font-weight:700}
+.dz-s{font-size:11px;color:var(--t2)}
+.dz-h{font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:.06em;margin-top:2px}
+
+/* buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:12px 18px;border-radius:6px;border:none;cursor:pointer;
+  font-family:var(--fh);font-size:13px;font-weight:700;letter-spacing:.02em;
+  transition:all .15s;white-space:nowrap;
+  touch-action:manipulation;
+}
+.btn:disabled{opacity:.22;cursor:not-allowed;pointer-events:none}
+.bc{background:var(--c);color:#000}
+.bc:not(:disabled):active,.bc:not(:disabled):hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 6px 22px rgba(34,200,219,.28)}
+.bbl{background:var(--bl);color:#fff}
+.bbl:not(:disabled):active,.bbl:not(:disabled):hover{filter:brightness(1.15);transform:translateY(-1px);box-shadow:0 6px 22px rgba(78,82,212,.3)}
+.bgh{background:transparent;color:var(--t2);border:1px solid var(--b2)}
+.bgh:not(:disabled):active,.bgh:not(:disabled):hover{color:var(--t1);border-color:var(--b3)}
+.boc{background:var(--cd);color:var(--c);border:1px solid var(--cb)}
+.boc:not(:disabled):active,.boc:not(:disabled):hover{background:var(--cb)}
+.bfw{width:100%}
+
+/* ════════════════════════════════════
+   TABLE SCREEN
+════════════════════════════════════ */
+#s-table{padding:0}
+.tbar{
+  flex-shrink:0;padding:10px 14px;border-bottom:1px solid var(--b1);
+  background:rgba(5,5,14,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  position:sticky;top:0;z-index:10;
+}
+.tbar-row1{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.tbar-row2{display:flex;gap:5px;flex-wrap:wrap}
+.search{
+  background:var(--s1);border:1px solid var(--b1);color:var(--t1);
+  padding:9px 12px;border-radius:5px;font-size:13px;font-family:var(--fh);
+  outline:none;flex:1;min-width:100px;-webkit-appearance:none;
+  transition:border-color .15s;
+}
+.search:focus{border-color:var(--b2)}
+.search::placeholder{color:var(--t3)}
+.tbtns{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.ftab{
+  background:transparent;border:1px solid transparent;color:var(--t3);
+  padding:6px 10px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.04em;
+  cursor:pointer;font-family:var(--fh);transition:all .15s;
+  touch-action:manipulation;
+}
+.ftab.on{background:var(--s2);border-color:var(--b1);color:var(--t1)}
+
+/* progress */
+.prog{height:2px;flex-shrink:0;background:var(--b1);overflow:hidden;display:none}
+.pbar{height:100%;width:0;border-radius:1px;transition:width .3s;
+  background:linear-gradient(90deg,var(--c),var(--bl));
+  animation:glow 2s ease infinite;
+}
+
+/* stats */
+.stats{flex-shrink:0;display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--b1)}
+.sc{padding:9px 12px;border-right:1px solid var(--b1);display:flex;flex-direction:column;gap:2px}
+.sc:last-child{border-right:none}
+.sc-l{font-family:var(--fm);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)}
+.sc-v{font-size:clamp(16px,4vw,22px);font-weight:800;letter-spacing:-.03em;transition:color .3s}
+.vc{color:var(--c)}.vb{color:var(--bl)}.vp{color:var(--p)}.vw{color:var(--t1)}
+
+/* table */
+.tbl-wrap{flex:1;overflow:auto;min-height:0;-webkit-overflow-scrolling:touch}
+.tbl-head{
+  display:grid;
+  grid-template-columns:minmax(110px,1.7fr) minmax(80px,1fr) minmax(110px,1.3fr) minmax(150px,2.6fr) 96px 96px;
+  padding:7px 14px;gap:8px;
+  background:rgba(11,11,24,.97);
+  border-bottom:1px solid var(--b1);
+  position:sticky;top:0;z-index:5;min-width:740px;
+}
+.th{font-family:var(--fm);font-size:8px;color:var(--t3);letter-spacing:.12em;text-transform:uppercase}
+.row{
+  display:grid;
+  grid-template-columns:minmax(110px,1.7fr) minmax(80px,1fr) minmax(110px,1.3fr) minmax(150px,2.6fr) 96px 96px;
+  padding:8px 14px;gap:8px;
+  border-bottom:1px solid rgba(28,28,48,.55);
+  align-items:start;transition:background .1s;min-width:740px;
+  animation:row .18s ease both;
+}
+.row:nth-child(even){background:rgba(11,11,20,.45)}
+.row:hover{background:rgba(16,16,30,.9)}
+.rn{font-size:12px;font-weight:600;line-height:1.3;color:var(--t1);padding-top:1px}
+.rc{font-family:var(--fm);font-size:8px;color:var(--t3);margin-top:2px}
+.rd{font-family:var(--fm);font-size:9px;color:var(--t2);word-break:break-all;padding-top:2px}
+.rm{font-family:var(--fm);font-size:8px;color:var(--t3);word-break:break-all;padding-top:2px}
+.ta{
+  width:100%;min-height:54px;resize:vertical;
+  background:var(--s1);border:1px solid var(--b1);color:var(--t1);
+  padding:7px 8px;border-radius:4px;font-size:11px;font-family:var(--fh);
+  line-height:1.55;outline:none;-webkit-appearance:none;
+  transition:border-color .15s;
+}
+.ta:focus{border-color:var(--b2)}
+.ta::placeholder{color:var(--t3)}
+.ta.has{border-color:var(--b2)}
+.sk-note{font-family:var(--fm);font-size:9px;color:var(--t3);font-style:italic;padding-top:4px}
+.col{display:flex;flex-direction:column;gap:4px;padding-top:2px}
+
+/* badges */
+.bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border-radius:3px;font-family:var(--fm);font-size:8px;font-weight:500;letter-spacing:.06em;white-space:nowrap}
+.bi{background:var(--s2);color:var(--t3);border:1px solid var(--b1)}
+.bs{background:var(--bld);color:var(--bl);border:1px solid var(--blb);animation:blink .85s infinite}
+.bsc{background:var(--cd);color:var(--c);border:1px solid var(--cb)}
+.bsk{background:#1c0a12;color:#d44480;border:1px solid #2e1020}
+.bwarn{background:#1a1506;color:#c4a820;border:1px solid #2a200a}
+.bg2{background:var(--bld);color:var(--bl);border:1px solid var(--blb);animation:blink .85s infinite}
+.bdone{background:var(--cd);color:var(--c);border:1px solid var(--cb)}
+.cbtn{
+  width:100%;padding:5px 7px;border-radius:3px;border:none;
+  font-size:10px;font-weight:700;font-family:var(--fh);cursor:pointer;
+  transition:all .12s;letter-spacing:.02em;touch-action:manipulation;
+}
+.cbtn:disabled{opacity:.18;cursor:not-allowed;pointer-events:none}
+.cbsc{background:var(--cd);color:var(--c);border:1px solid var(--cb)}
+.cbsc:not(:disabled):hover{background:var(--cb)}
+.cbg{background:var(--bl);color:#fff}
+.cbg:not(:disabled):hover{filter:brightness(1.18)}
+.cbv{background:var(--s2);color:var(--t2);border:1px solid var(--b1)}
+.cbv:not(:disabled):hover{color:var(--t1)}
+.empty{padding:32px;text-align:center;color:var(--t3);font-size:12px}
+
+/* ── MODAL ── */
+.overlay{
+  display:none;position:fixed;inset:0;z-index:500;
+  background:rgba(5,5,14,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  align-items:flex-end;justify-content:center;
+}
+.overlay.on{display:flex;animation:fade .2s ease}
+.modal{
+  background:var(--s1);border:1px solid var(--b2);border-top:2px solid var(--c);
+  border-radius:14px 14px 0 0;
+  width:100%;max-width:700px;
+  max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;
+  animation:shimUp .26s cubic-bezier(.16,1,.3,1);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.mh{padding:16px 20px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:start;justify-content:space-between;gap:12px}
+.mn{font-size:15px;font-weight:700;margin-bottom:2px}
+.ms{font-family:var(--fm);font-size:10px;color:var(--t2)}
+.mx{background:none;border:none;color:var(--t2);font-size:24px;cursor:pointer;line-height:1;padding:2px;transition:color .15s;flex-shrink:0}
+.mx:hover{color:var(--t1)}
+.mb{padding:18px 20px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.mt{font-size:13px;line-height:1.9;white-space:pre-wrap;word-break:break-word;color:var(--t1)}
+.mf{padding:12px 20px;border-top:1px solid var(--b1);display:flex;gap:8px}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:max(20px,calc(env(safe-area-inset-bottom) + 12px));
+  left:50%;transform:translateX(-50%) translateY(20px) scale(.96);
+  z-index:600;background:var(--s2);border:1px solid var(--b2);border-radius:8px;
+  padding:10px 16px;font-size:12px;display:flex;align-items:center;gap:9px;
+  opacity:0;transition:all .28s cubic-bezier(.16,1,.3,1);pointer-events:none;
+  max-width:calc(100vw - 32px);white-space:nowrap;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+.toast-dot{width:6px;height:6px;border-radius:50%;background:var(--c);flex-shrink:0}
+
+/* ════════════════════════════════════
+   RESPONSIVE  —  TABLET  600px+
+════════════════════════════════════ */
+@media(min-width:600px){
+  nav{padding:0 24px}
+  .phases{padding:0 24px}
+  .logo-tag{letter-spacing:.2em}
+  #nav-pill{display:block}
+  .steps-row{grid-template-columns:repeat(4,1fr)}
+  .form-section{padding:24px 32px}
+  .steps-row{padding:20px 32px}
+  .hero{padding:44px 32px 32px}
+  .tbar{padding:10px 20px}
+  .overlay{align-items:center;padding:20px}
+  .modal{border-radius:12px;max-height:88dvh;border-top:2px solid var(--c)}
+  .modal{animation:sc .22s cubic-bezier(.16,1,.3,1)}
+}
+
+/* ════════════════════════════════════
+   DESKTOP  900px+  two-column
+════════════════════════════════════ */
+@media(min-width:900px){
+  #s-home .home-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(360px,440px);
+    grid-template-rows:auto 1fr;
+    height:100%;overflow:hidden;
+  }
+  .hero{
+    grid-column:1;grid-row:1;
+    border-bottom:none;border-right:1px solid var(--b1);
+    padding:48px 52px 36px;
+  }
+  .steps-row{
+    grid-column:1;grid-row:2;
+    border-top:1px solid var(--b1);border-right:1px solid var(--b1);border-bottom:none;
+    padding:22px 52px;overflow-y:auto;
+    grid-template-columns:repeat(2,1fr);
+  }
+  .form-section{
+    grid-column:2;grid-row:1/3;
+    padding:32px 36px;overflow-y:auto;
+  }
+  .m-cards{grid-template-columns:1fr;gap:8px}
+  .mcard-desc{display:block}
+  .live span{display:inline}
+}
+
+@media(min-width:1200px){
+  .hero{padding:56px 64px 40px}
+  .steps-row{padding:24px 64px}
+  .form-section{padding:36px 44px}
+}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas>
+<div id="app">
+
+<!-- NAV -->
+<nav>
+  <div class="nav-left">
+    <img src="LOGOFINAL.svg" class="logo-img" alt="DJ" onerror="this.style.display='none'"/>
+    <div class="logo-div"></div>
+    <span class="logo-tag">DACMG</span>
+  </div>
+  <div class="nav-right">
+    <div id="nav-pill">
+      <b id="np-t">0</b> k. &nbsp;·&nbsp;
+      <b id="np-s" style="color:var(--c)">0</b> sken. &nbsp;·&nbsp;
+      <b id="np-e" style="color:var(--bl)">0</b> email
+    </div>
+    <div class="live">
+      <div class="dot"></div>
+      <span style="display:none">Online</span>
+    </div>
+  </div>
+</nav>
+
+<!-- PHASES -->
+<div class="phases">
+  <div class="ph on" id="ph0"><div class="ph-num">1</div>Zdroj</div>
+  <div class="ph-arrow">›</div>
+  <div class="ph" id="ph1"><div class="ph-num">2</div>Sken</div>
+  <div class="ph-arrow">›</div>
+  <div class="ph" id="ph2"><div class="ph-num">3</div>Email</div>
+  <div class="ph-arrow">›</div>
+  <div class="ph" id="ph3"><div class="ph-num">4</div>Export</div>
+</div>
+
+<div id="content">
+
+<!-- ══ HOME ══ -->
+<div class="screen on" id="s-home">
+<div class="home-layout">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">Automatizovaný cold outreach pipeline</div>
+    <h1 class="h1">
+      <span class="line">Nájde.</span>
+      <span class="line">Preskúma.</span>
+      <span class="accent">Napíše.</span>
+    </h1>
+    <p class="h1-sub">
+      Zadaj kategóriu a mesto — môj systém  vyhľadá firmy,
+      navštívi každý web, nájde reálne chyby a napíše
+      personalizovaný email v tvojom štýle.
+    </p>
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps-row">
+    <div class="step">
+      <div class="step-ico">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--c)" stroke-width="1.5"><circle cx="7" cy="6" r="4.5"/><path d="M7 3.5V6l1.5 1.5" stroke-linecap="round"/></svg>
+      </div>
+      <div><div class="step-n">01</div><div class="step-t">Zdroj kontaktov</div></div>
+    </div>
+    <div class="step">
+      <div class="step-ico">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--c)" stroke-width="1.5"><rect x="1" y="1" width="8" height="7" rx="1.2" opacity=".35"/><circle cx="10" cy="10" r="3.2"/><path d="M12.3 12.3l1.3 1.3" stroke-linecap="round"/></svg>
+      </div>
+      <div><div class="step-n">02</div><div class="step-t">Sken webu</div></div>
+    </div>
+    <div class="step">
+      <div class="step-ico">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--c)" stroke-width="1.5"><rect x="1" y="2.5" width="12" height="9" rx="1.5"/><path d="M3.5 6h5M3.5 8.5h3" stroke-linecap="round" opacity=".5"/></svg>
+      </div>
+      <div><div class="step-n">03</div><div class="step-t">AI email</div></div>
+    </div>
+    <div class="step">
+      <div class="step-ico">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--c)" stroke-width="1.5"><path d="M7 1v9M4.5 7l2.5 3 2.5-3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 13h12" stroke-linecap="round" opacity=".4"/></svg>
+      </div>
+      <div><div class="step-n">04</div><div class="step-t">Export CSV</div></div>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div class="form-section">
+    <span class="sec-label">Vyber zdroj kontaktov</span>
+    <div class="m-cards">
+      <div class="mcard sel" id="mc-maps" onclick="selM('maps')">
+        <div class="mcard-top">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5c-2.2 0-4 1.8-4 4 0 3.6 4 9.5 4 9.5s4-5.9 4-9.5c0-2.2-1.8-4-4-4z" stroke="var(--c)" stroke-width="1.3"/><circle cx="8" cy="5.5" r="1.6" stroke="var(--c)" stroke-width="1.2"/></svg>
+          <span class="mcard-title">Google Maps</span>
+          <span class="mcard-badge">Odporúčané</span>
+        </div>
+        <div class="mcard-desc">Claude vyhľadá firmy a extrahuje kontakty automaticky.</div>
+      </div>
+      <div class="mcard" id="mc-csv" onclick="selM('csv')">
+        <div class="mcard-top">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="12" height="14" rx="2" stroke="var(--t2)" stroke-width="1.2"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="var(--t2)" stroke-width="1.1" stroke-linecap="round"/></svg>
+          <span class="mcard-title">CSV import</span>
+        </div>
+        <div class="mcard-desc">Nahraj vlastný export — záznamy bez emailu/webu sa preskočia.</div>
+      </div>
+    </div>
+
+    <!-- MAPS panel -->
+    <div class="panel on" id="panel-maps">
+      <div class="inp-row">
+        <div>
+          <label class="ilbl">Kategória</label>
+          <input class="inp" id="gm-cat" placeholder="napr. maliar"/>
+        </div>
+        <div>
+          <label class="ilbl">Mesto</label>
+          <input class="inp" id="gm-city" placeholder="Bratislava"/>
+        </div>
+      </div>
+      <div class="inp-grp">
+        <label class="ilbl">Počet výsledkov</label>
+        <select class="inp" id="gm-cnt">
+          <option value="10">10 kontaktov</option>
+          <option value="20" selected>20 kontaktov</option>
+          <option value="30">30 kontaktov</option>
+          <option value="50">50 kontaktov</option>
+        </select>
+      </div>
+      <button class="btn bc bfw" id="btn-gm" onclick="doGMaps()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="5.5" r="4"/><path d="M9 9l2.5 2.5" stroke-linecap="round"/></svg>
+        Vyhľadať kontakty
+      </button>
+    </div>
+
+    <!-- CSV panel -->
+    <div class="panel" id="panel-csv">
+      <div class="dz" id="dz">
+        <input type="file" accept=".csv" onchange="handleCSV(event)"/>
+        <div class="dz-body">
+          <div class="dz-ico">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 14V6M7 9l3-3 3 3" stroke="var(--c)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 16h14" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="dz-t">Klikni alebo pretiahni CSV</div>
+          <div class="dz-s">Export z Google Maps scrapera</div>
+          <div class="dz-h">title · website · emails/0 · categoryName</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /form-section -->
+
+</div><!-- /home-layout -->
+</div><!-- /s-home -->
+
+<!-- ══ TABLE ══ -->
+<div class="screen" id="s-table">
+  <div class="tbar">
+    <div class="tbar-row1">
+      <input class="search" id="search" placeholder="Hľadaj…" oninput="renderTbl()"/>
+      <div class="tbtns">
+        <button class="btn boc" id="b-scan" style="font-size:11px;padding:8px 11px" onclick="scanAll()" disabled>🔍 Skenovať</button>
+        <button class="btn bbl"  id="b-gen"  style="font-size:11px;padding:8px 11px" onclick="genAll()"  disabled>✉ Generovať</button>
+        <button class="btn bgh"  id="b-exp"  style="font-size:11px;padding:8px 11px" onclick="doExport()" disabled>⬇ Export</button>
+        <button class="btn bgh"  style="font-size:11px;padding:8px 11px" onclick="goHome()">←</button>
+      </div>
+    </div>
+    <div class="tbar-row2">
+      <button class="ftab on" onclick="setF('all',this)">Všetky</button>
+      <button class="ftab" onclick="setF('scanned',this)">S chybami</button>
+      <button class="ftab" onclick="setF('done',this)">Hotové</button>
+      <button class="ftab" onclick="setF('skip',this)">Preskočené</button>
+    </div>
+  </div>
+  <div class="prog" id="prog"><div class="pbar" id="pbar"></div></div>
+  <div class="stats">
+    <div class="sc"><div class="sc-l">Kontakty</div><div class="sc-v vw" id="sv-t">0</div></div>
+    <div class="sc"><div class="sc-l">Nasken.</div><div class="sc-v vc"  id="sv-s">0</div></div>
+    <div class="sc"><div class="sc-l">Emaily</div><div class="sc-v vb"   id="sv-e">0</div></div>
+    <div class="sc"><div class="sc-l">Preskočené</div><div class="sc-v vp" id="sv-sk">0</div></div>
+  </div>
+  <div class="tbl-wrap">
+    <div class="tbl-head">
+      <div class="th">Firma</div>
+      <div class="th">Web</div>
+      <div class="th">E-mail</div>
+      <div class="th">Nájdené chyby (upraviteľné)</div>
+      <div class="th">Sken</div>
+      <div class="th">Email</div>
+    </div>
+    <div id="tbl"></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="overlay" id="modal" onclick="mClose(event)">
+  <div class="modal">
+    <div class="mh">
+      <div style="min-width:0"><div class="mn" id="m-name"></div><div class="ms" id="m-sub"></div></div>
+      <button class="mx" onclick="mCD()">×</button>
+    </div>
+    <div class="mb"><div class="mt" id="m-txt"></div></div>
+    <div class="mf">
+      <button class="btn bgh bfw" style="font-size:12px" onclick="mCopy()">Kopírovať text</button>
+      <button class="btn bgh" style="font-size:12px;padding:12px 16px" onclick="mCD()">✕</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div class="toast-dot"></div><span id="toast-txt"></span></div>
+
+<script>
+/* ── CANVAS ──────────────────────────── */
+(()=>{
+  const cv=document.getElementById('bgc'),ctx=cv.getContext('2d');
+  let W,H,N=[];
+  const C=['rgba(34,200,219,','rgba(78,82,212,','rgba(144,64,160,'];
+  function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;init()}
+  function init(){
+    N=[];
+    const n=Math.max(18,Math.floor(W*H/24000));
+    for(let i=0;i<n;i++)N.push({
+      x:Math.random()*W,y:Math.random()*H,
+      vx:(Math.random()-.5)*.12,vy:(Math.random()-.5)*.12,
+      r:Math.random()*1.2+.4,c:C[~~(Math.random()*3)]
+    });
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(let i=0;i<N.length;i++){
+      const a=N[i];
+      a.x+=a.vx;a.y+=a.vy;
+      if(a.x<0||a.x>W)a.vx*=-1;if(a.y<0||a.y>H)a.vy*=-1;
+      ctx.beginPath();ctx.arc(a.x,a.y,a.r,0,Math.PI*2);
+      ctx.fillStyle=a.c+'0.5)';ctx.fill();
+      for(let j=i+1;j<N.length;j++){
+        const b=N[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<92){
+          ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+          ctx.strokeStyle=a.c+(1-d/92)*.09+')';ctx.lineWidth=.45;ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);
+  resize();draw();
+})();
+
+/* ── STATE ───────────────────────────── */
+let contacts=[],running=false,mC=null,curFilt='all';
+
+/* ── PROMPTS ─────────────────────────── */
+
+const FIND_SYS=`Vyhľadávaš firmy na Google Maps. Použi web_search.
+Odpovedaj VÝHRADNE ako čisté JSON pole (bez markdown, bez backtikov, bez textu navyše):
+[{"title":"Firma","website":"https://firma.sk","email":"info@firma.sk","category":"Maliar"}]
+Firmy bez emailu alebo bez webu vynechaj. Vráť max __N__ záznamov.`;
+
+/* ─── SCAN: permissive, assumes problems exist ─── */
+const SCAN_SYS=`Si webový analytik, ktorý hodnotí weby slovenských malých firiem.
+
+Použi web_search na vyhľadanie adresy: "${'{web}'}". Pozri sa na výsledky, cached verzie, náhľady.
+
+PREDPOKLADAJ, že web MÁ problémy — väčšina slovenských SMB stránok je zastaralá.
+
+Hľadaj tieto konkrétne problémy:
+• Starý dizajn (stránka vyzerá ako z roku 2005–2015)
+• Chýba mobilná verzia alebo je zlá (nereaguje na dotyk)
+• Pomalé načítanie (ťažké obrázky, starý hosting, žiadne lazy loading)
+• Chýba alebo expirovaný SSL certifikát (http://)
+• Zastaralý rok v pätičke (pred rokom 2023)
+• Slabé alebo žiadne CTA tlačidlá (žiadne "Objednaj", "Kontakt", "Dopyt")
+• Chýbajúce kontaktné údaje (tel., email, adresa nie sú viditeľné)
+• Minimálny obsah (málo textu, žiadne popisy, žiadne fotky)
+• Žiadne SEO (chýba meta popis, title tag je generický)
+• Technické chyby (nefunkčné sekcie, broken links, chybné fonty)
+• Žiadna prítomnosť na sociálnych sieťach / žiadne recenzie
+
+FORMÁT ODPOVEDE:
+- Nájdeš problémy → vypíš 2–4 riadky, každý vo formáte: Názov problému: popis dopadu na zákazníkov alebo biznis
+- Web skutočne neexistuje (404, timeout, doména neregistrovaná) → odpovedz jedine slovom SKIP
+- Web je skutočne moderný a bezchybný (veľmi zriedkavé!) → odpovedz jedine slovom OK
+
+Dôležité: SKIP a OK použi len vo výnimočných prípadoch. V ostatných prípadoch vždy nájdi aspoň 2 problémy.
+Odpovedaj BEZ akéhokoľvek úvodu ani záverečného komentára.`;
+
+const EMAIL_SYS=`Píšeš cold emaily za Dominika Jankoviča — mladého web developera zo Slovenska.
+Tón: priamy, ľudský, odborne podložený, bez korporátnych fráz. Vždy po slovensky.
+Štruktúra:
+1. Predmet: Návrh na vylepšenie vášho webu [doména]
+2. Dobrý deň,
+3. Predstavenie — programuje weby, popri škole pomáha lokálnym firmám zlepšiť online prítomnosť
+4. Všimol som si vašu stránku [doména] a ako vývojár vidím, že vám technicky skôr škodí než pomáha:
+5. Odrážky (* bod) — každý problém zo zadania rozpíš ľudsky, ukáž konkrétny dopad na biznis. NEPRIDÁVAJ iné problémy.
+6. Moje práce a referencie nájdete tu:\n* www.djweby.sk
+7. Napíšte mi, ak by ste mali záujem o nezáväzný návrh za dostupnú cenu.
+8. Mojím cieľom je, aby váš web pôsobil rovnako poctivo ako [ich služba alebo produkt].
+9. S pozdravom,\nDominik Jankovič
+Odpovedaj LEN textom emailu.`;
+
+/* ── API ─────────────────────────────── */
+async function callApi(sys,msg,search,maxTok=900){
+  const body={
+    model:'claude-sonnet-4-20250514',
+    max_tokens:maxTok,
+    system:sys,
+    messages:[{role:'user',content:msg}]
+  };
+  if(search)body.tools=[{type:'web_search_20250305',name:'web_search'}];
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  if(!r.ok)throw new Error('API '+r.status);
+  const d=await r.json();
+  return d.content?.find(b=>b.type==='text')?.text?.trim()||'';
+}
+
+/* ── CSV ─────────────────────────────── */
+function csvSplit(l){const r=[];let c='',q=false;for(let i=0;i<l.length;i++){if(l[i]==='"'){q=!q}else if(l[i]===','&&!q){r.push(c);c=''}else c+=l[i]}r.push(c);return r}
+const SKIP_DOM=['facebook.com','instagram.com','reservio.com','fresha.com','finstat.sk','azet.sk','alteg.io','brand.site','booqme.sk','notino.com','odoo.com','webnode.sk','linktr.ee','google.com'];
+const toDomain=u=>u.replace(/https?:\/\//,'').replace(/www\./,'').split('/')[0].split('?')[0].toLowerCase();
+
+function parseCsv(txt){
+  const lines=txt.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const h=lines[0].split(',').map(x=>x.replace(/^"|"$/g,'').trim());
+  const gi=n=>h.findIndex(x=>x===n);
+  const[ti,wi,ei,ci]=[gi('title'),gi('website'),gi('emails/0'),gi('categoryName')];
+  return lines.slice(1).reduce((a,line,i)=>{
+    const row=csvSplit(line);
+    const title=row[ti]?.replace(/^"|"$/g,'').trim();
+    const web=(row[wi]||'').replace(/^"|"$/g,'').trim();
+    const em=(row[ei]||'').replace(/^"|"$/g,'').trim();
+    const cat=(row[ci]||'').replace(/^"|"$/g,'').trim();
+    if(!title||!web||!em||!em.includes('@'))return a;
+    if(SKIP_DOM.some(d=>web.toLowerCase().includes(d)))return a;
+    a.push(makeContact(i+1,title,web,em,cat));
+    return a;
+  },[]);
+}
+function makeContact(id,title,web,email,cat){
+  return{id,title,website:web,domain:toDomain(web),email,cat,
+    issues:'',emailText:'',scanStatus:'idle',emailStatus:'idle'};
+}
+function fromApi(arr,cat){
+  return arr.filter(x=>x.title&&x.website&&x.email&&x.email.includes('@')&&!SKIP_DOM.some(d=>x.website.toLowerCase().includes(d)))
+    .map((x,i)=>makeContact(i+1,x.title,x.website,x.email,x.category||cat));
+}
+
+/* ── GOOGLE MAPS ─────────────────────── */
+async function doGMaps(){
+  const cat=document.getElementById('gm-cat').value.trim();
+  const city=document.getElementById('gm-city').value.trim();
+  const cnt=document.getElementById('gm-cnt').value;
+  if(!cat||!city){toast('Vyplň kategóriu aj mesto.');return}
+  const btn=document.getElementById('btn-gm');
+  btn.disabled=true;btn.textContent='Vyhľadávam…';
+  try{
+    const sys=FIND_SYS.replace('__N__',cnt);
+    const raw=await callApi(sys,
+      `Nájdi ${cnt} firiem: kategória "${cat}", mesto "${city}", Slovensko.`,
+      true,1400);
+    const m=raw.match(/\[[\s\S]*?\]/);
+    let arr=[];try{if(m)arr=JSON.parse(m[0])}catch{}
+    contacts=fromApi(arr,cat);
+    if(!contacts.length){
+      toast('Nenašli sa kontakty. Skús iné kľúčové slovo.');
+      btn.disabled=false;btn.textContent='Vyhľadať kontakty';return;
+    }
+    goTable();
+    toast(`Načítaných ${contacts.length} kontaktov ✓`);
+  }catch(e){toast('Chyba siete. Skontroluj API kľúč.')}
+  btn.disabled=false;btn.textContent='Vyhľadať kontakty';
+}
+
+function handleCSV(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    contacts=parseCsv(ev.target.result);
+    if(!contacts.length){toast('Žiadne platné záznamy v CSV.');return}
+    goTable();toast(`Načítaných ${contacts.length} kontaktov ✓`);
+  };
+  r.readAsText(f,'utf-8');
+}
+
+/* drag & drop */
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag');
+  const f=e.dataTransfer.files[0];if(!f)return;
+  const inp=dz.querySelector('input[type=file]');
+  const dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;
+  handleCSV({target:inp});
+});
+
+/* ── NAV HELPERS ─────────────────────── */
+function selM(m){
+  ['maps','csv'].forEach(x=>{
+    document.getElementById('mc-'+x).classList.toggle('sel',x===m);
+    document.getElementById('panel-'+x).classList.toggle('on',x===m);
+  });
+}
+function setPhase(n){
+  [0,1,2,3].forEach(i=>{
+    const el=document.getElementById('ph'+i);
+    el.className='ph'+(i===n?' on':i<n?' past':'');
+  });
+}
+function goHome(){
+  document.getElementById('s-table').classList.remove('on');
+  document.getElementById('s-home').classList.add('on');
+  document.getElementById('nav-pill').style.display='none';
+  setPhase(0);
+}
+function goTable(){
+  document.getElementById('s-home').classList.remove('on');
+  const t=document.getElementById('s-table');
+  t.style.display='flex';t.classList.add('on');
+  document.getElementById('nav-pill').style.display='';
+  setPhase(1);updStats();renderTbl();
+}
+
+/* ── SCAN ────────────────────────────── */
+const upd=(id,p)=>contacts=contacts.map(c=>c.id===id?{...c,...p}:c);
+
+function parseScanResult(raw){
+  /* Determine if SKIP / OK / has problems */
+  const clean=raw.trim();
+  if(!clean)return{status:'skip',issues:''};
+  // First word only check
+  const first=clean.split(/[\s\n]/)[0].toUpperCase().replace(/[^A-Z]/g,'');
+  if(first==='SKIP')return{status:'skip',issues:''};
+  if(first==='OK')return{status:'ok',issues:''};
+  return{status:'scanned',issues:clean};
+}
+
+async function scanOne(ct){
+  upd(ct.id,{scanStatus:'scanning'});renderRow(ct.id);
+  try{
+    const sys=SCAN_SYS.replace('{web}',ct.website);
+    const raw=await callApi(sys,
+      `Analyzuj web tejto firmy:\nNázov: ${ct.title}\nURL: ${ct.website}\nKategória: ${ct.cat||'lokálna firma'}\n\nIdentifikuj problémy.`,
+      true,620);
+    const{status,issues}=parseScanResult(raw);
+    upd(ct.id,{scanStatus:status,issues});
+  }catch{
+    upd(ct.id,{scanStatus:'skip',issues:''});
+  }
+  renderRow(ct.id);updStats();
+}
+
+async function scanAll(){
+  if(running)return;
+  const q=contacts.filter(c=>c.scanStatus==='idle');if(!q.length)return;
+  running=true;setBtns(true);showProg();
+  for(let i=0;i<q.length;i++){
+    await scanOne(q[i]);
+    setProg((i+1)/q.length*100);
+  }
+  running=false;setBtns(false);hideProg();setPhase(2);
+  const n=contacts.filter(c=>c.scanStatus==='scanned').length;
+  toast(`Skenovanie hotové — chyby na ${n} weboch`);
+}
+
+async function genOne(id){
+  const c=contacts.find(x=>x.id===id);if(!c?.issues?.trim())return;
+  upd(id,{emailStatus:'generating'});renderRow(id);
+  try{
+    const txt=await callApi(EMAIL_SYS,
+      `Firma: ${c.title}\nDoména: ${c.domain}\nKategória: ${c.cat||'lokálna firma'}\nProblémy nájdené na webe:\n${c.issues}\n\nNapíš cold email.`);
+    upd(id,{emailStatus:'done',emailText:txt});
+  }catch{upd(id,{emailStatus:'idle'})}
+  renderRow(id);updStats();
+}
+
+async function genAll(){
+  if(running)return;
+  const q=contacts.filter(c=>c.scanStatus==='scanned'&&c.emailStatus==='idle'&&c.issues?.trim());
+  if(!q.length)return;
+  running=true;setBtns(true);showProg();
+  for(let i=0;i<q.length;i++){
+    upd(q[i].id,{emailStatus:'generating'});renderRow(q[i].id);
+    try{
+      const txt=await callApi(EMAIL_SYS,
+        `Firma: ${q[i].title}\nDoména: ${q[i].domain}\nKategória: ${q[i].cat||'lokálna firma'}\nProblémy:\n${q[i].issues}\n\nNapíš cold email.`);
+      upd(q[i].id,{emailStatus:'done',emailText:txt});
+    }catch{upd(q[i].id,{emailStatus:'idle'})}
+    renderRow(q[i].id);updStats();setProg((i+1)/q.length*100);
+  }
+  running=false;setBtns(false);hideProg();setPhase(3);
+  toast(`Hotovo! ${contacts.filter(c=>c.emailStatus==='done').length} emailov vygenerovaných`);
+}
+
+/* ── EXPORT ──────────────────────────── */
+function doExport(){
+  const done=contacts.filter(c=>c.emailStatus==='done'&&c.emailText);if(!done.length)return;
+  const q=s=>`"${(s||'').replace(/"/g,'""')}"`;
+  const rows=done.map(c=>{
+    const ls=c.emailText.split('\n');
+    const sl=ls.find(l=>/^predmet:/i.test(l));
+    const subj=sl?sl.replace(/^predmet:\s*/i,'').trim():`Návrh na vylepšenie webu ${c.domain}`;
+    const body=ls.filter(l=>!/^predmet:/i.test(l)).join('\n').trim();
+    return[q(c.email),q(c.title),q(c.domain),q(subj),q(body)].join(',');
+  });
+  const csv=['Email,Firma,Domena,Predmet,Telo emailu',...rows].join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:`dacmg-${Date.now()}.csv`});
+  a.click();
+  toast(`Exportovaných ${done.length} emailov`);
+}
+
+/* ── RENDER ──────────────────────────── */
+function updStats(){
+  const t=contacts.length,
+    s=contacts.filter(c=>c.scanStatus==='scanned').length,
+    e=contacts.filter(c=>c.emailStatus==='done').length,
+    sk=contacts.filter(c=>c.scanStatus==='skip'||c.scanStatus==='ok').length,
+    idle=contacts.filter(c=>c.scanStatus==='idle').length,
+    ungen=contacts.filter(c=>c.scanStatus==='scanned'&&c.emailStatus==='idle'&&c.issues?.trim()).length;
+  document.getElementById('sv-t').textContent=t;
+  document.getElementById('sv-s').textContent=s;
+  document.getElementById('sv-e').textContent=e;
+  document.getElementById('sv-sk').textContent=sk;
+  document.getElementById('np-t').textContent=t;
+  document.getElementById('np-s').textContent=s;
+  document.getElementById('np-e').textContent=e;
+  const bs=document.getElementById('b-scan');
+  const bg=document.getElementById('b-gen');
+  const be=document.getElementById('b-exp');
+  if(bs){bs.disabled=running||idle===0;bs.textContent=idle>0?`🔍 Skenovať (${idle})`:'🔍 Skenovať'}
+  if(bg){bg.disabled=running||ungen===0;bg.textContent=ungen>0?`✉ Generovať (${ungen})`:'✉ Generovať'}
+  if(be)be.disabled=e===0;
+}
+function setBtns(d){['b-scan','b-gen'].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=d})}
+function showProg(){document.getElementById('prog').style.display='block'}
+function hideProg(){setTimeout(()=>{document.getElementById('prog').style.display='none';setProg(0)},700)}
+function setProg(v){document.getElementById('pbar').style.width=v+'%'}
+
+function setF(f,el){
+  curFilt=f;
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');renderTbl();
+}
+function getRows(){
+  const q=(document.getElementById('search')?.value||'').toLowerCase();
+  let r=contacts;
+  if(q)r=r.filter(c=>c.title.toLowerCase().includes(q)||c.domain.toLowerCase().includes(q));
+  if(curFilt==='scanned')r=r.filter(c=>c.scanStatus==='scanned');
+  if(curFilt==='done')r=r.filter(c=>c.emailStatus==='done');
+  if(curFilt==='skip')r=r.filter(c=>c.scanStatus==='skip'||c.scanStatus==='ok');
+  return r;
+}
+function badge(s){
+  return({
+    idle:       `<span class="bdg bi">—</span>`,
+    scanning:   `<span class="bdg bs">⟳ Skenujem…</span>`,
+    scanned:    `<span class="bdg bsc">✓ Chyby</span>`,
+    skip:       `<span class="bdg bsk">✗ Skip</span>`,
+    ok:         `<span class="bdg bwarn">● OK</span>`,
+    generating: `<span class="bdg bg2">⟳ Generujem…</span>`,
+    done:       `<span class="bdg bdone">✓ Hotový</span>`,
+  })[s]||`<span class="bdg bi">—</span>`;
+}
+function rowHTML(c){
+  const isSkip=c.scanStatus==='skip'||c.scanStatus==='ok';
+  const issues=isSkip
+    ?`<div class="sk-note">${c.scanStatus==='skip'?'Web nedostupný':'Bez výrazných chýb'}</div>`
+    :`<textarea class="ta${c.issues?' has':''}" placeholder="${c.scanStatus==='scanning'?'Skenujem…':'Chyby sa doplnia po skenovaní…'}" oninput="iUpd(${c.id},this.value)">${esc(c.issues)}</textarea>`;
+  const sc=badge(c.scanStatus)+(c.scanStatus==='idle'
+    ?`<button class="cbtn cbsc" onclick="scanOne(contacts.find(x=>x.id===${c.id}))" ${running?'disabled':''}>Skenovať</button>`:'');
+  const em=c.emailStatus==='done'
+    ?badge('done')+`<button class="cbtn cbv" onclick="mOpen(${c.id})">Zobraziť</button>`
+    :c.emailStatus==='generating'?badge('generating')
+    :badge(c.emailStatus)+`<button class="cbtn cbg" onclick="genOne(${c.id})" ${(!c.issues?.trim()||running)?'disabled':''}>Generovať</button>`;
+  return `<div class="row" data-id="${c.id}">
+    <div><div class="rn">${esc(c.title)}</div><div class="rc">${esc(c.cat||'')}</div></div>
+    <div class="rd">${esc(c.domain)}</div>
+    <div class="rm">${esc(c.email)}</div>
+    <div>${issues}</div>
+    <div class="col">${sc}</div>
+    <div class="col">${em}</div>
+  </div>`;
+}
+function renderTbl(){
+  const rows=getRows();
+  document.getElementById('tbl').innerHTML=rows.length
+    ?rows.map(rowHTML).join('')
+    :'<div class="empty">Žiadne záznamy pre zvolený filter.</div>';
+}
+function renderRow(id){
+  const c=contacts.find(x=>x.id===id);if(!c)return;
+  const el=document.querySelector(`[data-id="${id}"]`);
+  if(el){const t=document.createElement('div');t.innerHTML=rowHTML(c);el.replaceWith(t.firstChild)}
+}
+function iUpd(id,v){
+  const o=contacts.find(c=>c.id===id);
+  upd(id,{issues:v,emailStatus:o?.emailStatus==='done'?'idle':o?.emailStatus});
+  updStats();
+}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+/* ── MODAL ───────────────────────────── */
+function mOpen(id){
+  mC=contacts.find(c=>c.id===id);if(!mC)return;
+  document.getElementById('m-name').textContent=mC.title;
+  document.getElementById('m-sub').textContent=`${mC.email} · ${mC.domain}`;
+  document.getElementById('m-txt').textContent=mC.emailText;
+  document.getElementById('modal').classList.add('on');
+}
+function mClose(e){if(e.target.id==='modal')mCD()}
+function mCD(){document.getElementById('modal').classList.remove('on');mC=null}
+function mCopy(){
+  if(!mC)return;
+  navigator.clipboard.writeText(mC.emailText)
+    .then(()=>toast('Skopírované! ✓'))
+    .catch(()=>toast('Kopírovanie zlyhalo.'));
+}
+
+/* ── TOAST ───────────────────────────── */
+let tt;
+function toast(msg){
+  const el=document.getElementById('toast');
+  document.getElementById('toast-txt').textContent=msg;
+  el.classList.add('on');clearTimeout(tt);
+  tt=setTimeout(()=>el.classList.remove('on'),3800);
+}
+</script>
+</body>
+</html>

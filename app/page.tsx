@@ -130,8 +130,8 @@ const PROJECTS_DATA: ProjectSchema[] = [
 ];
 
 const PRICING_DATA: PricingSchema[] = [
-  { id: "landing", title: "Landing Page", price: "od 600 €", description: "Perfektné pre overenie nápadu, zber leadov alebo predaj jedného produktu.", features: ["Jednostránková štruktúra", "Responzívny UX dizajn", "Kontaktný formulár", "Základné SEO nastavenie", "Rýchlosť pod 1 sekundu"] },
-  { id: "business", title: "Firemný Web", price: "od 1 400 €", description: "Komplexná prezentácia firmy, ktorá buduje dôveru a automatizuje procesy.", isPopular: true, features: ["Viacstránková architektúra", "Prémiové GSAP animácie", "Pokročilé technické SEO", "Napojenie na Headless CMS", "Analytika a GDPR compliance"] },
+  { id: "landing", title: "Landing Page", price: "od 300 €", description: "Perfektné pre overenie nápadu, zber leadov alebo predaj jedného produktu.", features: ["Jednostránková štruktúra", "Responzívny UX dizajn", "Kontaktný formulár", "Základné SEO nastavenie", "Rýchlosť pod 1 sekundu"] },
+  { id: "business", title: "Firemný Web", price: "od 600 €", description: "Komplexná prezentácia firmy, ktorá buduje dôveru a automatizuje procesy.", isPopular: true, features: ["Viacstránková architektúra", "Prémiové GSAP animácie", "Pokročilé technické SEO", "Napojenie na Headless CMS", "Analytika a GDPR compliance"] },
   { id: "app", title: "Individuálne", price: "Na mieru", description: "Webové aplikácie, portály, rozsiahle e-shopy a zložité integrácie.", features: ["React / Next.js vývoj", "Návrh databázy", "Autentifikácia používateľov", "Integrácie platobných brán", "API vývoj"] }
 ];
 
