@@ -4,6 +4,7 @@ import "./globals.css";
 
 // 1. IMPORT PRÉMIOVÉHO KURZORA (Uisti sa, že máš tento súbor vytvorený)
 import CustomCursor from "@/components/ui/CustomCursor";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // Optimalizácia fontu (displey: swap zaručí rýchlejšie načítanie textu, will-change GPU akceleráciu)
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: '--font-inter' });
@@ -105,6 +106,7 @@ export default function RootLayout({
         {children}
         {/* 2. NOISE OVERLAY - PRIDANÉ TU */}
       <div className="noise-overlay" />
+      <SpeedInsights />
       </body>
     </html>
   );
