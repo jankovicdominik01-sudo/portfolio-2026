@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MATROUNIT — Vizitka</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --neon: #00FF94;
+      --dark: #0a0a0a;
+      --w: 820px;
+      --h: 456px;   /* 9:5 pomer */
+    }
+
+    body {
+      background: #080808;
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Ambient pozadie */
+    .bg-glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse 70% 50% at 50% 50%,
+        rgba(0,255,148,0.028) 0%, transparent 70%);
+      animation: ambientPulse 6s ease-in-out infinite;
+    }
+    @keyframes ambientPulse {
+      0%, 100% { opacity: 0.55; }
+      50%       { opacity: 1; }
+    }
+
+    /* Scene – perspektíva */
+    .scene {
+      perspective: 1600px;
+      perspective-origin: 50% 50%;
+      cursor: pointer;
+    }
+
+    /* Tilt wrapper – náklon myšou, rýchla CSS transition */
+    .tilt-wrap {
+      transform-style: preserve-3d;
+      transition: transform 0.14s ease-out;
+      will-change: transform;
+    }
+
+    /* Flipper – flip cez CSS transition, žiadny RAF */
+    .flipper {
+      width:  var(--w);
+      height: var(--h);
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.72s cubic-bezier(0.42, 0, 0.18, 1.0);
+      will-change: transform;
+    }
+
+    /* ── Obe strany ──
+       KRITICKÉ: overflow: clip namiesto hidden!
+       hidden vytvára stacking context → bije backface-visibility → premietanie.
+       clip clipuje obsah ale NEVYTVÁRA stacking context.          */
+    .face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      overflow: clip;
+    }
+
+    /* Shimmer overlay – sleduje myš, BEZ mix-blend-mode (ten tiež bije 3D) */
+    .face::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle at var(--mx, 50%) var(--my, 50%),
+        rgba(255,255,255,0.06) 0%,
+        transparent 52%
+      );
+      pointer-events: none;
+    }
+
+    /* Zadná strana – pre-rotovaná */
+    .back-face { transform: rotateY(180deg); }
+
+
+    /* ════════════════════════════
+       PREDNÁ STRANA
+    ════════════════════════════ */
+    .front-face {
+      background: var(--dark);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 36px 44px 32px;
+      box-shadow: 0 50px 120px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    .top-line {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg,
+        transparent 0%, var(--neon) 15%, var(--neon) 85%, transparent 100%);
+      box-shadow: 0 0 14px rgba(0,255,148,0.55);
+    }
+
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 22px 22px;
+      pointer-events: none;
+    }
+
+    .wm {
+      position: absolute;
+      right: -18px;
+      bottom: -70px;
+      font-size: 400px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.016);
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .front-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo-img   { height: 72px; width: auto; display: block; }
+    .logo-text  {
+      font-size: 40px; font-weight: 700;
+      color: #fff; letter-spacing: 0.12em;
+      text-transform: uppercase; line-height: 1;
+      display: none;
+    }
+    .logo-text .n { color: var(--neon); }
+    .tagline {
+      font-size: 10.5px; margin-top: 8px;
+      color: rgba(255,255,255,0.26);
+      letter-spacing: 0.2em; text-transform: uppercase;
+    }
+
+    .qr { width: 84px; height: 84px; opacity: 0.5; flex-shrink: 0; }
+    .qr img { width: 100%; height: 100%; filter: invert(1); image-rendering: pixelated; }
+
+    .front-mid {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dash { width: 36px; height: 1px; background: rgba(0,255,148,0.38); }
+    .dot  { width: 4px; height: 4px; border-radius: 50%; background: var(--neon); opacity: 0.45; }
+
+    .front-bot {
+      position: relative; z-index: 1;
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+
+    .contacts { display: flex; flex-direction: column; gap: 7px; }
+    .cr       { display: flex; align-items: baseline; gap: 10px; }
+    .cl {
+      font-size: 9px; font-weight: 600;
+      color: var(--neon); letter-spacing: 0.18em;
+      text-transform: uppercase; width: 30px; flex-shrink: 0;
+    }
+    .cv { font-size: 14px; color: rgba(255,255,255,0.52); letter-spacing: 0.02em; }
+
+    .addr { text-align: right; }
+    .addr p { font-size: 12px; color: rgba(255,255,255,0.2); letter-spacing: 0.05em; line-height: 1.75; }
+
+
+    /* ════════════════════════════
+       ZADNÁ STRANA – dark premium
+    ════════════════════════════ */
+    .back-face {
+      background: #0d0d0d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      box-shadow: 0 50px 120px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    /* Neon rohové značky – všetky 4 rohy */
+    .back-face .corner {
+      position: absolute;
+      width: 18px; height: 18px;
+    }
+    .back-face .corner::before,
+    .back-face .corner::after {
+      content: '';
+      position: absolute;
+      background: var(--neon);
+    }
+    .back-face .corner::before { width: 100%; height: 1.5px; top: 0; left: 0; }
+    .back-face .corner::after  { width: 1.5px; height: 100%; top: 0; left: 0; }
+
+    .back-face .corner.tl { top: 22px;    left: 22px; }
+    .back-face .corner.tr { top: 22px;    right: 22px;  transform: scaleX(-1); }
+    .back-face .corner.bl { bottom: 22px; left: 22px;   transform: scaleY(-1); }
+    .back-face .corner.br { bottom: 22px; right: 22px;  transform: scale(-1); }
+
+    /* Veľké M – neon monogram */
+    .back-m {
+      font-size: 130px;
+      font-weight: 700;
+      color: var(--neon);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      position: relative; z-index: 1;
+    }
+
+    /* Tenká linka */
+    .back-rule {
+      width: 52px; height: 1.5px;
+      background: rgba(0,255,148,0.3);
+      margin: 14px 0 16px;
+      position: relative; z-index: 1;
+    }
+
+    /* Názov firmy */
+    .back-name {
+      font-size: 15px; font-weight: 600;
+      color: rgba(255,255,255,0.7);
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      position: relative; z-index: 1;
+    }
+
+    /* s.r.o. + web */
+    .back-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,0.22);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-top: 6px;
+      position: relative; z-index: 1;
+    }
+    .back-sub span { color: rgba(0,255,148,0.45); }
+
+
+    /* ════════════════════════════
+       UI hinty
+    ════════════════════════════ */
+    .ui-bar {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+
+    .hint {
+      font-size: 9px;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.14);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .side-label {
+      font-size: 9px;
+      letter-spacing: 0.48em;
+      text-transform: uppercase;
+      color: rgba(0,255,148,0.45);
+      min-width: 130px;
+      text-align: center;
+      transition: color 0.4s;
+    }
+
+    .print-btn {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      padding: 10px 20px;
+      border: 1px solid rgba(0,255,148,0.22);
+      color: rgba(0,255,148,0.4);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 8.5px;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.25s;
+      z-index: 100;
+    }
+    .print-btn:hover {
+      border-color: var(--neon);
+      color: var(--neon);
+      box-shadow: 0 0 24px rgba(0,255,148,0.12);
+    }
+
+
+    /* ════════════════════════════
+       PRINT – Ctrl+P
+    ════════════════════════════ */
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body { display: block !important; background: #111 !important; padding: 0 !important; margin: 0 !important; }
+      .bg-glow, .ui-bar, .print-btn { display: none !important; }
+      .scene { display: none !important; }
+      .print-pages { display: block !important; }
+
+      /* Každá strana = celá A4 stránka, karta vystredená */
+      .print-page {
+        width: 21cm;
+        height: 29.7cm;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        page-break-after: always;
+      }
+      .print-page.pg-front { background: #111 !important; }
+      .print-page.pg-back  { background: #00b86b !important; }
+
+      /* Karta – fyzické rozmery 9×5cm */
+      .print-front {
+        width: 9cm; height: 5cm;
+        background: #0a0a0a !important;
+        display: flex; flex-direction: column; justify-content: space-between;
+        padding: 0.38cm 0.46cm 0.34cm;
+        position: relative; overflow: hidden;
+        box-shadow: 0 0 0 0.5px rgba(255,255,255,0.1);
+      }
+      .print-back {
+        width: 9cm; height: 5cm;
+        background: #00FF94 !important;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 0.06cm;
+        position: relative; overflow: hidden;
+      }
+    }
+    @media screen { .print-pages { display: none; } }
+  </style>
+</head>
+<body>
+
+  <div class="bg-glow"></div>
+
+  <div class="scene" id="scene">
+    <div class="tilt-wrap" id="tiltWrap">
+    <div class="flipper" id="flipper">
+
+      <!-- PREDNÁ STRANA -->
+      <div class="face front-face">
+        <div class="top-line"></div>
+        <div class="grid-bg"></div>
+        <span class="wm">M</span>
+
+        <div class="front-top">
+          <div class="brand">
+            <img src="/logo.png" alt="MATROUNIT" class="logo-img"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+            <div class="logo-text">MATRO<span class="n">UNIT</span></div>
+            <p class="tagline">Sklad &amp; Logistika Suplementov</p>
+          </div>
+          <div class="qr">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://www.matrounit.sk&margin=0"
+              alt="QR" onerror="this.parentElement.style.display='none'" />
+          </div>
+        </div>
+
+        <div class="front-mid">
+          <div class="dash"></div><div class="dot"></div>
+        </div>
+
+        <div class="front-bot">
+          <div class="contacts">
+            <div class="cr"><span class="cl">Web</span><span class="cv">www.matrounit.sk</span></div>
+            <div class="cr"><span class="cl">Mail</span><span class="cv">info@matrounit.sk</span></div>
+            <div class="cr"><span class="cl">Tel</span><span class="cv">+421 034 123 456</span></div>
+          </div>
+          <div class="addr">
+            <p>Senická 42</p>
+            <p>905 01 Senica</p>
+            <p>Slovenská republika</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ZADNÁ STRANA -->
+      <div class="face back-face" id="backFace">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <div class="back-m">M</div>
+        <div class="back-rule"></div>
+        <p class="back-name">MATROUNIT</p>
+        <p class="back-sub"><span>s.r.o.</span> &nbsp;·&nbsp; matrounit.sk</p>
+      </div>
+
+    </div>
+    </div><!-- /tilt-wrap -->
+  </div>
+
+  <div class="ui-bar">
+    <span class="hint">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1"/>
+        <path d="M5.5 3v2.5l1.5 1" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+      </svg>
+      pohni myšou
+    </span>
+    <span class="side-label" id="sideLabel">Predná strana</span>
+    <span class="hint">
+      klikni pre otočenie
+      <svg width="13" height="11" viewBox="0 0 13 11" fill="none">
+        <path d="M9.5 1.5l3 2-3 2M3.5 5.5l-3 2 3 2M.5 7.5h5M7.5 3.5h5M4 3.5C4 2.1 5.1 1 6.5 1S9 2.1 9 3.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </span>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">Tlačiť &nbsp;/&nbsp; Ctrl+P</button>
+
+  <!-- PRINT verzia (flat, bez 3D) -->
+  <div class="print-pages">
+    <!-- PREDNÁ STRANA – A4 stránka, karta vystredená -->
+    <div class="print-page pg-front">
+    <div class="print-front">
+      <div style="position:absolute;top:0;left:0;right:0;height:1.2px;background:linear-gradient(90deg,transparent,#00FF94 20%,#00FF94 80%,transparent);"></div>
+      <div style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,0.05)1px,transparent 1px);background-size:0.25cm 0.25cm;pointer-events:none;"></div>
+      <div style="position:absolute;right:-0.15cm;bottom:-0.5cm;font-size:4.5cm;font-weight:700;color:rgba(255,255,255,0.02);line-height:1;font-family:'Space Grotesk',sans-serif;">M</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;">
+        <div>
+          <div style="font-size:0.34cm;font-weight:700;color:#fff;letter-spacing:0.12em;text-transform:uppercase;font-family:'Space Grotesk',sans-serif;">MATRO<span style="color:#00FF94;">UNIT</span></div>
+          <p style="font-size:0.16cm;margin-top:0.06cm;color:rgba(255,255,255,0.25);letter-spacing:0.18em;text-transform:uppercase;font-family:'Space Grotesk',sans-serif;">Sklad &amp; Logistika Suplementov</p>
+        </div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://www.matrounit.sk&margin=0" style="width:0.95cm;height:0.95cm;opacity:0.5;filter:invert(1);" />
+      </div>
+      <div style="display:flex;align-items:center;gap:0.1cm;position:relative;z-index:1;">
+        <div style="width:0.42cm;height:0.7px;background:rgba(0,255,148,0.4);"></div>
+        <div style="width:2px;height:2px;border-radius:50%;background:#00FF94;opacity:0.45;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;position:relative;z-index:1;">
+        <div style="display:flex;flex-direction:column;gap:0.08cm;">
+          <div style="display:flex;gap:0.1cm;"><span style="font-size:0.12cm;font-weight:600;color:#00FF94;letter-spacing:0.16em;text-transform:uppercase;width:0.34cm;font-family:'Space Grotesk',sans-serif;">Web</span><span style="font-size:0.145cm;color:rgba(255,255,255,0.5);font-family:'Space Grotesk',sans-serif;">www.matrounit.sk</span></div>
+          <div style="display:flex;gap:0.1cm;"><span style="font-size:0.12cm;font-weight:600;color:#00FF94;letter-spacing:0.16em;text-transform:uppercase;width:0.34cm;font-family:'Space Grotesk',sans-serif;">Mail</span><span style="font-size:0.145cm;color:rgba(255,255,255,0.5);font-family:'Space Grotesk',sans-serif;">info@matrounit.sk</span></div>
+          <div style="display:flex;gap:0.1cm;"><span style="font-size:0.12cm;font-weight:600;color:#00FF94;letter-spacing:0.16em;text-transform:uppercase;width:0.34cm;font-family:'Space Grotesk',sans-serif;">Tel</span><span style="font-size:0.145cm;color:rgba(255,255,255,0.5);font-family:'Space Grotesk',sans-serif;">+421 034 123 456</span></div>
+        </div>
+        <div style="text-align:right;">
+          <p style="font-size:0.13cm;color:rgba(255,255,255,0.18);letter-spacing:0.04em;line-height:1.7;font-family:'Space Grotesk',sans-serif;">Senická 42</p>
+          <p style="font-size:0.13cm;color:rgba(255,255,255,0.18);letter-spacing:0.04em;line-height:1.7;font-family:'Space Grotesk',sans-serif;">905 01 Senica</p>
+          <p style="font-size:0.13cm;color:rgba(255,255,255,0.18);letter-spacing:0.04em;line-height:1.7;font-family:'Space Grotesk',sans-serif;">Slovenská republika</p>
+        </div>
+      </div>
+    </div>
+    </div><!-- /print-page pg-front -->
+
+    <!-- ZADNÁ STRANA – A4 stránka, karta vystredená -->
+    <div class="print-page pg-back">
+    <div class="print-back">
+      <div style="position:absolute;top:0.18cm;left:0.18cm;width:0.2cm;height:0.2cm;background:rgba(0,0,0,0.14);"></div>
+      <div style="position:absolute;bottom:-0.2cm;right:-0.2cm;width:1.8cm;height:1.8cm;background:repeating-linear-gradient(-45deg,rgba(0,0,0,0.055)0px,rgba(0,0,0,0.055)3px,transparent 3px,transparent 11px);"></div>
+      <div style="font-size:0.5cm;font-weight:700;color:#0a0a0a;letter-spacing:0.07em;text-transform:uppercase;position:relative;z-index:1;font-family:'Space Grotesk',sans-serif;">MATROUNIT</div>
+      <div style="width:0.36cm;height:1.5px;background:rgba(0,0,0,0.2);margin:0.04cm 0;position:relative;z-index:1;"></div>
+      <p style="font-size:0.13cm;font-weight:500;color:rgba(0,0,0,0.32);letter-spacing:0.5em;text-transform:uppercase;position:relative;z-index:1;font-family:'Space Grotesk',sans-serif;">s.r.o.</p>
+      <p style="font-size:0.13cm;color:rgba(0,0,0,0.25);letter-spacing:0.22em;position:relative;z-index:1;margin-top:0.03cm;font-family:'Space Grotesk',sans-serif;">matrounit.sk</p>
+    </div>
+    </div><!-- /print-page pg-back -->
+  </div>
+
+
+  <script>
+    const scene     = document.getElementById('scene')
+    const tiltWrap  = document.getElementById('tiltWrap')
+    const flipper   = document.getElementById('flipper')
+    const frontFace = document.querySelector('.front-face')
+    const backFace  = document.getElementById('backFace')
+    const sideLabel = document.getElementById('sideLabel')
+
+    const FLIP_MS  = 720   // musí sedieť s CSS transition duration
+    const MAX_TILT = 13
+
+    let isFlipped   = false
+    let isFlipping  = false
+
+    // Predná viditeľná, zadná skrytá na štarte
+    backFace.style.visibility = 'hidden'
+
+    // ── FLIP – CSS transition, visibility swap uprostred ──────────────
+    scene.addEventListener('click', () => {
+      if (isFlipping) return
+      isFlipping = true
+      isFlipped  = !isFlipped
+
+      // Nastavíme cieľový uhol – CSS transition to dobeží sama
+      flipper.style.transform = `rotateY(${isFlipped ? 180 : 0}deg)`
+
+      // Uprostred flipu (pri 90°) vymeníme ktorá face je viditeľná
+      setTimeout(() => {
+        frontFace.style.visibility = isFlipped ? 'hidden' : 'visible'
+        backFace.style.visibility  = isFlipped ? 'visible' : 'hidden'
+      }, FLIP_MS / 2)
+
+      setTimeout(() => {
+        isFlipping = false
+      }, FLIP_MS)
+
+      sideLabel.textContent = isFlipped ? 'Zadná strana' : 'Predná strana'
+    })
+
+    // ── TILT – mousemove → tilt-wrap CSS transform ────────────────────
+    scene.addEventListener('mousemove', (e) => {
+      const rect = scene.getBoundingClientRect()
+      const cx = rect.left + rect.width  / 2
+      const cy = rect.top  + rect.height / 2
+      const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / (rect.width  * 0.55)))
+      const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / (rect.height * 0.55)))
+
+      const tx = -dy * MAX_TILT
+      const ty =  dx * MAX_TILT
+
+      tiltWrap.style.transform = `rotateX(${tx}deg) rotateY(${ty}deg)`
+
+      // Shimmer
+      const mx = ((e.clientX - rect.left) / rect.width  * 100).toFixed(1) + '%'
+      const my = ((e.clientY - rect.top)  / rect.height * 100).toFixed(1) + '%'
+      flipper.querySelectorAll('.face').forEach(f => {
+        f.style.setProperty('--mx', mx)
+        f.style.setProperty('--my', my)
+      })
+    })
+
+    scene.addEventListener('mouseleave', () => {
+      tiltWrap.style.transform = 'rotateX(0deg) rotateY(0deg)'
+    })
+  </script>
+</body>
+</html>

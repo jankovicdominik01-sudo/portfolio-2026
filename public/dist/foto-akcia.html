@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Foto na preukážku — MATROUNIT</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #f0f0f0;
+  font-family: 'Space Grotesk', Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 48px;
+  min-height: 100vh;
+}
+
+/* ── NOTE (screen only) ── */
+.note {
+  width: 794px;
+  max-width: 100%;
+  background: #fff3cd;
+  border-left: 3px solid #ffc107;
+  padding: 10px 16px;
+  font-size: 11px;
+  color: #664d03;
+  letter-spacing: 0.02em;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.note strong { font-weight: 600; }
+
+/* ── A4 SHEET ── */
+.sheet {
+  width: 794px;
+  height: 1123px;
+  background: #fff;
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 36px 20px;
+  flex-shrink: 0;
+}
+
+/* ── HEADER ── */
+.sh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1.5px solid #e8e8e8;
+  margin-bottom: 28px;
+}
+.sh-logo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: #0a0a0a;
+}
+.sh-logo em { color: #00b86b; font-style: normal; }
+.sh-title { text-align: center; }
+.sh-title h2 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #0a0a0a;
+}
+.sh-title p {
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 0.15em;
+  margin-top: 3px;
+}
+.sh-price {
+  background: #1a5fb4;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 8px 16px;
+  letter-spacing: 0.04em;
+}
+
+/* ── PHOTO GRID ── */
+.grid-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.grid-row {
+  display: flex;
+  gap: 0;
+}
+.grid-row + .grid-row { margin-top: 0; }
+
+/*
+  2.5cm × 3.0cm at 96dpi
+  2.5cm = 94.5px → 95px
+  3.0cm = 113.4px → 113px
+  spacing = 1px (just the outline creates visual separation)
+  5 cols × 3 rows = 15 photos
+*/
+.photo {
+  width: 95px;
+  height: 113px;
+  position: relative;
+  overflow: hidden;
+  /* Blue-white gradient background as required */
+  background: linear-gradient(
+    to bottom,
+    #1a5fb4 0%,
+    #4a90d9 35%,
+    #c8def5 72%,
+    #f0f7ff 100%
+  );
+  outline: 0.5px solid #c8c8c8;
+  flex-shrink: 0;
+}
+
+.photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* ── FOOTER ── */
+.sh-footer {
+  border-top: 1px solid #ececec;
+  padding-top: 12px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sh-footer p {
+  font-size: 8px;
+  color: #bbb;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* ── PRINT ── */
+@media print {
+  @page { size: A4 portrait; margin: 0; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { display: block !important; background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  .note { display: none; }
+  .sheet { box-shadow: none !important; transform: none !important; width: 21cm !important; height: 29.7cm !important; }
+}
+
+/* ── RESPONSIVE SCALE ── */
+@media (max-width: 860px) {
+  .sheet { transform-origin: top center; }
+}
+</style>
+</head>
+<body>
+
+<div class="sheet" id="sheet">
+
+  <!-- HEADER -->
+  <div class="sh-header">
+    <div class="sh-logo">MATRO<em>UNIT</em></div>
+    <div class="sh-title">
+      <h2>FOTO NA PREUKÁŽKU</h2>
+      <p>15 ks · rozmery 2,5 × 3,0 cm · 1 výtlačok</p>
+    </div>
+    <div class="sh-price">3,50 €</div>
+  </div>
+
+  <!-- GRID 5 × 3 = 15 fotiek -->
+  <!--
+    Zmeň src="/images/foto.jpg" na cestu k tvojej fotke.
+    Všetky obrázky môžu byť rovnaké — stačí jeden súbor.
+  -->
+  <div class="grid-area">
+    <div class="grid-row">
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+    </div>
+    <div class="grid-row">
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+    </div>
+    <div class="grid-row">
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+      <div class="photo"><img src="/images/foto.jpg" alt="" /></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="sh-footer">
+    <p>MATROUNIT s.r.o.</p>
+    <p>info@matrounit.sk · +421 034 123 456</p>
+    <p>Bratislava · Banská Bystrica · Senica</p>
+  </div>
+
+</div>
+
+<script>
+  // Auto-scale sheet to fit viewport on small screens
+  function fit() {
+    const sheet = document.getElementById('sheet')
+    const scale = Math.min((window.innerWidth - 32) / 794, 1)
+    sheet.style.transform = scale < 1 ? `scale(${scale})` : ''
+    sheet.style.marginBottom = scale < 1 ? `${(1123 * scale - 1123)}px` : ''
+  }
+  fit()
+  window.addEventListener('resize', fit)
+</script>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MATROUNIT — Plagát</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root { --neon: #00FF94; }
+
+body {
+  background: #161616;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px 48px;
+  min-height: 100vh;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.poster-wrap {
+  width: 794px;
+  height: 1123px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.poster {
+  position: absolute;
+  top: 0; left: 0;
+  width: 794px;
+  height: 1123px;
+  background: #0a0a0a;
+  transform-origin: top left;
+  padding: 48px 52px 44px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.p-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  flex-shrink: 0;
+}
+
+.logo-img {
+  height: 52px;
+  width: auto;
+  display: block;
+}
+/* textový fallback ak logo.png neexistuje */
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.logo-text em { color: var(--neon); font-style: normal; }
+
+.year {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: rgba(255,255,255,0.2);
+  text-transform: uppercase;
+}
+
+/* ── ACCENT LINE ── */
+.neon-line {
+  height: 1px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, var(--neon) 0%, rgba(0,255,148,0.15) 55%, transparent 100%);
+  margin-bottom: 52px;
+}
+
+/* ── HERO ── */
+.p-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.p-hero h1 {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1.0;
+  letter-spacing: -0.025em;
+  margin-bottom: 28px;
+}
+.p-hero h1 .muted { color: rgba(255,255,255,0.16); }
+.p-hero h1 .accent { color: var(--neon); }
+
+.tagline {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.28);
+  line-height: 2.2;
+}
+
+/* ── STATS ── */
+.p-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 28px 0;
+  margin-bottom: 40px;
+  flex-shrink: 0;
+}
+
+.stat {
+  padding: 0 24px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.stat:first-child { padding-left: 0; }
+.stat:last-child  { border-right: none; }
+
+.stat-num {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.stat-num sup {
+  font-size: 20px;
+  color: var(--neon);
+  font-weight: 700;
+  vertical-align: baseline;
+}
+.stat-lbl {
+  font-size: 8px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+}
+
+/* ── SERVICES ── */
+.p-services {
+  display: flex;
+  margin-bottom: 40px;
+  flex-shrink: 0;
+}
+.svc {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.svc-dot {
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: var(--neon);
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+.svc-lbl {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,0.05);
+  margin-bottom: 32px;
+  flex-shrink: 0;
+}
+
+/* ── FOOTER ── */
+.p-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.contact p {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.1em;
+  line-height: 2;
+}
+.contact .email { color: var(--neon); font-weight: 500; }
+.contact .cities {
+  margin-top: 8px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.15);
+}
+.legal {
+  text-align: right;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.12);
+  line-height: 2;
+}
+.legal .site {
+  display: block;
+  margin-top: 4px;
+  color: rgba(0,255,148,0.28);
+  font-weight: 500;
+}
+
+/* ── PRINT ── */
+@media print {
+  @page { size: A4 portrait; margin: 0; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body {
+    display: block !important;
+    background: #0a0a0a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100%;
+    height: 100%;
+  }
+  .poster-wrap {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+  }
+  .poster {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    transform: none !important;
+    background: #0a0a0a !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="poster-wrap" id="wrap">
+  <div class="poster" id="poster">
+
+    <!-- HEADER -->
+    <div class="p-header">
+      <!-- Logo obrázok — ak logo.png existuje, zobrazí sa -->
+      <img
+        src="/logo.png"
+        alt="MATROUNIT"
+        class="logo-img"
+        onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'"
+      />
+      <!-- textový fallback -->
+      <div class="logo-text" id="logo-text" style="display:none">
+        MATRO<em>UNIT</em>
+      </div>
+      <div class="year">2026</div>
+    </div>
+
+    <!-- NEON LINE -->
+    <div class="neon-line"></div>
+
+    <!-- HERO -->
+    <div class="p-hero">
+      <h1>
+        VAŠE<br>
+        SUPLEMENTY.<br>
+        <span class="muted">NAŠA</span><br>
+        <span class="accent">LOGISTIKA.</span>
+      </h1>
+      <p class="tagline">
+        B2B skladovanie · Expedícia do 24h<br>
+        Distribúcia pre fitness &amp; wellness industry SR
+      </p>
+    </div>
+
+    <!-- STATS -->
+    <div class="p-stats">
+      <div class="stat">
+        <div class="stat-num">10 000<sup>+</sup></div>
+        <div class="stat-lbl">Produktov</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">24<sup>h</sup></div>
+        <div class="stat-lbl">Expedícia</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">99,8<sup>%</sup></div>
+        <div class="stat-lbl">Presnosť</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">3<sup>×</sup></div>
+        <div class="stat-lbl">Prevádzky SR</div>
+      </div>
+    </div>
+
+    <!-- SERVICES -->
+    <div class="p-services">
+      <div class="svc"><div class="svc-dot"></div><span class="svc-lbl">B2B Skladovanie</span></div>
+      <div class="svc"><div class="svc-dot"></div><span class="svc-lbl">Expedícia 24h</span></div>
+      <div class="svc"><div class="svc-dot"></div><span class="svc-lbl">Pick &amp; Pack</span></div>
+      <div class="svc"><div class="svc-dot"></div><span class="svc-lbl">Krossdoking</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- FOOTER -->
+    <div class="p-footer">
+      <div class="contact">
+        <p class="email">info@matrounit.sk</p>
+        <p>+421 034 123 456</p>
+        <p class="cities">Bratislava · Banská Bystrica · Senica</p>
+      </div>
+      <div class="legal">
+        <div>IČO: 12 345 678</div>
+        <div>IČ DPH: SK2012345678</div>
+        <span class="site">matrounit.sk</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function fit() {
+    const vw = window.innerWidth - 32
+    const vh = window.innerHeight - 64
+    const scale = Math.min(vw / 794, vh / 1123, 1)
+    const wrap = document.getElementById('wrap')
+    const poster = document.getElementById('poster')
+    wrap.style.width  = Math.round(794 * scale) + 'px'
+    wrap.style.height = Math.round(1123 * scale) + 'px'
+    poster.style.transform = scale < 1 ? `scale(${scale})` : 'none'
+  }
+  fit()
+  window.addEventListener('resize', fit)
+</script>
+</body>
+</html>
