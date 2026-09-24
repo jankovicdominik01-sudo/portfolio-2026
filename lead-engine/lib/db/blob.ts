@@ -9,7 +9,7 @@ import { blobToken } from "./blob-token";
  * Vercel Blob (private) ako perzistentné úložisko pre testovací deploy.
  * Optimistická súbežnosť cez ETag — pri kolízii sa zápis zopakuje.
  */
-const PATH = process.env.LEAD_ENGINE_BLOB_PATH || "lead-engine/db.json";
+const PATH = process.env.LEAD_ENGINE_BLOB_PATH || "lead-engine/db-v2.json";
 
 /**
  * Hlavný súbor sa prepisuje s ifMatch (server garantuje konzistenciu), ale čítanie cez CDN
@@ -18,6 +18,9 @@ const PATH = process.env.LEAD_ENGINE_BLOB_PATH || "lead-engine/db.json";
  */
 const SNAP = PATH.replace(/\.json$/, "") + "-snap/";
 const snapPath = (etag: string) => `${SNAP}${etag.replace(/[^a-zA-Z0-9]/g, "")}.json`;
+
+const isConflict = (e: unknown) =>
+  e instanceof BlobPreconditionFailedError || (e instanceof Error && /precondition|etag mismatch/i.test(e.message));
 
 let last: { state: DbState; etag: string } | null = null;
 
@@ -56,7 +59,7 @@ export const blobBackend: DocumentBackend = {
       try {
         return (await load()).state;
       } catch (e) {
-        if (!(e instanceof BlobPreconditionFailedError) || attempt >= 8) throw e;
+        if (!isConflict(e) || attempt >= 8) throw e;
         await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
       }
     }
@@ -69,7 +72,7 @@ export const blobBackend: DocumentBackend = {
         await save(state, etag);
         return;
       } catch (e) {
-        if (e instanceof BlobPreconditionFailedError) {
+        if (isConflict(e)) {
           last = null;
           await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
           continue;
