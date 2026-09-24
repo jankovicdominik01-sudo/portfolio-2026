@@ -99,7 +99,9 @@ export function setupStatus(): { ready: boolean; persistent: boolean } {
     process.env.BLOB_READ_WRITE_TOKEN
   );
   if (process.env.NODE_ENV !== "production") return { ready: true, persistent: true };
-  return { ready: persistent && !!sessionSecret(), persistent };
+  // Testovací deploy bez úložiska: beží, ale dáta sú iba dočasné (upozornenie v UI).
+  const ephemeralOk = process.env.LEADY_ALLOW_EPHEMERAL === "1";
+  return { ready: (persistent || ephemeralOk) && !!sessionSecret(), persistent };
 }
 
 export async function currentUser(): Promise<SessionUser | null> {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Phone, Plus } from "lucide-react";
-import { requireUser, adminName } from "@/lead-engine/lib/auth";
+import { requireUser, adminName, setupStatus } from "@/lead-engine/lib/auth";
 import { listLeads } from "@/lead-engine/lib/leads";
 import { db } from "@/lead-engine/lib/db";
 import { fmtDateTime, greeting, isDue } from "@/lead-engine/lib/format";
@@ -61,6 +61,15 @@ export default async function TodayPage() {
               : "Začni tým, že pridáš prvú firmu."}
         </p>
       </FadeIn>
+
+      {!setupStatus().persistent ? (
+        <FadeIn delay={0.04} className="mt-6">
+          <div className="rounded-2xl bg-warn/[0.07] px-4 py-3 text-[13px] text-yellow-100/80 ring-1 ring-warn/20">
+            Testovací režim — dáta sa môžu pri reštarte servera stratiť. Pre trvalé ukladanie pripoj vo Verceli
+            Storage → Blob (Private) a daj Redeploy.
+          </div>
+        </FadeIn>
+      ) : null}
 
       {leads.length === 0 ? (
         <FadeIn delay={0.1} className="mt-10">

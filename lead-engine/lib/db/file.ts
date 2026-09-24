@@ -24,7 +24,7 @@ async function readFile(): Promise<DbState> {
 
 async function writeFile(s: DbState) {
   await fs.mkdir(path.dirname(FILE), { recursive: true });
-  const tmp = `${FILE}.${process.pid}.tmp`;
+  const tmp = `${FILE}.${process.pid}.${crypto.randomUUID()}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(s, null, 2));
   await fs.rename(tmp, FILE);
 }
