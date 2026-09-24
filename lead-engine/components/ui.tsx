@@ -8,7 +8,7 @@ import {
   type Priority,
   type Trust,
   type TrustLevel,
-} from "@/lead-engine/lib/types";
+} from "@/lib/types";
 
 export const cn = (...a: Parameters<typeof clsx>) => twMerge(clsx(...a));
 

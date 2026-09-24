@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { deleteOfferAction, saveOfferAction } from "@/app/leady/actions";
-import { CATEGORIES, categoryOf, type CategoryId, type Offer } from "@/lead-engine/lib/types";
+import { CATEGORIES, categoryOf, type CategoryId, type Offer } from "@/lib/types";
 import { Button, Field, inputClass, cn } from "./ui";
 
 export function OffersEditor({ offers }: { offers: Offer[] }) {

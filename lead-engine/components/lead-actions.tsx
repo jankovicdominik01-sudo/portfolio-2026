@@ -23,8 +23,8 @@ import {
   type DominikOutcome,
   type LeadStatus,
   type SessionUser,
-} from "@/lead-engine/lib/types";
-import { telHref } from "@/lead-engine/lib/format";
+} from "@/lib/types";
+import { telHref } from "@/lib/format";
 import { Button, ButtonLink, Field, inputClass, cn, type ButtonSize, type ButtonVariant } from "./ui";
 
 function Feedback({ msg }: { msg: { ok: boolean; message: string } | null }) {

@@ -5,9 +5,9 @@ Interný obchodný systém: **RESEARCH → CALL → HANDOFF → DEAL**.
 AI robí research a pripraví call brief → kamarát zavolá a zistí, či môže Dominik zavolať →
 Dominik dostane kvalifikovaný lead aj s tým, čo firma povedala, a s odporúčaným začiatkom hovoru.
 
-Beží na **djweby.sk/leady** v rámci projektu portfolio-2026, ale je izolovaný: vlastný layout a štýly
-(`app/leady/`), vlastná logika (`lead-engine/`), `proxy.ts` chráni iba `/leady/*`. Verejný web sa nemení
-(okrem toho, že vlastný kurzor sa na `/leady` nezobrazuje).
+Samostatná Next.js appka v priečinku `lead-engine/` — **nie je súčasťou webu djweby.sk**.
+Nasadzuje sa ako vlastný Vercel projekt s **Root Directory `lead-engine`**. Appka beží na ceste
+`/leady` (koreň `/` presmeruje na `/leady`).
 
 ## Stack
 
@@ -18,7 +18,7 @@ lucide-react, Inter, tmavé `#050505` + oranžový akcent. Navyše: zod (validá
 ## Architektúra
 
 ```
-app/leady/               routy pod djweby.sk/leady
+app/leady/               routy (/leady)
   layout.tsx, leady.css  vlastný vzhľad (scoped na .leady-root), noindex
   login/                 prihlásenie
   (app)/                 chránené stránky (proxy.ts + requireUser na serveri)
@@ -29,7 +29,7 @@ app/leady/               routy pod djweby.sk/leady
     pipeline/  inbox/  add/  settings/
   actions.ts             server actions (každá overuje rolu + validuje zod-om)
   api/v1/                API pre automatizáciu (Bearer LE_API_KEY)
-lead-engine/lib/
+lib/
   types.ts               doménový model (Company, Lead, CallLog, LeadEvent, Offer, Notification)
   leads.ts               use-cases: create/merge, analyze, logCallerCall, handoff, pipeline
   scoring.ts             trust (🟢🟡🔴), priorita (HOT/READY/CHECK/LOW), deduplikačné kľúče
@@ -85,17 +85,19 @@ tvrdenia bez platného evidence id sa zahodia, ponuka a cena sa berú výhradne 
 ## Lokálne
 
 ```bash
+cd lead-engine
 npm install
 npm run dev          # http://localhost:3000/leady · dominik/dominik, jozo/jozo
 ```
 
-## Nasadenie (Vercel, projekt portfolio-2026)
+## Nasadenie (Vercel)
 
-Jediný povinný krok: **Storage → Create → Blob (Private) → Connect to portfolio-2026 → Redeploy**.
-Vercel pridá `BLOB_READ_WRITE_TOKEN` — z neho sa odvodí aj podpisový kľúč session, takže netreba
-nastavovať nič ďalšie. Kým úložisko nie je pripojené, `/leady/login` ukazuje túto inštrukciu.
+1. Vercel → Add New → Project → import `portfolio-2026`, **Root Directory: `lead-engine`**.
+2. Storage → Create → Blob (Private) → Connect → Redeploy (trvalé dáta).
+   Bez toho beží v testovacom režime s upozornením.
+3. Settings → Domains: vlastná doména (napr. `leady.djweby.sk`, DNS CNAME na Vercel).
 
-Účty: bez `LE_USERS` platia predvolené účty `dominik` (admin) a `jozo` (volajúci) — v kóde sú iba
-scrypt hashe, heslá má Dominik. Voliteľné env: `LE_USERS`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`,
-`AI_MODEL`, `LE_API_KEY`, `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (pozri `.env.example`).
-Supabase má prednosť pred Blob úložiskom; schéma je v `supabase/migrations/0001_lead_engine.sql`.
+Podpisový kľúč session vzniká pri builde (`next.config.ts`), v repozitári nie je. Účty bez `LE_USERS`
+sú predvolené `dominik` (admin) a `jozo` (volajúci) — v kóde sú iba scrypt hashe.
+Voliteľné env: `LE_USERS`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `LE_API_KEY`,
+`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (pozri `.env.example`).

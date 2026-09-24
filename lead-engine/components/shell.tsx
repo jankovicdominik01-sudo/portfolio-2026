@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/leady/actions";
-import type { SessionUser } from "@/lead-engine/lib/types";
+import type { SessionUser } from "@/lib/types";
 import { NavLinks, MobileTabs } from "./nav";
 import { SearchPalette } from "./search";
 

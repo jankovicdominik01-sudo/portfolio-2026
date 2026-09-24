@@ -9,7 +9,7 @@ import type { Role, SessionUser } from "./types";
 type UserRecord = SessionUser & { password: string };
 
 /**
- * Predvolené účty pre djweby.sk/leady. Repozitár je verejný, preto tu sú iba
+ * Predvolené účty Lead Engine. Repozitár je verejný, preto tu sú iba
  * scrypt hashe (heslá má Dominik). Prepíše ich env LE_USERS.
  */
 const DEFAULT_USERS: UserRecord[] = [

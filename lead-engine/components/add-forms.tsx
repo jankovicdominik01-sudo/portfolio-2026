@@ -4,7 +4,7 @@ import { useActionState, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { FileUp, Loader2, Plus } from "lucide-react";
 import { createLeadAction, importAction, type ImportResult } from "@/app/leady/actions";
-import { CATEGORIES } from "@/lead-engine/lib/types";
+import { CATEGORIES } from "@/lib/types";
 import { Button, Field, inputClass, cn } from "./ui";
 
 export function NewLeadForm() {

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Loader2, Phone } from "lucide-react";
 import { callerCallAction } from "@/app/leady/actions";
-import { OUTCOME_LABEL, type CallOutcome, type CallWhen } from "@/lead-engine/lib/types";
-import { telHref } from "@/lead-engine/lib/format";
+import { OUTCOME_LABEL, type CallOutcome, type CallWhen } from "@/lib/types";
+import { telHref } from "@/lib/format";
 import { Button, ButtonLink, Eyebrow, inputClass, cn } from "./ui";
 import { SuccessMark } from "./motion";
 

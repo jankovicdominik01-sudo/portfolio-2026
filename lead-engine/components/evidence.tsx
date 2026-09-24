@@ -1,4 +1,4 @@
-import type { Claim, Evidence } from "@/lead-engine/lib/types";
+import type { Claim, Evidence } from "@/lib/types";
 
 const SOURCE_LABEL: Record<Evidence["source"], string> = {
   web: "Overené z webu",

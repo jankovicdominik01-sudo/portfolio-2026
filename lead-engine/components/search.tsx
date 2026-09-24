@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search } from "lucide-react";
-import { STATUS_LABEL, categoryOf, type LeadStatus } from "@/lead-engine/lib/types";
+import { STATUS_LABEL, categoryOf, type LeadStatus } from "@/lib/types";
 import { Kbd, cn } from "./ui";
 
 type Item = {

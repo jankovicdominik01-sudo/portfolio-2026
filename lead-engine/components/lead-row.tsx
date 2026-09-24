@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { NEXT_ACTIONS, categoryOf, type LeadWithCompany, type NextAction } from "@/lead-engine/lib/types";
-import { fmtRelative, isDue } from "@/lead-engine/lib/format";
+import { NEXT_ACTIONS, categoryOf, type LeadWithCompany, type NextAction } from "@/lib/types";
+import { fmtRelative, isDue } from "@/lib/format";
 import { PriorityTag, StatusPill, cn } from "./ui";
 
 /** Jeden riadok leadu: firma + ďalší krok. Žiadna tabuľka so 40 stĺpcami. */

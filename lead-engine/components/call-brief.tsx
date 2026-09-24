@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Phone } from "lucide-react";
-import { categoryOf, type LeadDetail } from "@/lead-engine/lib/types";
-import { telHref } from "@/lead-engine/lib/format";
+import { categoryOf, type LeadDetail } from "@/lib/types";
+import { telHref } from "@/lib/format";
 import { Card, Eyebrow, Section, buttonClass, cn } from "./ui";
 import { FadeIn } from "./motion";
 import { SourceTag } from "./evidence";

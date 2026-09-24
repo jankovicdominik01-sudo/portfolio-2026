@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { categoryOf, type LeadWithCompany, type SessionUser } from "@/lead-engine/lib/types";
-import { fmtRelative, isDue } from "@/lead-engine/lib/format";
+import { categoryOf, type LeadWithCompany, type SessionUser } from "@/lib/types";
+import { fmtRelative, isDue } from "@/lib/format";
 import { Card, EmptyState, Eyebrow, buttonClass } from "./ui";
 import { FadeIn, Stagger, StaggerItem } from "./motion";
 
