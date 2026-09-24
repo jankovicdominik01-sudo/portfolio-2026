@@ -1,7 +1,7 @@
 import "server-only";
 import type { Repository } from "./types";
 import { documentRepository } from "./document";
-import { blobToken } from "./blob-token";
+import { blobConfigured } from "./blob-token";
 
 let repo: Repository | null = null;
 
@@ -18,7 +18,7 @@ export async function db(): Promise<Repository> {
   if (url && key) {
     const { supabaseRepository } = await import("./supabase");
     repo = supabaseRepository(url, key);
-  } else if (blobToken()) {
+  } else if (blobConfigured()) {
     const { blobBackend } = await import("./blob");
     repo = documentRepository(blobBackend);
   } else {

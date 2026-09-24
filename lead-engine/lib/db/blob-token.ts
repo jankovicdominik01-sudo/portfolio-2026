@@ -10,6 +10,11 @@ export function blobToken(): string | undefined {
   return undefined;
 }
 
+/** Blob je pripojený: buď RW token, alebo nové OIDC pripojenie (BLOB_STORE_ID + VERCEL_OIDC_TOKEN). */
+export function blobConfigured(): boolean {
+  return !!(blobToken() || process.env.BLOB_STORE_ID);
+}
+
 /** Iba názvy premenných (nikdy hodnoty) — na diagnostiku, prečo sa Blob nenašiel. */
 export function blobEnvNames(): string[] {
   return Object.keys(process.env).filter((k) => /BLOB|READ_WRITE_TOKEN|STORE_ID/i.test(k));
