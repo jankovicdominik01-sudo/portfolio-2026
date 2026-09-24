@@ -5,8 +5,10 @@ import type { DocumentBackend } from "./document";
 import { emptyState, type DbState } from "./types";
 import { seedState } from "./seed";
 
-/** Lokálny vývoj: stav v .data/db.json (prežije reštart dev servera). */
-const FILE = path.join(process.cwd(), ".data", "db.json");
+/** Lokálny vývoj: stav v .data/db.json (prežije reštart dev servera). Na Verceli iba /tmp (dočasné). */
+const FILE = process.env.VERCEL
+  ? path.join("/tmp", "leady", "db.json")
+  : path.join(process.cwd(), ".data", "leady-db.json");
 
 let queue: Promise<unknown> = Promise.resolve();
 

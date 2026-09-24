@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search } from "lucide-react";
-import { STATUS_LABEL, categoryOf, type LeadStatus } from "@/lib/types";
+import { STATUS_LABEL, categoryOf, type LeadStatus } from "@/lead-engine/lib/types";
 import { Kbd, cn } from "./ui";
 
 type Item = {
@@ -36,7 +36,7 @@ export function SearchPalette({ compact }: { compact?: boolean }) {
     setOpen(true);
     setQ("");
     setActive(0);
-    fetch("/api/v1/search", { cache: "no-store" })
+    fetch("/leady/api/v1/search", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((d) => setItems(d.items))
       .catch(() => setItems([]));
@@ -73,7 +73,7 @@ export function SearchPalette({ compact }: { compact?: boolean }) {
 
   const go = (id: string) => {
     setOpen(false);
-    router.push(`/leads/${id}`);
+    router.push(`/leady/leads/${id}`);
   };
 
   return (

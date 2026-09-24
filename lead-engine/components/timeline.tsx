@@ -1,5 +1,5 @@
-import type { LeadEvent } from "@/lib/types";
-import { fmtDate, fmtTime } from "@/lib/format";
+import type { LeadEvent } from "@/lead-engine/lib/types";
+import { fmtDate, fmtTime } from "@/lead-engine/lib/format";
 import { cn } from "./ui";
 
 const DOT: Record<LeadEvent["kind"], string> = {

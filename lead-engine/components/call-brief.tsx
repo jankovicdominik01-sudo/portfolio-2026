@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Phone } from "lucide-react";
-import { categoryOf, type LeadDetail } from "@/lib/types";
-import { telHref } from "@/lib/format";
+import { categoryOf, type LeadDetail } from "@/lead-engine/lib/types";
+import { telHref } from "@/lead-engine/lib/format";
 import { Card, Eyebrow, Section, buttonClass, cn } from "./ui";
 import { FadeIn } from "./motion";
 import { SourceTag } from "./evidence";
@@ -128,7 +128,7 @@ export function CallBrief({ lead, mode }: { lead: LeadDetail; mode: "caller" | "
       {/* Obrovské CTA — vždy po ruke na mobile */}
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-4 pt-8 pb-[max(16px,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-[640px]">
-          <Link href={`/leads/${lead.id}/call`} className={buttonClass("brand", "xl", "w-full")}>
+          <Link href={`/leady/leads/${lead.id}/call`} className={buttonClass("brand", "xl", "w-full")}>
             <Phone className="size-5" /> VOLÁM
           </Link>
         </div>

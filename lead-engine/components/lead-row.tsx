@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { NEXT_ACTIONS, categoryOf, type LeadWithCompany, type NextAction } from "@/lib/types";
-import { fmtRelative, isDue } from "@/lib/format";
+import { NEXT_ACTIONS, categoryOf, type LeadWithCompany, type NextAction } from "@/lead-engine/lib/types";
+import { fmtRelative, isDue } from "@/lead-engine/lib/format";
 import { PriorityTag, StatusPill, cn } from "./ui";
 
 /** Jeden riadok leadu: firma + ďalší krok. Žiadna tabuľka so 40 stĺpcami. */
@@ -12,7 +12,7 @@ export function LeadRow({ lead, showStatus = false }: { lead: LeadWithCompany; s
   const due = lead.next_action_at && !isDue(lead.next_action_at) ? fmtRelative(lead.next_action_at) : null;
   return (
     <Link
-      href={`/leads/${lead.id}`}
+      href={`/leady/leads/${lead.id}`}
       className="group flex items-center gap-4 rounded-2xl px-3 py-3 transition-colors hover:bg-white/[0.035] sm:px-4"
     >
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.04] text-lg ring-1 ring-inset ring-line">

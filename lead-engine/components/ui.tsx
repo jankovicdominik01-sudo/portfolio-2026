@@ -8,7 +8,7 @@ import {
   type Priority,
   type Trust,
   type TrustLevel,
-} from "@/lib/types";
+} from "@/lead-engine/lib/types";
 
 export const cn = (...a: Parameters<typeof clsx>) => twMerge(clsx(...a));
 
@@ -267,7 +267,7 @@ export function Field({
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded-md bg-white/[0.06] px-1.5 py-0.5 font-sans text-[11px] text-white/50 ring-1 ring-inset ring-line">
+    <kbd className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] text-white/50 ring-1 ring-inset ring-line">
       {children}
     </kbd>
   );

@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Loader2, Phone } from "lucide-react";
-import { callerCallAction } from "@/app/actions";
-import { OUTCOME_LABEL, type CallOutcome, type CallWhen } from "@/lib/types";
-import { telHref } from "@/lib/format";
+import { callerCallAction } from "@/app/leady/actions";
+import { OUTCOME_LABEL, type CallOutcome, type CallWhen } from "@/lead-engine/lib/types";
+import { telHref } from "@/lead-engine/lib/format";
 import { Button, ButtonLink, Eyebrow, inputClass, cn } from "./ui";
 import { SuccessMark } from "./motion";
 
@@ -274,8 +274,8 @@ export function CallMode(props: {
             <p className="mt-2 text-[15px] text-white/45">
               {handoff ? "Dominik to má v inboxe aj s tým, čo firma povedala." : "Pokračuj ďalšou firmou."}
             </p>
-            <ButtonLink href={props.backHref === "/" ? "/" : props.backHref} variant="primary" size="lg" className="mt-10">
-              {props.backHref === "/" ? "Ďalšia firma" : "Späť na lead"}
+            <ButtonLink href={props.backHref === "/leady" ? "/leady" : props.backHref} variant="primary" size="lg" className="mt-10">
+              {props.backHref === "/leady" ? "Ďalšia firma" : "Späť na lead"}
             </ButtonLink>
           </motion.div>
         ) : null}

@@ -9,13 +9,24 @@ export const SESSION_TTL_S = 60 * 60 * 24 * 14; // 14 dní
 
 const enc = new TextEncoder();
 
-function secret(): string {
+/**
+ * Kľúč na podpis session. Poradie: SESSION_SECRET → token úložiska (Blob/Supabase).
+ * Token úložiska je tajný server-side env, ktorý Vercel doplní pri pripojení Blob
+ * store — netreba teda nastavovať nič navyše. Bez neho sa v produkcii neprihlási nikto.
+ */
+export function sessionSecret(): string | null {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 32) return s;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("SESSION_SECRET (min. 32 znakov) nie je nastavený.");
-  }
-  return "dev-only-secret-dev-only-secret-dev-only";
+  const storage = process.env.BLOB_READ_WRITE_TOKEN || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (storage && storage.length >= 24) return `le-session:${storage}`;
+  if (process.env.NODE_ENV !== "production") return "dev-only-secret-dev-only-secret-dev-only";
+  return null;
+}
+
+function secret(): string {
+  const s = sessionSecret();
+  if (!s) throw new Error("Lead Engine nemá nastavené úložisko ani SESSION_SECRET.");
+  return s;
 }
 
 function b64url(bytes: Uint8Array): string {
@@ -58,7 +69,7 @@ export async function signSession(user: SessionUser): Promise<string> {
 }
 
 export async function verifySession(token: string | undefined | null): Promise<SessionUser | null> {
-  if (!token) return null;
+  if (!token || !sessionSecret()) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   try {

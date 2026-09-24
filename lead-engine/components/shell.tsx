@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
-import { logoutAction } from "@/app/actions";
-import type { SessionUser } from "@/lib/types";
+import { logoutAction } from "@/app/leady/actions";
+import type { SessionUser } from "@/lead-engine/lib/types";
 import { NavLinks, MobileTabs } from "./nav";
 import { SearchPalette } from "./search";
 
 function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2.5" aria-label="Lead Engine — domov">
+    <Link href="/leady" className="flex items-center gap-2.5" aria-label="Lead Engine — domov">
       <span className="grid size-8 place-items-center rounded-[10px] bg-white/[0.05] text-[13px] font-semibold ring-1 ring-line">
         DJ<span className="text-brand">.</span>
       </span>

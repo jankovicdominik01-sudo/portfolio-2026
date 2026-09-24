@@ -7,15 +7,15 @@ import { Bell, Columns3, Home, List, Plus, Settings } from "lucide-react";
 import { cn } from "./ui";
 
 const ITEMS = [
-  { href: "/", label: "Dnes", icon: Home },
-  { href: "/leads", label: "Leady", icon: List },
-  { href: "/pipeline", label: "Pipeline", icon: Columns3 },
-  { href: "/inbox", label: "Inbox", icon: Bell, badge: true },
-  { href: "/add", label: "Pridať firmu", icon: Plus },
-  { href: "/settings", label: "Nastavenia", icon: Settings },
+  { href: "/leady", label: "Dnes", icon: Home },
+  { href: "/leady/leads", label: "Leady", icon: List },
+  { href: "/leady/pipeline", label: "Pipeline", icon: Columns3 },
+  { href: "/leady/inbox", label: "Inbox", icon: Bell, badge: true },
+  { href: "/leady/add", label: "Pridať firmu", icon: Plus },
+  { href: "/leady/settings", label: "Nastavenia", icon: Settings },
 ];
 
-const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+const isActive = (path: string, href: string) => (href === "/leady" ? path === "/leady" : path.startsWith(href));
 
 export function NavLinks({ unread }: { unread: number }) {
   const path = usePathname();
@@ -56,7 +56,7 @@ export function NavLinks({ unread }: { unread: number }) {
 
 export function MobileTabs({ unread }: { unread: number }) {
   const path = usePathname();
-  const items = ITEMS.filter((i) => i.href !== "/settings");
+  const items = ITEMS.filter((i) => i.href !== "/leady/settings");
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"

@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Samostatná aplikácia s vlastným lint configom
-    "lead-engine/**",
   ]),
 ]);
 

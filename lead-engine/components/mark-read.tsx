@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { markReadAction } from "@/app/actions";
+import { markReadAction } from "@/app/leady/actions";
 import { Button } from "./ui";
 
 export function MarkAllRead() {

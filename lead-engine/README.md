@@ -5,8 +5,9 @@ Interný obchodný systém: **RESEARCH → CALL → HANDOFF → DEAL**.
 AI robí research a pripraví call brief → kamarát zavolá a zistí, či môže Dominik zavolať →
 Dominik dostane kvalifikovaný lead aj s tým, čo firma povedala, a s odporúčaným začiatkom hovoru.
 
-Samostatná Next.js appka (nie súčasť webu djweby.sk) — nasadzuje sa ako vlastný Vercel projekt
-s root directory `lead-engine/` a vlastnou subdoménou (napr. `leady.djweby.sk`).
+Beží na **djweby.sk/leady** v rámci projektu portfolio-2026, ale je izolovaný: vlastný layout a štýly
+(`app/leady/`), vlastná logika (`lead-engine/`), `proxy.ts` chráni iba `/leady/*`. Verejný web sa nemení
+(okrem toho, že vlastný kurzor sa na `/leady` nezobrazuje).
 
 ## Stack
 
@@ -17,7 +18,8 @@ lucide-react, Inter, tmavé `#050505` + oranžový akcent. Navyše: zod (validá
 ## Architektúra
 
 ```
-app/
+app/leady/               routy pod djweby.sk/leady
+  layout.tsx, leady.css  vlastný vzhľad (scoped na .leady-root), noindex
   login/                 prihlásenie
   (app)/                 chránené stránky (proxy.ts + requireUser na serveri)
     page.tsx             Dnes — action-first dashboard (admin) / „Dnes voláš“ (caller)
@@ -27,7 +29,7 @@ app/
     pipeline/  inbox/  add/  settings/
   actions.ts             server actions (každá overuje rolu + validuje zod-om)
   api/v1/                API pre automatizáciu (Bearer LE_API_KEY)
-lib/
+lead-engine/lib/
   types.ts               doménový model (Company, Lead, CallLog, LeadEvent, Offer, Notification)
   leads.ts               use-cases: create/merge, analyze, logCallerCall, handoff, pipeline
   scoring.ts             trust (🟢🟡🔴), priorita (HOT/READY/CHECK/LOW), deduplikačné kľúče
@@ -58,12 +60,12 @@ supabase/migrations/     SQL schéma
 
 | Metóda | Endpoint | |
 | ------ | -------- | - |
-| POST | `/api/v1/routines/morning` | `{ query?, candidates[] }` → filter → duplicity → analýza → notifikácia |
-| POST | `/api/v1/leads` | `{ leads[], analyze?, source? }` — lead ingestion |
-| GET  | `/api/v1/leads?status=` | zoznam |
-| GET  | `/api/v1/leads/:id` | detail s hovormi a históriou |
-| POST | `/api/v1/leads/:id/analyze` | (znova) spustiť analýzu |
-| GET  | `/api/v1/health` | úložisko + AI engine |
+| POST | `/leady/api/v1/routines/morning` | `{ query?, candidates[] }` → filter → duplicity → analýza → notifikácia |
+| POST | `/leady/api/v1/leads` | `{ leads[], analyze?, source? }` — lead ingestion |
+| GET  | `/leady/api/v1/leads?status=` | zoznam |
+| GET  | `/leady/api/v1/leads/:id` | detail s hovormi a históriou |
+| POST | `/leady/api/v1/leads/:id/analyze` | (znova) spustiť analýzu |
+| GET  | `/leady/api/v1/health` | úložisko + AI engine |
 
 Autorizácia: session cookie alebo `Authorization: Bearer $LE_API_KEY`.
 
@@ -83,13 +85,17 @@ tvrdenia bez platného evidence id sa zahodia, ponuka a cena sa berú výhradne 
 ## Lokálne
 
 ```bash
-cd lead-engine
 npm install
-npm run dev          # http://localhost:3100 · dominik/dominik, jozo/jozo
+npm run dev          # http://localhost:3000/leady · dominik/dominik, jozo/jozo
 ```
 
-## Nasadenie (Vercel)
+## Nasadenie (Vercel, projekt portfolio-2026)
 
-Root directory `lead-engine`, env podľa `.env.example`. Pre produkciu vytvor Supabase projekt,
-spusti `supabase/migrations/0001_lead_engine.sql` a nastav `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
-(Supabase má prednosť pred Blob úložiskom).
+Jediný povinný krok: **Storage → Create → Blob (Private) → Connect to portfolio-2026 → Redeploy**.
+Vercel pridá `BLOB_READ_WRITE_TOKEN` — z neho sa odvodí aj podpisový kľúč session, takže netreba
+nastavovať nič ďalšie. Kým úložisko nie je pripojené, `/leady/login` ukazuje túto inštrukciu.
+
+Účty: bez `LE_USERS` platia predvolené účty `dominik` (admin) a `jozo` (volajúci) — v kóde sú iba
+scrypt hashe, heslá má Dominik. Voliteľné env: `LE_USERS`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`,
+`AI_MODEL`, `LE_API_KEY`, `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (pozri `.env.example`).
+Supabase má prednosť pred Blob úložiskom; schéma je v `supabase/migrations/0001_lead_engine.sql`.

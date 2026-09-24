@@ -3,8 +3,8 @@
 import { useActionState, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { FileUp, Loader2, Plus } from "lucide-react";
-import { createLeadAction, importAction, type ImportResult } from "@/app/actions";
-import { CATEGORIES } from "@/lib/types";
+import { createLeadAction, importAction, type ImportResult } from "@/app/leady/actions";
+import { CATEGORIES } from "@/lead-engine/lib/types";
 import { Button, Field, inputClass, cn } from "./ui";
 
 export function NewLeadForm() {
@@ -161,7 +161,7 @@ export function ImportBox() {
             </ul>
           ) : null}
           {result.ok ? (
-            <Link href="/leads?f=new" className="mt-2 block text-[13px] text-white/60 underline underline-offset-2">
+            <Link href="/leady/leads?f=new" className="mt-2 block text-[13px] text-white/60 underline underline-offset-2">
               Zobraziť nové leady
             </Link>
           ) : null}

@@ -1,24 +1,45 @@
 import "server-only";
+import { scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { SESSION_COOKIE, timingSafeStringEqual, verifySession } from "./session";
+import { SESSION_COOKIE, sessionSecret, timingSafeStringEqual, verifySession } from "./session";
 import type { Role, SessionUser } from "./types";
 
 type UserRecord = SessionUser & { password: string };
 
 /**
- * Používatelia z env LE_USERS:
+ * Predvolené účty pre djweby.sk/leady. Repozitár je verejný, preto tu sú iba
+ * scrypt hashe (heslá má Dominik). Prepíše ich env LE_USERS.
+ */
+const DEFAULT_USERS: UserRecord[] = [
+  {
+    username: "dominik",
+    name: "Dominik Jankovič",
+    role: "admin",
+    password: "scrypt$xkYE-gY_9dUibtGstpqi1Q$7dOACQLDdF-ViIlnG2lTz8BkZaHZqXW0_TDfw5uMqq0",
+  },
+  {
+    username: "jozo",
+    name: "Jozo",
+    role: "caller",
+    password: "scrypt$OM_JJ5aWWF8JoyQlPhu4pQ$TKc6Uc8l3gG6KxOE-t_7yZzM8vNZOHLvoOHnSNXjRJo",
+  },
+];
+
+/**
+ * Používatelia z env LE_USERS (heslo môže byť aj scrypt$salt$hash):
  *   "dominik|Dominik|admin|heslo;jozo|Jozo|caller|heslo2"
- * Lokálne (bez LE_USERS) platia demo účty dominik/dominik a jozo/jozo.
+ * Bez LE_USERS: lokálne demo účty dominik/dominik a jozo/jozo, na serveri DEFAULT_USERS.
  */
 export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
   const raw = process.env.LE_USERS;
   if (!raw) {
-    if (process.env.NODE_ENV === "production") return { users: [], demo: false };
+    if (process.env.NODE_ENV === "production") return { users: DEFAULT_USERS, demo: false };
     return {
       demo: true,
       users: [
-        { username: "dominik", name: "Dominik", role: "admin", password: "dominik" },
+        { username: "dominik", name: "Dominik Jankovič", role: "admin", password: "dominik" },
         { username: "jozo", name: "Jozo", role: "caller", password: "jozo" },
       ],
     };
@@ -40,11 +61,23 @@ export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
   return { users, demo: false };
 }
 
+const scryptAsync = promisify(scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
+
+async function passwordMatches(stored: string, given: string): Promise<boolean> {
+  if (stored.startsWith("scrypt$")) {
+    const [, salt, hash] = stored.split("$");
+    const expected = Buffer.from(hash, "base64url");
+    const actual = await scryptAsync(given, salt, expected.length);
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  }
+  return timingSafeStringEqual(stored, given);
+}
+
 export async function authenticate(username: string, password: string): Promise<SessionUser | null> {
   const { users } = configuredUsers();
   const u = users.find((x) => x.username === username.trim().toLowerCase());
   // Porovnávame aj pri neexistujúcom mene, aby čas odpovede neprezrádzal účty.
-  const ok = await timingSafeStringEqual(u?.password ?? "__none__", password);
+  const ok = await passwordMatches(u?.password ?? "__none__", password);
   if (!u || !ok) return null;
   return { username: u.username, name: u.name, role: u.role };
 }
@@ -59,6 +92,16 @@ export function adminName(): string {
   return configuredUsers().users.find((u) => u.role === "admin")?.name ?? "Dominik";
 }
 
+/** Je Lead Engine na serveri pripravený (tajný kľúč + trvalé úložisko)? */
+export function setupStatus(): { ready: boolean; persistent: boolean } {
+  const persistent = !!(
+    (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) ||
+    process.env.BLOB_READ_WRITE_TOKEN
+  );
+  if (process.env.NODE_ENV !== "production") return { ready: true, persistent: true };
+  return { ready: persistent && !!sessionSecret(), persistent };
+}
+
 export async function currentUser(): Promise<SessionUser | null> {
   const jar = await cookies();
   return verifySession(jar.get(SESSION_COOKIE)?.value);
@@ -67,8 +110,8 @@ export async function currentUser(): Promise<SessionUser | null> {
 /** Pre stránky a server actions — bez session presmeruje na login. */
 export async function requireUser(role?: Role): Promise<SessionUser> {
   const u = await currentUser();
-  if (!u) redirect("/login");
-  if (role && u.role !== role) redirect("/");
+  if (!u) redirect("/leady/login");
+  if (role && u.role !== role) redirect("/leady");
   return u;
 }
 

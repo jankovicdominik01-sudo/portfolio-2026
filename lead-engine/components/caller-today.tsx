@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { categoryOf, type LeadWithCompany, type SessionUser } from "@/lib/types";
-import { fmtRelative, isDue } from "@/lib/format";
+import { categoryOf, type LeadWithCompany, type SessionUser } from "@/lead-engine/lib/types";
+import { fmtRelative, isDue } from "@/lead-engine/lib/format";
 import { Card, EmptyState, Eyebrow, buttonClass } from "./ui";
 import { FadeIn, Stagger, StaggerItem } from "./motion";
 
@@ -48,7 +48,7 @@ export function CallerToday({ user, leads }: { user: SessionUser; leads: LeadWit
             {later.map((l) => (
               <li key={l.id}>
                 <Link
-                  href={`/leads/${l.id}`}
+                  href={`/leady/leads/${l.id}`}
                   className="flex items-center justify-between rounded-2xl px-4 py-3 text-[15px] text-white/60 hover:bg-white/[0.03]"
                 >
                   <span>
@@ -97,7 +97,7 @@ function CallerCard({ lead }: { lead: LeadWithCompany }) {
           </div>
         </div>
       ) : null}
-      <Link href={`/leads/${lead.id}`} className={buttonClass("primary", "lg", "mt-6 w-full")}>
+      <Link href={`/leady/leads/${lead.id}`} className={buttonClass("primary", "lg", "mt-6 w-full")}>
         Otvoriť call brief <ArrowRight className="size-4" />
       </Link>
     </Card>

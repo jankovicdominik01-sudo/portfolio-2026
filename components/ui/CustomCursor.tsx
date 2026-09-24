@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { motion, useSpring, useMotionValue } from "framer-motion";
+import { usePathname } from "next/navigation";
 
 export default function CustomCursor() {
+  const pathname = usePathname();
   const [isHovering, setIsHovering] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [hoverType, setHoverType] = useState<string | null>(null);
@@ -63,6 +65,9 @@ export default function CustomCursor() {
       document.removeEventListener("mouseleave", handleMouseLeaveWindow);
     };
   }, [mouseX, mouseY, isVisible]);
+
+  // Interný Lead Engine (/leady) používa normálny kurzor.
+  if (pathname?.startsWith("/leady")) return null;
 
   return (
     <>

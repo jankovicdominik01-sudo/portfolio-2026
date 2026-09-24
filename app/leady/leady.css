@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* DJWeby design tokens — rovnaký základ ako djweby.sk (#050505, Inter, oranžový akcent) */
+@theme {
+  --color-bg: #050505;
+  --color-surface: #0b0b0c;
+  --color-raised: #111113;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.12);
+  --color-brand: #f97316;
+  --color-brand-soft: rgb(249 115 22 / 0.12);
+  --color-ok: #22c55e;
+  --color-warn: #eab308;
+  --color-bad: #ef4444;
+  --color-info: #3b82f6;
+
+  --radius-card: 22px;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Všetko je scoped na .leady-root, aby to neovplyvnilo verejný web djweby.sk. */
+body:has(.leady-root) {
+  cursor: auto;
+}
+.leady-root {
+  font-feature-settings: "cv11", "ss01";
+  -webkit-tap-highlight-color: transparent;
+}
+.leady-root :focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.leady-root input,
+.leady-root textarea,
+.leady-root select {
+  font-size: 16px; /* iOS nezoomuje */
+}
+.leady-root a,
+.leady-root button,
+.leady-root summary,
+.leady-root label {
+  cursor: pointer;
+}
+.leady-root input,
+.leady-root textarea {
+  cursor: text;
+}
+@media (prefers-reduced-motion: reduce) {
+  .leady-root *,
+  .leady-root *::before,
+  .leady-root *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Jemné svetlo za obsahom — jediný „efekt“, nič nepláva. */
+.glow {
+  background:
+    radial-gradient(60% 40% at 50% -10%, rgb(249 115 22 / 0.08), transparent 70%),
+    radial-gradient(40% 30% at 100% 0%, rgb(59 130 246 / 0.05), transparent 70%);
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
