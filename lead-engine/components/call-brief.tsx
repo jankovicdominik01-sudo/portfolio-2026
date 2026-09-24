@@ -20,6 +20,11 @@ export function CallBrief({ lead, mode }: { lead: LeadDetail; mode: "caller" | "
     return (
       <>
         <Section icon="🗣️" title="Čo povedať" aside={<span className="text-[11px] text-white/30">Call brief pre kamaráta</span>}>
+          {b.product ? (
+            <div className="mb-5">
+              <ProductCard p={b.product} />
+            </div>
+          ) : null}
           <Script b={b} />
           <Objections b={b} />
         </Section>
@@ -46,7 +51,13 @@ export function CallBrief({ lead, mode }: { lead: LeadDetail; mode: "caller" | "
         ) : null}
       </FadeIn>
 
-      <FadeIn delay={0.05} className="mt-6">
+      {b.product ? (
+        <FadeIn delay={0.03} className="mt-6">
+          <ProductCard p={b.product} />
+        </FadeIn>
+      ) : null}
+
+      <FadeIn delay={0.05} className={b.product ? "mt-3" : "mt-6"}>
         <Card className="p-5">
           <Eyebrow>🎯 Hlavná myšlienka</Eyebrow>
           <p className="mt-2 text-[18px] leading-snug font-medium tracking-[-0.01em]">{b.main_idea}</p>
@@ -217,5 +228,25 @@ function OfferCard({ b, compact }: { b: NonNullable<LeadDetail["call_brief"]>; c
         Spomeň až keď je záujem. Cenu nehovor v prvej vete.
       </p>
     </div>
+  );
+}
+
+/** Reálny produkt z ich webu — Jozo si ho pred hovorom otvorí, aby vedel, o čom hovorí. */
+function ProductCard({ p }: { p: NonNullable<NonNullable<LeadDetail["call_brief"]>["product"]> }) {
+  return (
+    <a
+      href={p.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block rounded-[var(--radius-card)] bg-white/[0.035] p-5 ring-1 ring-inset ring-line transition hover:bg-white/[0.06]"
+    >
+      <Eyebrow>🪴 Pred hovorom si otvor · z ich webu</Eyebrow>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <span className="text-[17px] font-medium tracking-tight">{p.name}</span>
+        {p.price ? <span className="shrink-0 text-[14px] text-white/55 tabular-nums">{p.price}</span> : null}
+      </div>
+      {p.note ? <p className="mt-1.5 text-[14px] leading-relaxed text-white/55">{p.note}</p> : null}
+      <span className="mt-2 block truncate text-[12px] text-white/30 underline underline-offset-2">{p.url}</span>
+    </a>
   );
 }
