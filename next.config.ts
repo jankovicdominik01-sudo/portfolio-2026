@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
+import { randomBytes } from "node:crypto";
 
 const nextConfig: NextConfig = {
+  env: {
+    // Lead Engine (/leady): podpisový kľúč session vzniká pri builde — nie je v repozitári.
+    SESSION_SECRET: process.env.SESSION_SECRET || randomBytes(32).toString("hex"),
+    // Kým nie je pripojené Blob úložisko, beží Lead Engine v testovacom režime (s upozornením).
+    LEADY_ALLOW_EPHEMERAL: "1",
+  },
   async headers() {
     return [
       {
