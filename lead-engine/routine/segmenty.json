@@ -1,0 +1,5 @@
+{
+  "_navod": "active = zoznam segmentov alebo \"all\" (všetky). per_day = koľko segmentov denne (rotujú sa). Segmenty: zahradnictvo, stolarstvo, kovovyroba, brany-ploty, murari, tesari, strechy, vodoinstalater, elektrikar, podlahy, obklady, kominarstvo",
+  "active": ["zahradnictvo"],
+  "per_day": 1
+}
