@@ -1,3 +1,4 @@
+import { blobToken } from "./db/blob-token";
 /**
  * Podpísaná session v cookie (HMAC-SHA256, Web Crypto).
  * Beží v proxy aj v server komponentoch — žiadne Node-only API.
@@ -17,7 +18,7 @@ const enc = new TextEncoder();
 export function sessionSecret(): string | null {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 32) return s;
-  const storage = process.env.BLOB_READ_WRITE_TOKEN || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const storage = blobToken() || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (storage && storage.length >= 24) return `le-session:${storage}`;
   if (process.env.NODE_ENV !== "production") return "dev-only-secret-dev-only-secret-dev-only";
   return null;

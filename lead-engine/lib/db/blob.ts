@@ -3,6 +3,7 @@ import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import type { DocumentBackend } from "./document";
 import { emptyState, type DbState } from "./types";
 import { seedState } from "./seed";
+import { blobToken } from "./blob-token";
 
 /**
  * Vercel Blob (private) ako perzistentné úložisko pre testovací deploy.
@@ -11,7 +12,7 @@ import { seedState } from "./seed";
 const PATH = process.env.LEAD_ENGINE_BLOB_PATH || "lead-engine/db.json";
 
 async function load(): Promise<{ state: DbState; etag: string | null }> {
-  const res = await get(PATH, { access: "private", useCache: false });
+  const res = await get(PATH, { access: "private", useCache: false, token: blobToken() });
   if (!res || res.statusCode !== 200) return { state: seedState(emptyState()), etag: null };
   const text = await new Response(res.stream).text();
   return { state: JSON.parse(text) as DbState, etag: res.blob.etag };
@@ -20,6 +21,7 @@ async function load(): Promise<{ state: DbState; etag: string | null }> {
 async function save(state: DbState, etag: string | null) {
   await put(PATH, JSON.stringify(state), {
     access: "private",
+    token: blobToken(),
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,
