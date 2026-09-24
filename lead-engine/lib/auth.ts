@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, sessionSecret, timingSafeStringEqual, verifySession } from "./session";
 import type { Role, SessionUser } from "./types";
+import { blobToken } from "./db/blob-token";
 
 type UserRecord = SessionUser & { password: string };
 
@@ -96,7 +97,7 @@ export function adminName(): string {
 export function setupStatus(): { ready: boolean; persistent: boolean } {
   const persistent = !!(
     (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) ||
-    process.env.BLOB_READ_WRITE_TOKEN
+    blobToken()
   );
   if (process.env.NODE_ENV !== "production") return { ready: true, persistent: true };
   // Testovací deploy bez úložiska: beží, ale dáta sú iba dočasné (upozornenie v UI).
