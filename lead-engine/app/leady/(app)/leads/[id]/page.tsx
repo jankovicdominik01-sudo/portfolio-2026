@@ -387,7 +387,7 @@ function EngineBadge({ lead }: { lead: LeadDetail }) {
   const conf = { high: "vysoká", medium: "stredná", low: "nízka" }[a.confidence];
   return (
     <span className="text-[11px] text-white/35">
-      {a.engine === "claude" ? "AI" : "Pravidlá"} · istota {conf}
+      {{ claude: "AI", rules: "Pravidlá", routine: "Ranná rutina" }[a.engine]} · istota {conf}
     </span>
   );
 }

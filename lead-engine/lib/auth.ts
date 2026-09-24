@@ -118,15 +118,24 @@ export async function requireUser(role?: Role): Promise<SessionUser> {
 }
 
 /** Pre API — session cookie alebo Bearer LE_API_KEY (automatizácia). */
+/** SHA-256 kľúča rannej rutiny. Samotný kľúč je iba v súkromnom prompte rutiny. */
+const ROUTINE_KEY_SHA256 = "a52a8590de79e96cd112d1694776871afc286015d2f372a7ec7adeac346d5c2d";
+
+async function sha256Hex(s: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Buffer.from(buf).toString("hex");
+}
+
 export async function apiAuth(): Promise<SessionUser | null> {
   const h = await headers();
   const auth = h.get("authorization");
-  const key = process.env.LE_API_KEY;
-  if (auth?.startsWith("Bearer ") && key && key.length >= 24) {
-    if (await timingSafeStringEqual(auth.slice(7).trim(), key)) {
-      return { username: "automation", name: "Ranná rutina", role: "admin" };
-    }
-    return null;
+  if (auth?.startsWith("Bearer ")) {
+    const given = auth.slice(7).trim();
+    const key = process.env.LE_API_KEY;
+    const ok =
+      (key && key.length >= 24 && (await timingSafeStringEqual(given, key))) ||
+      (await timingSafeStringEqual(await sha256Hex(given), process.env.LE_API_KEY_SHA256 || ROUTINE_KEY_SHA256));
+    return ok ? { username: "automation", name: "Ranná rutina", role: "admin" } : null;
   }
   return currentUser();
 }

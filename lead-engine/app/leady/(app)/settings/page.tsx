@@ -61,7 +61,7 @@ export default async function SettingsPage() {
               <dl className="space-y-2.5 text-[14px]">
                 <Row k="Úložisko" v={storage} />
                 <Row k="Analýza" v={claudeAvailable() ? `Claude (${process.env.AI_MODEL || "claude-opus-5"})` : "Pravidlá (bez AI kľúča)"} />
-                <Row k="Automatizácia API" v={process.env.LE_API_KEY ? "Zapnutá (Bearer kľúč)" : "Vypnutá — nastav LE_API_KEY"} />
+                <Row k="Automatizácia API" v="Zapnutá — ranná rutina (Bearer kľúč)" />
               </dl>
             </Section>
           </FadeIn>
@@ -89,7 +89,7 @@ export default async function SettingsPage() {
                 <span className="text-blue-300">GET</span> /api/v1/leads/:id
               </div>
             </div>
-            <p className="mt-4 text-[12px] text-white/35">Hlavička: Authorization: Bearer $LE_API_KEY</p>
+            <p className="mt-4 text-[12px] text-white/35">Hlavička: Authorization: Bearer &lt;kľúč rannej rutiny&gt;</p>
           </Card>
         </FadeIn>
       </div>

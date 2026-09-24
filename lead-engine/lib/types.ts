@@ -193,7 +193,8 @@ export type Company = z.infer<typeof CompanySchema>;
 /* ─────────────────────────── Analysis ─────────────────────────── */
 
 export const AnalysisSchema = z.object({
-  engine: z.enum(["claude", "rules"]),
+  /** routine = výskum pripravila ranná rutina (agent overil web, katalóg aj register) */
+  engine: z.enum(["claude", "rules", "routine"]),
   model: z.string().nullable(),
   analyzed_at: z.string(),
   company_summary: z.string(),
@@ -221,6 +222,15 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 
 export const ObjectionSchema = z.object({ objection: z.string(), answer: z.string() });
 
+/** Reálny produkt/služba z ich webu — Jozo si ho pred hovorom otvorí. */
+export const ProductRefSchema = z.object({
+  name: z.string().min(2).max(160),
+  url: z.string().url().max(500),
+  price: z.string().max(40).nullable().optional().default(null),
+  note: z.string().max(300).nullable().optional().default(null),
+});
+export type ProductRef = z.infer<typeof ProductRefSchema>;
+
 export const CallBriefSchema = z.object({
   /** POCHVALA → POZOROVANIE → DÔVOD → PRÍLEŽITOSŤ */
   praise: z.string(),
@@ -240,6 +250,7 @@ export const CallBriefSchema = z.object({
   remember: z.string(),
   what_not_to_say: z.array(z.string()),
   objections: z.array(ObjectionSchema),
+  product: ProductRefSchema.nullable().optional(),
 });
 export type CallBrief = z.infer<typeof CallBriefSchema>;
 
