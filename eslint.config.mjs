@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Lead Engine je samostatná appka s vlastným configom
     "lead-engine/**",
+    // Erasmus prezentácia: čistý prehliadačový skript, builduje sa do public/erasmus
+    "erasmus-deck/src/**",
   ]),
 ]);
 
