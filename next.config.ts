@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Subdoména erasmus.djweby.sk zobrazí priamo prezentáciu
+  async rewrites() {
+    const erasmusHost = [{ type: "host" as const, value: "erasmus.djweby.sk" }];
+    return {
+      beforeFiles: [
+        { source: "/", has: erasmusHost, destination: "/erasmus/index.html" },
+        { source: "/img/:path*", has: erasmusHost, destination: "/erasmus/img/:path*" },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
 };
 
 export default nextConfig;
