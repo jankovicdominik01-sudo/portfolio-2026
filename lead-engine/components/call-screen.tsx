@@ -189,7 +189,11 @@ export function CallScreen(p: CallScreenProps) {
               </div>
             </div>
 
-            <Box label="Na čo si dať pozor" className="mt-6">
+            <Box label="Ak sa spýtajú „odkiaľ máte moje číslo?“" className="mt-6">
+              <p className="text-[15px] text-white/80">„{p.card.source_answer}“</p>
+            </Box>
+
+            <Box label="Na čo si dať pozor" className="mt-4">
               <ul className="space-y-1.5 text-[14px] leading-relaxed text-white/65">
                 {p.card.cautions.map((c) => (
                   <li key={c}>• {c}</li>

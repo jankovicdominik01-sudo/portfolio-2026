@@ -67,7 +67,7 @@ export function commissionEffects(
       kind: "handoff",
       amount: amountFor("handoff", c, null),
       state: "pending",
-      reason: "Súhlas s kontaktom od Dominika",
+      reason: "Firma súhlasila, aby sa jej ozval Dominik",
       sale_price: null,
       created_at: nowIso,
       confirmed_at: null,

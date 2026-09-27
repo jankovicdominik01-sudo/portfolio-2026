@@ -505,14 +505,43 @@ def guess_domains(r):
     return sorted({b + ".sk" for b in base if 4 < len(b) < 30})
 
 
-def site_matches(r, body):
-    """Patrí nájdená stránka tejto firme? (meno alebo telefón na stránke)"""
+def match_signals(r, body):
+    """Ktoré identifikátory firmy sú na stránke: phone, ico, email (silné), name, city (slabé)."""
     b = bez(text(body))
-    toks = [t for t in re.sub(r"[^a-z0-9 ]", " ", LEGAL.sub(" ", bez(r["name"]))).split() if len(t) > 3]
+    digits = re.sub(r"\D", "", b)
+    sig = set()
     pk = phone_key(r["phone"])
+    if pk and pk[-6:] in digits:
+        sig.add("phone")
+    ico = re.sub(r"\D", "", r.get("ico") or "")
+    if len(ico) >= 6 and ico in digits:
+        sig.add("ico")
+    if r.get("email") and r["email"].lower() in body.lower():
+        sig.add("email")
+    toks = [t for t in re.sub(r"[^a-z0-9 ]", " ", LEGAL.sub(" ", bez(r["name"]))).split() if len(t) > 3]
+    if toks and all(t in b for t in toks[:2]):
+        sig.add("name")
+    if r.get("city") and bez(r["city"]) in b:
+        sig.add("city")
+    return sig
+
+
+def match_level(sig):
+    """strong = telefón/IČO/e-mail; medium = názov + mesto; weak = iba názov."""
+    if sig & {"phone", "ico", "email"}:
+        return "strong"
+    if {"name", "city"} <= sig:
+        return "medium"
+    return "weak" if "name" in sig else "none"
+
+
+def site_matches(r, body):
+    """Patrí nájdená stránka tejto firme? Nikdy iba podľa podobného názvu.
+    Bazoš: názov inzerátu je popis služby → vyžadujeme silnú zhodu (telefón / IČO / e-mail)."""
+    lvl = match_level(match_signals(r, body))
     if r.get("source") == "bazos":
-        return bool(pk and pk[-6:] in re.sub(r"\D", "", b))
-    return (pk and pk[-6:] in re.sub(r"\D", "", b)) or (toks and all(t in b for t in toks[:2]))
+        return lvl == "strong"
+    return lvl in ("strong", "medium")
 
 
 def product_from(home_url, body):
@@ -582,23 +611,35 @@ def assess(r):
     """Vráti fakty o webe. Každé zistenie má zdroj (URL + doslovný úryvok)."""
     webs = list(r["websites"])
     found_by_guess = False
+    possible = None  # web s podobným názvom, ale bez zhody telefónu / IČO / e-mailu
     mail_dom = r["email"].split("@")[-1] if r["email"] else ""
     if mail_dom and mail_dom not in FREE and mail_dom not in [host(w) for w in webs] and resolves(mail_dom):
         _, fu, body, _ = fetch_site("https://" + mail_dom)
-        if len(body) > 900 and site_matches(r, body):
-            webs.append(fu)
+        if len(body) > 900:
+            if site_matches(r, body):
+                webs.append(fu)
+            elif match_signals(r, body):
+                possible = fu
     if not webs:
         for d in guess_domains(r):
             if not resolves(d):
                 continue
             _, fu, body, _ = fetch_site("https://" + d)
-            if len(body) > 900 and site_matches(r, body):
+            if len(body) <= 900:
+                continue
+            if site_matches(r, body):
                 webs.append(fu)
                 found_by_guess = True
                 break
+            if match_signals(r, body) and not possible:
+                possible = fu
+    if not webs and possible:
+        return {"web": "uncertain", "url": possible, "issues": [], "score": 0, "possible_url": possible,
+                "note": "Našli sme web s podobným názvom, ale bez zhody telefónu / IČO — NETVRĎ, že je ich; over ručne."}
     if not webs:
         return {"web": "none", "checked_domains": guess_domains(r), "issues": [], "score": 5,
-                "note": "Skontrolované varianty domén (DNS + obsah) — žiadny vlastný web nenájdený."}
+                "note": "Skontrolované varianty domén (DNS + obsah) — žiadny vlastný web nenájdený. "
+                        "NEOVERENÉ vyhľadávaním: over cez WebSearch (názov, IČO, mesto, telefón) pred tvrdením „nemá web“."}
 
     url = webs[0] if "://" in webs[0] else "https://" + webs[0]
     status, fu, body, ssl_err = fetch_site(url)
@@ -706,6 +747,98 @@ def rpo(ico):
             "url": f"https://www.registeruz.sk/cruz-public/domain/accountingentity/simplesearch?ico={ico}"}
 
 
+# ─────────────── 4b. Identita a odbor ───────────────
+
+def identity_keys(r):
+    """Silné identifikátory (nikdy iba názov): IČO, telefón, e-mail, vlastná doména."""
+    keys = []
+    ico = re.sub(r"\D", "", r.get("ico") or "")
+    if 6 <= len(ico) <= 8:
+        keys.append("ico:" + ico.zfill(8))
+    if phone_key(r.get("phone")):
+        keys.append("phone:" + phone_key(r["phone"]))
+    if r.get("email"):
+        keys.append("email:" + r["email"].lower())
+        dom = r["email"].split("@")[-1].lower()
+        if dom not in FREE:
+            keys.append("domain:" + dom)
+    for w in r.get("websites", []):
+        if host(w) and not NOT_OWN_WEB.search(w) and not any(b in host(w) for b in ("szm.", "ozm.", "webnode", "wix")):
+            keys.append("domain:" + host(w))
+    return keys
+
+
+def merge_rows(rows):
+    """Tá istá firma z Azetu + Zoznamu + Bazoša = jeden kandidát; zdroje ostávajú v `sources`.
+    Zlučuje sa iba podľa silných identifikátorov (IČO, telefón, e-mail, doména), nikdy podľa názvu."""
+    parent = list(range(len(rows)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    owner = {}
+    for i, r in enumerate(rows):
+        for k in identity_keys(r):
+            if k in owner:
+                parent[find(i)] = find(owner[k])
+            else:
+                owner[k] = i
+    groups = {}
+    for i in range(len(rows)):
+        groups.setdefault(find(i), []).append(rows[i])
+    out = []
+    order = {"zoznam": 0, "azet": 1, "google": 2, "zlatestranky": 3, "bazos": 4}
+    for g in groups.values():
+        g = sorted(g, key=lambda r: order.get(r["source"], 9))
+        m = dict(g[0])
+        m["sources"] = [{"source": r["source"], "url": r["profile"]} for r in g]
+        for r in g[1:]:
+            for f in ("ico", "email", "address", "city", "description", "contact", "ad_text", "ad_date"):
+                if not m.get(f) and r.get(f):
+                    m[f] = r[f]
+            for w in r.get("websites", []):
+                if host(w) not in [host(x) for x in m["websites"]]:
+                    m["websites"] = m["websites"] + [w]
+            if r.get("google") and not m.get("google"):
+                m["google"] = r["google"]
+        out.append(m)
+    return out
+
+
+OTHER_TRADES = re.compile(r"mas[eé]r|kadern|kozmet|nechty|autoserv|pneuserv|účtov|uctov|reštaur|restaur|pizz|taxi|"
+                          r"realit|advok|stomat|zubn|fitness|poisťov|poistov|ubytov|penzi[oó]n", re.I)
+
+
+def business_check(r, reg):
+    """Robí firma dnes naozaj tento odbor? Aktuálny stav má prednosť pred historickým zápisom.
+    changed = register (aktuálny názov) hovorí o inom odbore; confirmed = odbor potvrdený; inak uncertain."""
+    V = VERTICALS[r["vertical"]]
+    core = re.compile(V.get("core") or V["match"], re.I)
+    name_now = (reg or {}).get("name") or ""
+    if name_now and OTHER_TRADES.search(name_now) and not core.search(name_now):
+        return "changed", f"Aktuálny názov v registri: „{name_now}“"
+    if name_now and core.search(name_now):
+        return "confirmed", f"Register: „{name_now}“"
+    text_ = " ".join(x for x in (r.get("description"), r.get("ad_text"), r["name"]) if x)
+    if core.search(text_) and r.get("source") != "bazos":
+        return "confirmed", "Popis v katalógu zodpovedá odboru"
+    return "uncertain", "Odbor sme nevedeli potvrdiť z registra ani katalógu"
+
+
+def website_status(w):
+    """Mapa na stav v Lead Engine. none = zatiaľ NEOVERENÉ vyhľadávaním (to spraví agent)."""
+    return {"weak": "weak", "broken": "broken", "ok": "working", "unknown": "uncertain", "uncertain": "uncertain",
+            "none": "none_unverified"}.get(w["web"], "uncertain")
+
+
+def main_issue(w):
+    iss = sorted(w.get("issues", []), key=lambda i: -i.get("points", 0))
+    return iss[0]["key"] if iss else None
+
+
 # ─────────────── 5. Šanca na úspech ───────────────
 
 def chance(r):
@@ -726,6 +859,12 @@ def chance(r):
         pts += 1; why.append(f"{gg['reviews']} recenzií na Google")
     if r["source"] == "bazos" and r.get("ad_date"):
         pts += 1; why.append(f"inzerát z {r['ad_date']} — aktívne zháňa zákazky")
+    if r.get("business_check") == "confirmed":
+        pts += 1; why.append("odbor potvrdený")
+    if w["web"] in ("uncertain", "unknown"):
+        pts -= 2; why.append("stav webu neistý")
+    if len(r.get("sources") or []) >= 2:
+        pts += 1; why.append("vo viacerých zdrojoch")
     keys = {i["key"] for i in w.get("issues", [])}
     if keys & {"parked", "foreign_redirect", "bad_cert", "php_error", "construction", "domain_dead"}:
         pts += 2; why.append("na webe je jasná, overiteľná chyba")
@@ -775,13 +914,9 @@ def main():
         bz = bazos(v, limit=max(15, 45 // len(verts)))
         print(f"  Bazoš ({v}): {len(bz)} inzerátov s telefónom")
         rows += bz
-    seen, merged = set(), []
-    for r in rows:
-        k = phone_key(r["phone"]) or r["email"] or r["name"].lower()
-        if k not in seen:
-            seen.add(k)
-            merged.append(r)
-    rows = merged
+    before = len(rows)
+    rows = merge_rows(rows)
+    print(f"  identita: {before} záznamov → {len(rows)} firiem (zlúčené podľa IČO / telefónu / e-mailu / domény)")
     rows = [r for r in rows if phone_key(r["phone"]) and not re.sub(r"\D", "", r["phone"]).startswith(("420", "00420"))]
     print(f"  s telefónom: {len(rows)}")
     ex = load_exclusions(a.exclude, a.engine, a.key)
@@ -803,23 +938,29 @@ def main():
     cands, rejected = [], []
     for r, w, g in zip(batch, webs, regs):
         r["web_check"], r["register"] = w, g
-        if g and g.get("dead"):
+        r["website_status"], r["web_issue"] = website_status(w), main_issue(w)
+        r["business_check"], r["business_why"] = business_check(r, g)
+        r["needs_web_search"] = r["website_status"] in ("none_unverified", "uncertain")
+        if r["business_check"] == "changed":
+            rejected.append({**r, "reason": "irrelevant_segment", "why": r["business_why"]})
+        elif g and g.get("dead"):
             rejected.append({**r, "reason": "inactive", "why": "Register: zaniknutá / likvidácia"})
         elif g and g.get("found") is False:
             rejected.append({**r, "reason": "unverifiable", "why": "IČO sa v registri nenašlo"})
-        elif w["web"] in ("ok", "unknown"):
-            if w["web"] == "ok":
-                rejected.append({**r, "reason": "quality_web", "why": f"Web {w.get('url')} je v poriadku (skóre {w['score']})"})
+        elif w["web"] == "ok":
+            rejected.append({**r, "reason": "quality_web", "why": f"Web {w.get('url')} je v poriadku (skóre {w['score']})"})
         else:
+            # aj neistý stav webu ostáva kandidátom (nižšia priorita) — rozhodnú reálne výsledky, nie dojem
             cands.append(r)
     for r in cands:
         r["chance"], r["chance_why"] = chance(r)
-    order = {"weak": 0, "broken": 0, "none": 1}
+    order = {"weak": 0, "broken": 0, "none": 1, "uncertain": 2, "unknown": 2}
     cands.sort(key=lambda r: (order[r["web_check"]["web"]], -(r["chance"] + min(r["web_check"]["score"], 8) / 2)))
     json.dump({"date": datetime.date.today().isoformat(), "candidates": cands, "rejected": rejected},
               open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     by = {k: sum(1 for r in cands if r["web_check"]["web"] == k) for k in order}
-    print(f"VÝSLEDOK: {len(cands)} kandidátov (slabý web {by['weak']}, nefunkčný {by['broken']}, bez webu {by['none']}), "
+    print(f"VÝSLEDOK: {len(cands)} kandidátov (slabý web {by['weak']}, nefunkčný {by['broken']}, bez webu {by['none']}, "
+          f"neistý {by['uncertain'] + by['unknown']}), "
           f"vyradených {len(rejected)} → {a.out}")
     for r in cands[:25]:
         w = r["web_check"]

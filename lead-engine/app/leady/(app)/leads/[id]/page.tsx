@@ -43,7 +43,8 @@ export const maxDuration = 120;
 
 export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
-  const lead = await getLead(user, (await params).id);
+  // ownCall: volajúci musí vidieť obrazovku „hotovo“ aj po tom, čo lead práve odovzdal Dominikovi.
+  const lead = await getLead(user, (await params).id, { ownCall: user.role === "caller" });
   if (!lead) {
     if (user.role === "caller") redirect("/leady");
     notFound();

@@ -16,6 +16,8 @@ import {
   type SalesStep,
 } from "./workflow";
 import { buildToday } from "./queue";
+import { computeScore, priorityFromScore } from "./score";
+import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
 import { commissionEffects, compensationConfigured, earnings, recompute, type MoneyEvent } from "./money";
 import { computePriority, computeTrust, dedupeKeys, isReadyToCall } from "./scoring";
@@ -73,8 +75,9 @@ export async function listLeads(u: SessionUser): Promise<LeadWithCompany[]> {
 }
 
 /**
- * `ownCall`: obrazovka hovoru smie kamarátovi ukázať aj lead, ktorý práve
- * odovzdal Dominikovi (inak by po uložení zmizla obrazovka „hotovo“).
+ * `ownCall`: obrazovka hovoru smie volajúcemu ukázať aj lead, ktorý PRÁVE uzavrel
+ * (odovzdal Dominikovi, nevolať…) — inak by po uložení zmizla obrazovka „hotovo“.
+ * Platí iba 15 minút po jeho vlastnom poslednom hovore; potom lead z jeho pohľadu zmizne.
  */
 export async function getLead(
   u: SessionUser,
@@ -84,13 +87,19 @@ export async function getLead(
   const r = await db();
   const lead = await r.getLead(leadId);
   if (!lead) return null;
-  const own = opts.ownCall && lead.assigned_to === u.username;
   const [company, calls, events] = await Promise.all([
     r.getCompany(lead.company_id),
     r.listCalls(lead.id),
     r.listEvents(lead.id),
   ]);
   if (!company) return null;
+  const last = calls[0];
+  const own =
+    opts.ownCall &&
+    lead.assigned_to === u.username &&
+    !!last &&
+    callUser(last, allUsers()) === u.username &&
+    Date.now() - new Date(last.created_at).getTime() < 15 * 60_000;
   if (u.role !== "admin" && !callerCanSee(u, lead, company) && !own) return null;
   return { ...lead, company, calls, events };
 }
@@ -537,3 +546,58 @@ export async function callerLeadView(u: SessionUser, leadId: string) {
   const next = order.find((x) => x !== lead.id) ?? null;
   return { lead, card, next, price: settings.package.price };
 }
+
+/* ─────────────────────────── Overené fakty (rutina / backfill) ─────────────────────────── */
+
+export type LeadFacts = {
+  website_status?: Lead["website_status"];
+  website_issue?: string | null;
+  website_checked_at?: string | null;
+  business_check?: Lead["business_check"];
+  register_ok?: boolean;
+  phone_on_web?: boolean;
+  ico?: string | null;
+  sources?: { source: string; url: string | null }[];
+};
+
+/**
+ * Doplní / aktualizuje overené fakty o firme (stav webu, IČO, zdroje) a prepočíta skóre.
+ * Nemení stav leadu ani priradenie.
+ */
+export async function patchLeadFacts(u: SessionUser, leadId: string, f: LeadFacts) {
+  assertAdmin(u);
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  const company = await r.getCompany(lead.company_id);
+  if (!company) throw new Error("Firma neexistuje.");
+  const cPatch: Partial<Company> = { updated_at: now() };
+  if (f.ico !== undefined) cPatch.ico = f.ico;
+  if (f.sources) cPatch.sources = mergeSources(company.sources, f.sources.map((s) => ({ ...s, seen_at: now() })));
+  const nextCompany = { ...company, ...cPatch };
+  cPatch.dedupe_keys = [...new Set([...company.dedupe_keys, ...dedupeKeys(nextCompany)])];
+  await r.updateCompany(company.id, cPatch);
+
+  const next = { ...lead, ...f };
+  const score = computeScore({
+    company: nextCompany,
+    website_status: next.website_status ?? null,
+    website_issue: next.website_issue ?? null,
+    business_check: next.business_check ?? null,
+    register_ok: f.register_ok ?? lead.trust.company === "verified",
+    phone_on_web: f.phone_on_web ?? lead.trust.phone === "verified",
+    offers: await r.listOffers(),
+  });
+  await r.updateLead(lead.id, {
+    website_status: next.website_status ?? null,
+    website_issue: next.website_issue ?? null,
+    website_checked_at: next.website_checked_at ?? lead.website_checked_at ?? null,
+    business_check: next.business_check ?? null,
+    score,
+    priority: CALLER_PHASE.includes(lead.status) ? priorityFromScore(score) : lead.priority,
+    updated_at: now(),
+  });
+  await event(lead.id, u.name, "analysis", `Fakty aktualizované · skóre ${score.points}`);
+  return score;
+}
+const CALLER_PHASE: LeadStatus[] = ["ready_to_call", "called", "analyzed"];

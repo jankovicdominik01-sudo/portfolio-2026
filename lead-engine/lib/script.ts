@@ -46,7 +46,22 @@ export type CallCard = {
   cautions: string[];
   /** Overený stav webu? Ak nie, prechod je formulovaný ako otázka. */
   web_verified: boolean;
+  /** Pravdivá odpoveď na „Odkiaľ máte moje číslo?“ */
+  source_answer: string;
 };
+
+const SOURCE_NAME: Record<string, string> = {
+  azet: "z verejného katalógu firiem na azet.sk",
+  zoznam: "z verejného katalógu firiem na zoznam.sk",
+  zlatestranky: "zo Zlatých stránok",
+  bazos: "z vášho inzerátu na Bazoši",
+  google: "z vášho profilu na Google Mapách",
+};
+
+export function sourceAnswer(company: Pick<Company, "sources">, sourceUrl: string | null): string {
+  const s = company.sources?.[0]?.source ?? (/azet\.sk/.test(sourceUrl ?? "") ? "azet" : /zoznam\.sk/.test(sourceUrl ?? "") ? "zoznam" : /bazos\.sk/.test(sourceUrl ?? "") ? "bazos" : /zlatestranky/.test(sourceUrl ?? "") ? "zlatestranky" : null);
+  return `Máme ho ${s ? SOURCE_NAME[s] ?? "z verejne dostupného firemného kontaktu" : "z verejne dostupného firemného kontaktu"}.`;
+}
 
 const DAY = 86_400_000;
 
@@ -111,6 +126,7 @@ export function buildCallCard(opts: {
     "Nevydávaj sa za zákazníka ani za prieskum — ak sa spýtajú, prečo voláš, povedz rovno, že kvôli ich stránke.",
     "Súhlas s kontaktom ≠ záujem. Nepíš „má záujem“, ak iba dovolil, nech sa Dominik ozve.",
     "Nehovor, že im ujdú zákazníci, že je web nebezpečný, ani že ponuka platí len dnes.",
+    "Ak povedia, že nechcú, aby ste volali: poďakuj, ukonči a zapíš „Nevolať znova“ — firma sa už nikdy nevráti.",
   ];
   if (!claim) cautions.unshift("Stav webu nie je 100 % overený — NEHOVOR, že web nefunguje alebo že ho nemajú. Iba sa spýtaj.");
   if (fit !== "fits") cautions.push("Nespomínaj hotový web ani cenu — pre tento segment ho nemáme.");
@@ -126,6 +142,7 @@ export function buildCallCard(opts: {
     consent_question: "Mohol by sa vám o tom ozvať?",
     cautions,
     web_verified: claim,
+    source_answer: sourceAnswer(company, lead.source_url),
   };
 }
 
