@@ -1,7 +1,13 @@
 {
   "name": "djweby-leady",
   "private": true,
-  "scripts": { "dev": "next dev", "build": "next build", "start": "next start" },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --import tsx --test tests/*.test.ts && python3 -m unittest discover -s routine -p \"test_*.py\"",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "@supabase/supabase-js": "^2.117.1",
@@ -22,6 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

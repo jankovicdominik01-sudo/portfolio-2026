@@ -4,7 +4,11 @@ import { db } from "./db";
 import { callers } from "./auth";
 import { findBannedPhrases } from "./ai/guard";
 import { CALL_GOAL, DOMINIK_INTRO, KEY_QUESTION, defaultObjections, matchOffer, offerLine, whatNotToSay } from "./ai/brief";
-import { computePriority, dedupeKeys } from "./scoring";
+import { dedupeKeys } from "./scoring";
+import { computeScore, priorityFromScore } from "./score";
+import { identityMatch, mergeSources } from "./identity";
+import { forbiddenClaims, unverifiedWebClaim } from "./script";
+import { pickCaller } from "./workflow";
 import {
   ARCHIVE_REASONS,
   ClaimSchema,
@@ -52,7 +56,21 @@ export const ResearchSchema = z.object({
   checks: z.object({
     register: z.boolean(),
     phone_on_web: z.boolean(),
-    web: z.enum(["weak", "broken", "none"]),
+    /** none = nenašli sme web; uncertain = nevieme spoľahlivo povedať */
+    web: z.enum(["weak", "broken", "none", "uncertain"]),
+    /** konkrétny problém zo skriptu: parked, db_error, bad_cert, foreign_redirect, domain_dead, php_error, frames, no_viewport… */
+    web_issue: z.string().max(40).nullable().optional().default(null),
+    /**
+     * Overenie „nemá web“ vyhľadávaním (názov, IČO, mesto, telefón, meno). Bez neho sa „none“
+     * uloží ako UNCERTAIN a scenár sa iba pýta.
+     */
+    web_search: z
+      .object({ queries: z.array(z.string().max(200)).max(10), found_url: z.string().max(300).nullable() })
+      .nullable()
+      .optional()
+      .default(null),
+    /** Robí firma dnes naozaj tento odbor? changed = register/web hovorí o inom odbore. */
+    business: z.enum(["confirmed", "changed", "uncertain"]).optional().default("uncertain"),
   }),
   brief: z.object({
     praise: t(400),
@@ -79,8 +97,21 @@ export const ResearchedItemSchema = z.object({
 export type ResearchedResult =
   | { status: "ready"; leadId: string; name: string }
   | { status: "rejected"; leadId: string; name: string }
+  | { status: "review"; leadId: string; name: string; why: string }
   | { status: "duplicate"; name: string }
   | { status: "invalid"; name: string; error: string };
+
+/** Mapa výsledku kontroly webu na stav leadu. „Nemá web“ bez overenia vyhľadávaním = UNCERTAIN. */
+export function websiteStatusFrom(checks: z.infer<typeof ResearchSchema>["checks"]): NonNullable<Lead["website_status"]> {
+  if (checks.web === "broken") return "broken";
+  if (checks.web === "weak") return "weak";
+  if (checks.web === "none") {
+    const s = checks.web_search;
+    if (s?.found_url) return "uncertain"; // vyhľadávanie niečo našlo → netvrdíme „nemá web“
+    return s && s.queries.length >= 2 ? "no_website" : "uncertain";
+  }
+  return "uncertain";
+}
 
 const newId = (p: string) => `${p}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
 const now = () => new Date().toISOString();
@@ -90,10 +121,29 @@ export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof R
   const name = String(raw.company.name ?? "?");
   if (!parsedCompany.success) return { status: "invalid", name, error: parsedCompany.error.issues[0]?.message ?? "firma" };
   const input = parsedCompany.data;
+  const ico = typeof raw.company.ico === "string" && /^\d{6,8}$/.test(raw.company.ico.trim()) ? raw.company.ico.trim() : null;
+  const sources = (Array.isArray(raw.company.sources) ? raw.company.sources : [])
+    .filter((x): x is { source: string; url?: string | null } => !!x && typeof x === "object" && typeof (x as { source?: unknown }).source === "string")
+    .map((x) => ({ source: x.source.slice(0, 40), url: typeof x.url === "string" ? x.url.slice(0, 500) : null, seen_at: now() }));
 
   const r = await db();
-  const keys = dedupeKeys(input);
-  if (await r.findCompanyByKeys(keys)) return { status: "duplicate", name: input.name };
+  const keys = dedupeKeys({ ...input, ico });
+  const existing = await r.findCompanyByKeys(keys);
+  let reviewWhy: string | null = null;
+  if (existing) {
+    const idm = identityMatch(existing, { ...input, ico });
+    if (idm.same === true) {
+      // Tá istá firma z ďalšieho zdroja: iba doplníme zdroje / IČO, nový lead nevzniká.
+      await r.updateCompany(existing.id, {
+        sources: mergeSources(existing.sources, sources),
+        ico: existing.ico ?? ico,
+        dedupe_keys: [...new Set([...existing.dedupe_keys, ...keys])],
+        updated_at: now(),
+      });
+      return { status: "duplicate", name: input.name };
+    }
+    if (idm.same === null) reviewWhy = `Možná duplicita s „${existing.name}“ (${idm.reason}).`;
+  }
 
   let research: z.infer<typeof ResearchSchema> | null = null;
   if (!raw.reject) {
@@ -108,8 +158,12 @@ export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof R
     const orphan = claims.find((c) => !c.evidence_ids.length || c.evidence_ids.some((x) => !ids.has(x)));
     if (orphan) return { status: "invalid", name, error: `Tvrdenie bez platného zdroja: „${orphan.text}“` };
     const b = research.brief;
-    const banned = findBannedPhrases([b.call_opening, b.natural_pitch, b.main_idea, b.observation, b.reason, b.praise]);
-    if (banned.length) return { status: "invalid", name, error: `Zakázané frázy: ${banned.join(", ")}` };
+    const texts = [b.call_opening, b.natural_pitch, b.main_idea, b.observation, b.reason, b.praise];
+    const banned = [...findBannedPhrases(texts), ...forbiddenClaims(texts)];
+    if (banned.length) return { status: "invalid", name, error: `Zakázané frázy / tvrdenia: ${banned.join(", ")}` };
+    const ws = websiteStatusFrom(research.checks);
+    if (unverifiedWebClaim(texts, ws === "broken" || ws === "no_website"))
+      return { status: "invalid", name, error: "Scenár tvrdí „nemáte web / nefunguje“, ale stav webu nie je overený" };
     if (!input.phone) return { status: "invalid", name, error: "Bez telefónu sa nedá volať" };
   }
 
@@ -128,6 +182,9 @@ export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof R
     dedupe_keys: keys,
     created_at: now(),
     updated_at: now(),
+    ico,
+    sources,
+    do_not_call: false,
   };
   await r.insertCompany(company);
 
@@ -170,6 +227,16 @@ export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof R
 
   const offers = await r.listOffers();
   const offer = matchOffer(offers, company.category);
+  const website_status = websiteStatusFrom(research.checks);
+  const score = computeScore({
+    company,
+    website_status,
+    website_issue: research.checks.web_issue,
+    business_check: research.checks.business,
+    register_ok: research.checks.register,
+    phone_on_web: research.checks.phone_on_web,
+    offers,
+  });
   const analysis: Analysis = {
     engine: "routine",
     model: null,
@@ -214,19 +281,36 @@ export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof R
     company: research.checks.register ? "verified" : "partial",
     hook: "verified",
   };
-  const { priority, reasons } = computePriority(company, trust, analysis, offers);
-  await r.insertLead({
+  const caller = pickCaller(callers());
+  const common = {
     ...base,
-    status: "ready_to_call",
-    priority,
-    priority_reasons: reasons,
-    assigned_to: callers()[0]?.username ?? null,
+    priority: priorityFromScore(score),
+    priority_reasons: [...score.factors, ...score.risks].map((f) => `${f.points > 0 ? "+" : ""}${f.points} ${f.label}`),
     analysis,
     call_brief: brief,
     trust,
+    website_status,
+    website_issue: research.checks.web_issue,
+    website_checked_at: now(),
+    business_check: research.checks.business,
+    score,
+  };
+  if (reviewWhy || research.checks.business === "changed") {
+    // MANUAL VERIFICATION — do fronty volajúceho nejde, kým to Dominik neoverí.
+    const why = reviewWhy ?? "Firma dnes zrejme robí iný odbor — over pred volaním.";
+    await r.insertLead({ ...common, status: "analyzed", next_action: "review", notes: why });
+    await ev("created", "Lead pridaný (rannej rutiny)");
+    await ev("analysis", `Na overenie: ${why}`);
+    return { status: "review", leadId: base.id, name: input.name, why };
+  }
+  await r.insertLead({
+    ...common,
+    status: "ready_to_call",
+    assigned_to: caller,
+    assigned_history: caller ? [{ user: caller, at: now(), by: "Ranná rutina" }] : [],
     next_action: "caller_call",
   });
   await ev("created", "Lead pridaný (rannej rutiny)");
-  await ev("analysis", "Výskum rannej rutiny · lead pripravený na telefonát");
+  await ev("analysis", `Výskum rannej rutiny · skóre ${score.points} · ${caller ? `pridelené: ${caller}` : "bez volajúceho"}`);
   return { status: "ready", leadId: base.id, name: input.name };
 }

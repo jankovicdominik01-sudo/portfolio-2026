@@ -89,90 +89,12 @@ export function AnalyzeButton({
   );
 }
 
-/* ─────────────── Dominikov hovor ─────────────── */
-
-export function DominikCallPanel({ leadId, phone }: { leadId: string; phone: string | null }) {
-  const [outcome, setOutcome] = useState<DominikOutcome | null>(null);
-  const [note, setNote] = useState("");
-  const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<{ ok: boolean; message: string } | null>(null);
-  const router = useRouter();
-
-  return (
-    <div className="rounded-3xl bg-black/30 p-5 ring-1 ring-inset ring-line">
-      {phone ? (
-        <ButtonLink href={telHref(phone)!} variant="ok" size="lg" className="w-full">
-          <Phone className="size-4" /> Zavolať {phone}
-        </ButtonLink>
-      ) : null}
-      <div className="mt-5 text-[12px] font-medium text-white/40">Po hovore</div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {DOMINIK_OUTCOMES.map((o) => (
-          <button
-            key={o}
-            onClick={() => setOutcome(o)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-[13px] ring-1 ring-inset transition",
-              outcome === o ? "bg-white text-black ring-white" : "text-white/70 ring-line hover:bg-white/[0.05]",
-            )}
-          >
-            {DOMINIK_OUTCOME_LABEL[o]}
-          </button>
-        ))}
-      </div>
-      <AnimatePresence>
-        {outcome ? (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              placeholder="Krátka poznámka — čo potrebujú, rozsah…"
-              className={cn(inputClass, "mt-3 resize-none")}
-            />
-            <Button
-              variant="primary"
-              className="mt-3 w-full"
-              disabled={pending}
-              onClick={() =>
-                start(async () => {
-                  const r = await dominikCallAction(leadId, outcome, note);
-                  setMsg(r);
-                  if (r.ok) router.refresh();
-                })
-              }
-            >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Uložiť
-            </Button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      <div className="mt-2">
-        <Feedback msg={msg} />
-      </div>
-    </div>
-  );
-}
-
 /* ─────────────── Pipeline ─────────────── */
 
 const STAGE_ACTIONS: Partial<Record<LeadStatus, { to: LeadStatus; label: string; variant: ButtonVariant }[]>> = {
-  analyzed: [{ to: "ready_to_call", label: "Poslať kamarátovi na volanie", variant: "primary" }],
-  dominik_call: [
-    { to: "offer_sent", label: "Ponuka odoslaná", variant: "primary" },
-    { to: "won", label: "Vyhraté", variant: "ok" },
-    { to: "lost", label: "Stratené", variant: "ghost" },
-  ],
-  offer_sent: [
-    { to: "negotiation", label: "Rokujeme", variant: "primary" },
-    { to: "won", label: "Vyhraté", variant: "ok" },
-    { to: "lost", label: "Stratené", variant: "ghost" },
-  ],
-  negotiation: [
-    { to: "won", label: "Vyhraté", variant: "ok" },
-    { to: "lost", label: "Stratené", variant: "ghost" },
-  ],
-  won: [{ to: "negotiation", label: "Vrátiť do rokovania", variant: "ghost" }],
+  analyzed: [{ to: "ready_to_call", label: "Poslať volajúcemu na volanie", variant: "primary" }],
+  // Fázy po handoffe (súhlas → … → zaplatené) sa posúvajú iba cez SalesPanel,
+  // aby vznikol zápis o predaji aj odmena volajúceho.
   lost: [{ to: "ready_to_call", label: "Skúsiť znova", variant: "secondary" }],
   archived: [{ to: "analyzed", label: "Obnoviť lead", variant: "secondary" }],
 };

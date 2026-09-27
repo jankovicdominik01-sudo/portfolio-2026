@@ -40,7 +40,7 @@ export default function LoginPage() {
         {demo ? (
           <p className="mt-6 text-center text-xs text-white/35">
             Lokálny režim · <span className="text-white/60">dominik / dominik</span> alebo{" "}
-            <span className="text-white/60">jozo / jozo</span>
+            <span className="text-white/60">sona / sona</span>
           </p>
         ) : null}
       </div>

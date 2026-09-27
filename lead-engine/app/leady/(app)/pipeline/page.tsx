@@ -14,10 +14,14 @@ const STAGES: LeadStatus[] = [
   "ready_to_call",
   "called",
   "dominik_call",
+  "contacted",
+  "interested",
+  "demo",
   "offer_sent",
-  "negotiation",
   "won",
+  "paid",
   "lost",
+  "do_not_call",
 ];
 
 /** Pipeline ako jednoduchý prehľad fáz — nie drag&drop kanban. */
@@ -30,7 +34,7 @@ export default async function PipelinePage() {
     <div>
       <FadeIn>
         <h1 className="text-[32px] font-semibold tracking-[-0.035em]">Pipeline</h1>
-        <p className="mt-1 text-[15px] text-white/45">Research → Call → Handoff → Deal</p>
+        <p className="mt-1 text-[15px] text-white/45">Výskum → volajúci → súhlas s kontaktom → Dominik → dohoda → zaplatené</p>
       </FadeIn>
 
       {leads.length === 0 ? (

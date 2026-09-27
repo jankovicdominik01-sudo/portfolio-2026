@@ -1,7 +1,7 @@
 import type { DbState } from "./types";
 
 /**
- * Počiatočné dáta. Žiadne vymyslené firmy — iba reálne rozpracovaný web,
+ * Počiatočné dáta. Žiadne vymyslené firmy — iba reálny hotový web (pôvodný klient ho neprevzal),
  * ktorý Dominik môže ponúknuť (dá sa vypnúť v Nastaveniach).
  */
 export function seedState(s: DbState): DbState {
@@ -10,8 +10,8 @@ export function seedState(s: DbState): DbState {
       id: "offer_zahradnictvo",
       category: "zahradnictvo",
       available: true,
-      estimated_price: 300,
-      note: "Rozpracovaný koncept webu pre záhradníctvo / záhradné služby",
+      estimated_price: 200,
+      note: "Hotový web, ktorý pôvodný klient neprevzal — prispôsobí sa pre záhradníctvo / záhradné služby",
       preview_url: null,
       created_at: new Date().toISOString(),
     });

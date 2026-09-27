@@ -4,6 +4,7 @@ import { claudeAvailable } from "@/lib/ai/claude";
 import { Card, Eyebrow, Section } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
 import { OffersEditor } from "@/components/offers-editor";
+import { ReassignButton } from "@/components/reassign-button";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Nastavenia" };
@@ -27,10 +28,10 @@ export default async function SettingsPage() {
 
       <div className="mt-8 space-y-5">
         <FadeIn delay={0.05}>
-          <Section icon="💰" title="Rozpracované weby (existing_offer)">
+          <Section icon="💰" title="Hotový web na prispôsobenie (ponuka)">
             <p className="mb-5 max-w-2xl text-[14px] text-white/50">
-              Príbeh „Dominikovi ostal rozpracovaný web“ sa v call briefe zobrazí <b className="text-white/80">iba</b> pre
-              segment, kde je tu reálny projekt označený ako dostupný. Cenu ani web si AI nikdy nevymýšľa.
+              Veta „kamarátovi ostal hotový web, pôvodný klient ho neprevzal“ zaznie <b className="text-white/80">iba</b> pre
+              segment, pre ktorý je tu web označený ako dostupný (commercial fit). Obsah balíka a odmenu nastavíš v Peniaze.
             </p>
             <OffersEditor offers={offers} />
           </Section>
@@ -45,15 +46,21 @@ export default async function SettingsPage() {
                     <span>
                       {u.name} <span className="text-white/35">· {u.username}</span>
                     </span>
-                    <span className="text-white/45">{u.role === "admin" ? "Admin" : "Volajúci"}</span>
+                    <span className="text-white/45">
+                      {u.role === "admin" ? "Admin" : "Volajúci"}
+                      {u.active ? "" : " · neaktívny (história)"}
+                    </span>
                   </li>
                 ))}
               </ul>
               <p className="mt-4 text-[12px] text-white/35">
                 {demo
                   ? "Lokálne demo účty. Na serveri nastav LE_USERS."
-                  : "Účty sa nastavujú v premennej LE_USERS (meno|Meno|rola|heslo; …)."}
+                  : "Účty sa nastavujú v premennej LE_USERS (meno|Meno|rola|heslo|f/m|inactive; …). Nový volajúci = nový riadok, bez zmeny kódu."}
               </p>
+              <div className="mt-4">
+                <ReassignButton />
+              </div>
             </Section>
           </FadeIn>
           <FadeIn delay={0.14}>

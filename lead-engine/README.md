@@ -2,7 +2,7 @@
 
 Interný obchodný systém: **RESEARCH → CALL → HANDOFF → DEAL**.
 
-AI robí research a pripraví call brief → kamarát zavolá a zistí, či môže Dominik zavolať →
+Ranná rutina nájde a overí firmy → volajúci (Soňa) zavolá a získa súhlas s kontaktom (nie predaj) → Dominik zavolá, zistí záujem, predá, eviduje platbu →
 Dominik dostane kvalifikovaný lead aj s tým, čo firma povedala, a s odporúčaným začiatkom hovoru.
 
 Samostatná Next.js appka v priečinku `lead-engine/` — **nie je súčasťou webu djweby.sk**.
@@ -51,7 +51,9 @@ supabase/migrations/     SQL schéma
 | --------------- | ---- |
 | `companies`     | identita firmy + kontakt, `dedupe_keys` (email → telefón → doména → názov+mesto) |
 | `leads`         | obchodný prípad: status, priority, trust, `analysis`, `call_brief`, `qualification`, `next_action` |
-| `calls`         | každý telefonát (kamarát aj Dominik), oddelený od leadu |
+| `calls`         | každý telefonát (volajúci aj Dominik), oddelený od leadu |
+| `commissions`   | odmeny volajúcich: pending → confirmed → paid (suma iba z nastavenia) |
+| `settings`      | pravidlo odmeny a obsah balíka za cenu ponuky (prázdne = NEEDS CONFIGURATION) |
 | `lead_events`   | timeline (vytvorenie, merge, analýza, hovor, handoff…) |
 | `offers`        | `existing_offer` — reálne rozpracované weby; `available=false` → argument sa nezobrazí |
 | `notifications` | inbox („🔥 Nový kvalifikovaný lead“, „Dnes pribudlo 7 leadov“) |
@@ -87,7 +89,8 @@ tvrdenia bez platného evidence id sa zahodia, ponuka a cena sa berú výhradne 
 ```bash
 cd lead-engine
 npm install
-npm run dev          # http://localhost:3000/leady · dominik/dominik, jozo/jozo
+npm run dev          # http://localhost:3000/leady · dominik/dominik, sona/sona (jozo = neaktívny, história)
+npm test             # TS logika (node:test) + Python regresné testy zberného skriptu
 ```
 
 ## Nasadenie (Vercel)
@@ -98,6 +101,6 @@ npm run dev          # http://localhost:3000/leady · dominik/dominik, jozo/jozo
 3. Settings → Domains: vlastná doména (napr. `leady.djweby.sk`, DNS CNAME na Vercel).
 
 Podpisový kľúč session vzniká pri builde (`next.config.ts`), v repozitári nie je. Účty bez `LE_USERS`
-sú predvolené `dominik` (admin) a `jozo` (volajúci) — v kóde sú iba scrypt hashe.
+sú predvolené `dominik` (admin), `sona` (aktívna volajúca) a `jozo` (neaktívny — história ostáva) — v kóde sú iba scrypt hashe. Nový volajúci = nový riadok v `LE_USERS`, bez zmeny kódu.
 Voliteľné env: `LE_USERS`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `LE_API_KEY`,
 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (pozri `.env.example`).

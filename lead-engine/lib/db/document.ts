@@ -1,4 +1,4 @@
-import type { DbState, Repository } from "./types";
+import { normalizeState, type DbState, type Repository } from "./types";
 
 /**
  * Repository nad jedným JSON dokumentom. Dostačuje pre desiatky až nízke
@@ -14,7 +14,12 @@ export interface DocumentBackend {
 const byDateDesc = <T extends { created_at?: string; at?: string }>(a: T, b: T) =>
   (b.created_at ?? b.at ?? "").localeCompare(a.created_at ?? a.at ?? "");
 
-export function documentRepository(b: DocumentBackend): Repository {
+export function documentRepository(raw: DocumentBackend): Repository {
+  const b: DocumentBackend = {
+    kind: raw.kind,
+    read: async () => normalizeState(await raw.read()),
+    mutate: (fn) => raw.mutate((s) => fn(normalizeState(s))),
+  };
   return {
     kind: b.kind,
 
@@ -57,7 +62,28 @@ export function documentRepository(b: DocumentBackend): Repository {
     async listCalls(leadId) {
       return (await b.read()).calls.filter((c) => c.lead_id === leadId).sort(byDateDesc);
     },
+    async listAllCalls() {
+      return [...(await b.read()).calls].sort(byDateDesc);
+    },
     insertCall: (c) => b.mutate((s) => void s.calls.push(c)),
+
+    async listCommissions() {
+      return [...(await b.read()).commissions].sort(byDateDesc);
+    },
+    upsertCommission: (c) =>
+      b.mutate((s) => {
+        const i = s.commissions.findIndex((x) => x.id === c.id);
+        if (i >= 0) s.commissions[i] = c;
+        else s.commissions.push(c);
+      }),
+
+    async getSettings() {
+      return (await b.read()).settings;
+    },
+    saveSettings: (next) =>
+      b.mutate((s) => {
+        s.settings = next;
+      }),
 
     async listEvents(leadId) {
       return (await b.read()).events

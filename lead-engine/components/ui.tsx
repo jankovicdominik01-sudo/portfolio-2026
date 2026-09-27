@@ -125,10 +125,15 @@ const STATUS_TONE: Record<LeadStatus, string> = {
   ready_to_call: "bg-info/10 text-blue-200",
   called: "bg-white/[0.06] text-white/70",
   dominik_call: "bg-ok/12 text-green-300",
+  contacted: "bg-ok/12 text-green-300",
+  interested: "bg-brand-soft text-orange-200",
+  demo: "bg-brand-soft text-orange-200",
   offer_sent: "bg-brand-soft text-orange-200",
   negotiation: "bg-brand-soft text-orange-200",
   won: "bg-ok/15 text-green-200",
+  paid: "bg-ok/20 text-green-100",
   lost: "bg-white/[0.04] text-white/40",
+  do_not_call: "bg-red-500/10 text-red-300",
   archived: "bg-white/[0.04] text-white/40",
 };
 const STATUS_DOT: Record<LeadStatus, string> = {
@@ -137,10 +142,15 @@ const STATUS_DOT: Record<LeadStatus, string> = {
   ready_to_call: "bg-info",
   called: "bg-white/50",
   dominik_call: "bg-ok",
+  contacted: "bg-ok",
+  interested: "bg-brand",
+  demo: "bg-brand",
   offer_sent: "bg-brand",
   negotiation: "bg-brand",
   won: "bg-ok",
+  paid: "bg-ok",
   lost: "bg-white/30",
+  do_not_call: "bg-red-400",
   archived: "bg-white/30",
 };
 
