@@ -15,16 +15,20 @@ import {
   createOrMergeLead,
   logCallerCall,
   logDominikCall,
+  logSalesStep,
+  markCommissionPaid,
+  reassignFromInactive,
+  saveSettings,
   saveNotes,
   setStatus,
   updateCompany,
 } from "@/lib/leads";
 import { importRows, parseImport } from "@/lib/import";
+import { SALES_STEPS } from "@/lib/workflow";
 import { db } from "@/lib/db";
 import {
   ARCHIVE_REASONS,
-  CALL_OUTCOMES,
-  CALL_WHEN,
+  CALLER_OUTCOMES,
   CATEGORY_IDS,
   DOMINIK_OUTCOMES,
   LEAD_STATUSES,
@@ -108,18 +112,38 @@ export async function analyzeAction(leadId: string): Promise<ActionResult & { re
   }
 }
 
-const CallerCall = z.object({
-  outcome: z.enum(CALL_OUTCOMES),
-  note: z.string().trim().max(1000).nullable().transform((v) => v || null),
-  company_said: z.string().trim().max(1000).nullable().transform((v) => v || null),
-  preferred_time: z.enum(CALL_WHEN).nullable(),
-  email: z
+const ymdOpt = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .nullable()
+  .optional()
+  .transform((v) => v ?? null);
+const text = (max: number) =>
+  z
     .string()
     .trim()
-    .max(200)
+    .max(max)
     .nullable()
-    .transform((v) => v || null)
-    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "E-mail vyzerá neplatne"),
+    .optional()
+    .transform((v) => v || null);
+
+const CallerCall = z.object({
+  outcome: z.enum(CALLER_OUTCOMES),
+  note: text(1000),
+  callback_on: ymdOpt,
+  consent: z
+    .object({
+      contact_person: text(120),
+      company_said: text(1000),
+      caught_attention: text(500),
+      heard_price: z.boolean(),
+      call_on: ymdOpt,
+      call_note: text(200),
+      email: text(200).refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "E-mail vyzerá neplatne"),
+    })
+    .nullable()
+    .optional()
+    .transform((v) => v ?? null),
 });
 
 export async function callerCallAction(
@@ -135,11 +159,32 @@ export async function callerCallAction(
     revalidatePath("/leady");
     revalidatePath("/leady/leads");
     revalidatePath("/leady/inbox");
+    revalidatePath("/leady/earnings");
     return {
       ok: true,
       handoff: r.handoff,
       message: r.handoff ? "Kontakt odovzdaný Dominikovi." : "Uložené.",
     };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const SalesStepInput = z.object({
+  step: z.enum(SALES_STEPS),
+  note: text(1000),
+  date: ymdOpt,
+  price: z.number().min(0).max(100000).nullable().optional().transform((v) => v ?? null),
+});
+
+export async function salesStepAction(leadId: string, input: z.input<typeof SalesStepInput>): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  const p = SalesStepInput.safeParse(input);
+  if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Skontroluj údaje." };
+  try {
+    await logSalesStep(user, leadId, p.data.step, { note: p.data.note, date: p.data.date, price: p.data.price });
+    refreshAll();
+    return { ok: true, message: "Uložené." };
   } catch (e) {
     return fail(e);
   }
@@ -153,6 +198,66 @@ export async function dominikCallAction(leadId: string, outcome: string, note: s
     await logDominikCall(user, leadId, o.data, note.trim().slice(0, 1000) || null);
     refreshAll();
     return { ok: true, message: "Hovor uložený." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* ─────────────── Peniaze a nastavenia ─────────────── */
+
+const num = z.number().min(0).max(100000).nullable();
+const SettingsInput = z.object({
+  compensation: z.object({
+    model: z.enum(["handoff", "sale", "both"]).nullable(),
+    handoff_amount: num,
+    handoff_condition: z.enum(["on_consent", "on_contacted", "on_interest"]).nullable(),
+    sale_amount: num,
+    sale_percent: z.number().min(0).max(100).nullable(),
+  }),
+  package: z.object({
+    price: num,
+    pages: text(300),
+    texts: text(300),
+    images: text(300),
+    form: text(300),
+    domain: text(300),
+    hosting: text(300),
+    edits: text(300),
+    maintenance: text(300),
+    delivery: text(300),
+  }),
+});
+
+export async function saveSettingsAction(input: z.input<typeof SettingsInput>): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  const p = SettingsInput.safeParse(input);
+  if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Skontroluj údaje." };
+  try {
+    await saveSettings(user, p.data);
+    refreshAll();
+    return { ok: true, message: "Nastavenia uložené. Nevyplatené odmeny sa prepočítali." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function markPaidAction(commissionId: string): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    await markCommissionPaid(user, commissionId);
+    refreshAll();
+    return { ok: true, message: "Označené ako vyplatené." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function reassignInactiveAction(): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    const r = await reassignFromInactive(user);
+    refreshAll();
+    return { ok: true, message: r.moved ? `Presunuté: ${r.moved} nevolaných leadov → ${r.to}.` : "Nie je čo presúvať." };
   } catch (e) {
     return fail(e);
   }

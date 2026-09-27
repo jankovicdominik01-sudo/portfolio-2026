@@ -12,6 +12,8 @@ const DOT: Record<LeadEvent["kind"], string> = {
   dominik_call: "bg-brand",
   note: "bg-white/40",
   archive: "bg-white/25",
+  money: "bg-ok",
+  assign: "bg-white/40",
 };
 
 /** Jednoduchá timeline, nie audit log. */

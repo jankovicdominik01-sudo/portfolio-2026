@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Repository } from "./types";
-import type { CallLog, Company, Lead, LeadEvent, Notification, Offer } from "../types";
+import { defaultSettings, type CallLog, type Commission, type Company, type Lead, type LeadEvent, type Notification, type Offer, type Settings } from "../types";
 
 /** Produkčné úložisko. Schéma: supabase/migrations/0001_lead_engine.sql */
 export function supabaseRepository(url: string, serviceKey: string): Repository {
@@ -57,8 +57,26 @@ export function supabaseRepository(url: string, serviceKey: string): Repository 
         await sb.from("calls").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
       ) as CallLog[];
     },
+    async listAllCalls() {
+      return must(await sb.from("calls").select("*").order("created_at", { ascending: false })) as CallLog[];
+    },
     async insertCall(c) {
       must(await sb.from("calls").insert(c));
+    },
+
+    async listCommissions() {
+      return must(await sb.from("commissions").select("*").order("created_at", { ascending: false })) as Commission[];
+    },
+    async upsertCommission(c) {
+      must(await sb.from("commissions").upsert(c));
+    },
+
+    async getSettings() {
+      const row = must(await sb.from("settings").select("value").eq("id", "main").maybeSingle()) as { value: Settings } | null;
+      return row?.value ?? defaultSettings();
+    },
+    async saveSettings(value) {
+      must(await sb.from("settings").upsert({ id: "main", value }));
     },
 
     async listEvents(leadId) {

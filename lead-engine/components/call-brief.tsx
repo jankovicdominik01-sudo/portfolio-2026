@@ -7,7 +7,7 @@ import { FadeIn } from "./motion";
 import { SourceTag } from "./evidence";
 
 /**
- * Call brief. V režime „caller“ je to celá obrazovka pre kamaráta
+ * Call brief. V režime „caller“ je to celá obrazovka pre volajúceho
  * (mobile-first: firma → telefón → hook → čo povedať → CTA).
  * V režime „admin“ sú to sekcie 🗣️ Čo povedať + 💰 Ponuka v detaile leadu.
  */
@@ -19,7 +19,7 @@ export function CallBrief({ lead, mode }: { lead: LeadDetail; mode: "caller" | "
   if (mode === "admin") {
     return (
       <>
-        <Section icon="🗣️" title="Čo povedať" aside={<span className="text-[11px] text-white/30">Call brief pre kamaráta</span>}>
+        <Section icon="🗣️" title="Čo povedať" aside={<span className="text-[11px] text-white/30">Call brief pre volajúceho</span>}>
           {b.product ? (
             <div className="mb-5">
               <ProductCard p={b.product} />
@@ -204,7 +204,7 @@ function OfferCard({ b, compact }: { b: NonNullable<LeadDetail["call_brief"]>; c
     return (
       <Section icon="💰" title="Ponuka">
         <p className="text-[14px] text-white/45">
-          Pre tento segment nemáme rozpracovaný web. Kamarát cenu ani hotový web nespomína — rieši to až Dominik.
+          Pre tento segment nemáme hotový web. Volajúci cenu ani hotový web nespomína — rieši to až Dominik.
         </p>
       </Section>
     );
@@ -231,7 +231,7 @@ function OfferCard({ b, compact }: { b: NonNullable<LeadDetail["call_brief"]>; c
   );
 }
 
-/** Reálny produkt z ich webu — Jozo si ho pred hovorom otvorí, aby vedel, o čom hovorí. */
+/** Reálny produkt z ich webu — volajúci si ho pred hovorom otvorí, aby vedel, o čom hovorí. */
 function ProductCard({ p }: { p: NonNullable<NonNullable<LeadDetail["call_brief"]>["product"]> }) {
   return (
     <a

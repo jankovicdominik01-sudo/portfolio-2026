@@ -9,7 +9,7 @@ import { MarkAllRead } from "@/components/mark-read";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Inbox" };
 
-const ICON = { qualified: "🔥", new_leads: "🌱", info: "ℹ️" } as const;
+const ICON = { qualified: "🔥", new_leads: "🌱", info: "ℹ️", money: "💶" } as const;
 
 export default async function InboxPage() {
   await requireUser("admin");

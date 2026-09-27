@@ -18,7 +18,7 @@ export function OffersEditor({ offers }: { offers: Offer[] }) {
         <OfferForm onDone={() => setAdding(false)} />
       ) : (
         <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
-          <Plus className="size-4" /> Pridať rozpracovaný web
+          <Plus className="size-4" /> Pridať hotový web
         </Button>
       )}
     </div>

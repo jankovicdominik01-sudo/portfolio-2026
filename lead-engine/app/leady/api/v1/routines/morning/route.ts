@@ -4,6 +4,21 @@ import { apiAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { runMorningRoutine } from "@/lib/routine";
 import { ResearchedItemSchema, ingestResearched, type ResearchedResult } from "@/lib/research";
+import { callers } from "@/lib/auth";
+import { DAILY_NEW, freshCount } from "@/lib/queue";
+import { pickCaller } from "@/lib/workflow";
+
+/**
+ * GET: koľko nových leadov má ranná rutina dnes doplniť (aktívnemu volajúcemu do DAILY_NEW nevolaných).
+ */
+export async function GET() {
+  const user = await apiAuth();
+  if (!user || user.role !== "admin") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const caller = pickCaller(callers());
+  const leads = await (await db()).listLeads();
+  const fresh = caller ? freshCount(leads, caller) : 0;
+  return NextResponse.json({ caller, fresh, target: DAILY_NEW, need: caller ? Math.max(0, DAILY_NEW - fresh) : 0 });
+}
 
 export const maxDuration = 300;
 
@@ -53,6 +68,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ready: ready.length,
     rejected: results.filter((r) => r.status === "rejected").length,
+    review: results.filter((r) => r.status === "review"),
     duplicate: results.filter((r) => r.status === "duplicate").map((r) => r.name),
     invalid: results.filter((r) => r.status === "invalid"),
     results,

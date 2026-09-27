@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Phone, Plus } from "lucide-react";
 import { requireUser, adminName, setupStatus } from "@/lib/auth";
-import { listLeads } from "@/lib/leads";
+import { callerQueue, listLeads, myToday } from "@/lib/leads";
 import { db } from "@/lib/db";
 import { fmtDateTime, greeting, isDue } from "@/lib/format";
 import { categoryOf, type LeadWithCompany } from "@/lib/types";
@@ -19,8 +19,11 @@ const byPriority = (a: LeadWithCompany, b: LeadWithCompany) =>
 
 export default async function TodayPage() {
   const user = await requireUser();
+  if (user.role === "caller") {
+    const [today, stats] = await Promise.all([callerQueue(user), myToday(user)]);
+    return <CallerToday user={user} today={today} stats={stats} />;
+  }
   const leads = await listLeads(user);
-  if (user.role === "caller") return <CallerToday user={user} leads={leads} />;
 
   const notifications = await (await db()).listNotifications();
   const qualified = leads.filter((l) => l.status === "dominik_call" && l.next_action === "dominik_call").sort(byPriority);
@@ -31,13 +34,12 @@ export default async function TodayPage() {
       (l.status === "called" && l.next_action === "review") ||
       l.next_action === "verify_phone",
   );
-  const waiting = leads.filter((l) => l.status === "called" && l.next_action === "caller_call");
+  const waiting = leads.filter((l) => l.status === "called" && (l.next_action === "caller_call" || l.next_action === "callback"));
   const deals = leads
     .filter(
       (l) =>
         (l.status === "dominik_call" && l.next_action !== "dominik_call") ||
-        l.status === "offer_sent" ||
-        l.status === "negotiation",
+        ["contacted", "interested", "demo", "offer_sent", "negotiation", "won"].includes(l.status),
     )
     .sort((a, b) => (a.next_action_at ?? "").localeCompare(b.next_action_at ?? ""));
   const atCaller = leads.filter((l) => l.status === "ready_to_call");
@@ -76,7 +78,7 @@ export default async function TodayPage() {
           <EmptyState
             icon="🌱"
             title="Zatiaľ tu nemáš žiadne nové leady."
-            body="Pridaj firmu ručne alebo nahraj CSV. Systém ju overí, nájde hook a pripraví call brief pre kamaráta."
+            body="Pridaj firmu ručne alebo nahraj CSV. Systém ju overí, nájde hook a pripraví podklady pre volajúceho."
             action={
               <ButtonLink href="/leady/add" variant="primary">
                 <Plus className="size-4" /> Pridať firmu
@@ -96,7 +98,7 @@ export default async function TodayPage() {
         <div className="mt-10 grid gap-5 lg:grid-cols-2">
           <Group
             icon="🔥"
-            title="Kvalifikované"
+            title="Súhlasy s kontaktom"
             summary={
               qualified.length
                 ? `${qualified.length} ${plural(qualified.length, "firma čaká", "firmy čakajú", "firiem čaká")} na tvoj hovor`
@@ -120,7 +122,7 @@ export default async function TodayPage() {
             icon="⏳"
             title="Čaká sa"
             summary={
-              `${atCaller.length} u kamaráta na volanie` +
+              `${atCaller.length} u volajúceho na volanie` +
               (waiting.length ? ` · ${waiting.length} ${plural(waiting.length, "sa má ozvať", "sa majú ozvať", "sa má ozvať")} neskôr` : "")
             }
             leads={[...waiting].sort(byPriority)}
@@ -193,7 +195,9 @@ function Group({
 
 /** Najdôležitejšia vec dňa — veľká, jasná, s jedným CTA. */
 function NextActionHero({ lead, fresh }: { lead: LeadWithCompany; fresh: boolean }) {
-  const q = lead.qualification;
+  const q = lead.consent
+    ? { caller: lead.consent.by_name, called_at: lead.consent.at, company_said: lead.consent.company_said }
+    : lead.qualification;
   const cat = categoryOf(lead.company.category);
   const isCall = lead.next_action === "dominik_call";
   return (
@@ -203,7 +207,7 @@ function NextActionHero({ lead, fresh }: { lead: LeadWithCompany; fresh: boolean
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold tracking-[0.16em] text-green-300 uppercase">
-              {isCall ? "🟢 Kvalifikovaný lead" : "🗓️ Ďalší krok"}
+              {isCall ? "🟢 Súhlas s kontaktom" : "🗓️ Ďalší krok"}
             </span>
             {fresh ? (
               <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-semibold text-green-300">NOVÉ</span>
@@ -217,14 +221,14 @@ function NextActionHero({ lead, fresh }: { lead: LeadWithCompany; fresh: boolean
           </div>
           {q ? (
             <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/70">
-              {q.caller} volal {fmtDateTime(q.called_at)}
+              {q.caller} · {fmtDateTime(q.called_at)}
               {q.company_said ? (
                 <>
                   {" "}
                   — <span className="text-white">„{q.company_said}“</span>
                 </>
               ) : (
-                " — firma súhlasila, aby si zavolal."
+                " — firma súhlasila, aby si sa ozval."
               )}
             </p>
           ) : null}

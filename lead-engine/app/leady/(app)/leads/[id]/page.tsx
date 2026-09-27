@@ -1,7 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Globe, Mail, Phone } from "lucide-react";
-import { requireUser, callers } from "@/lib/auth";
+import { requireUser, callers, adminName, allUsers } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { dominikOpening2 } from "@/lib/script";
+import { ISSUE_LABEL } from "@/lib/score";
+import { leadSource } from "@/lib/analytics";
+import { SalesPanel } from "@/components/sales-panel";
 import { getLead } from "@/lib/leads";
 import { displayUrl, fmtDate, fmtDateTime, telHref } from "@/lib/format";
 import {
@@ -13,7 +18,9 @@ import {
   type CallOutcome,
   type DominikOutcome,
   type LeadDetail,
+  type LeadStatus,
   type NextAction,
+  WEBSITE_STATUS_LABEL,
 } from "@/lib/types";
 import { ButtonLink, Card, CategoryLabel, Eyebrow, PriorityTag, Section, StatusPill, TrustRow } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
@@ -25,10 +32,11 @@ import {
   ArchiveControl,
   AssignSelect,
   CompanyEditor,
-  DominikCallPanel,
   NotesEditor,
   StageButtons,
 } from "@/components/lead-actions";
+
+import { CallerCall } from "@/components/caller-call";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -41,16 +49,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
     notFound();
   }
 
-  if (user.role === "caller") {
-    return (
-      <div>
-        <Link href="/leady" className="mb-6 inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white">
-          <ArrowLeft className="size-4" /> Dnes
-        </Link>
-        <CallBrief lead={lead} mode="caller" />
-      </div>
-    );
-  }
+  if (user.role === "caller") return <CallerCall user={user} leadId={lead.id} backHref="/leady" />;
 
   const c = lead.company;
   const a = lead.analysis;
@@ -199,6 +198,8 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
             </Section>
           ) : null}
 
+          <ScoreBox lead={lead} />
+
           <Section icon="📝" title="Poznámky">
             <NotesEditor leadId={lead.id} initial={lead.notes} />
           </Section>
@@ -211,7 +212,10 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
               <Row label="Mesto" value={c.city} />
               <Row label="Adresa" value={c.address} />
               <Row label="Web" value={c.website ? displayUrl(c.website) : "nemá"} />
-              <Row label="Zdroj" value={{ manual: "Manuálne", import: "Import", api: "API", routine: "Ranná rutina" }[lead.source]} />
+              <Row label="IČO" value={c.ico ?? null} />
+              <Row label="Zdroje" value={(c.sources ?? []).map((x) => x.source).join(", ") || leadSource(lead)} />
+              <Row label="Volajúci" value={lead.assigned_to} />
+              {c.do_not_call ? <Row label="Pozor" value="⛔ Nevolať" /> : null}
               <Row label="Pridané" value={fmtDate(lead.created_at)} />
             </dl>
           </Section>
@@ -249,73 +253,8 @@ function StateBanner({ lead }: { lead: LeadDetail }) {
     );
   }
 
-  if (lead.status === "dominik_call" && lead.qualification) {
-    const q = lead.qualification;
-    return (
-      <Card className="relative overflow-hidden p-6 ring-ok/20 sm:p-8">
-        <div className="pointer-events-none absolute -top-32 -right-24 size-80 rounded-full bg-ok/10 blur-3xl" />
-        <div className="relative">
-          <div className="text-[12px] font-semibold tracking-[0.16em] text-green-300 uppercase">🟢 Kvalifikovaný lead</div>
-          <p className="mt-3 text-[17px] text-white/85">
-            {q.caller} volal {fmtDateTime(q.called_at)}. Firma súhlasila, aby si zavolal.
-          </p>
-          {q.company_said ? (
-            <blockquote className="mt-4 border-l-2 border-ok/40 pl-4 text-[17px] leading-relaxed text-white">
-              „{q.company_said}“
-            </blockquote>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-white/45">
-            {q.preferred_time ? (
-              <span>
-                Kedy volať:{" "}
-                <span className="text-white/80">
-                  {{ today: "dnes", tomorrow: "zajtra", later: "neskôr" }[q.preferred_time]}
-                </span>
-              </span>
-            ) : null}
-            {q.email ? (
-              <span>
-                E-mail: <span className="text-white/80">{q.email}</span>
-              </span>
-            ) : null}
-            {na ? (
-              <span>
-                Ďalší krok:{" "}
-                <span className="text-white/80">
-                  {na.icon} {na.label}
-                </span>
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-            <div>
-              <Eyebrow>Čo ti odporúčame povedať</Eyebrow>
-              <ol className="mt-3 space-y-2.5">
-                {q.dominik_opening.map((s, i) => (
-                  <li key={i} className="flex gap-3 text-[16px] leading-relaxed text-white/90">
-                    <span className="mt-1 text-[12px] font-mono text-white/25">{i + 1}</span>
-                    <span>„{s}“</span>
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-6">
-                <Eyebrow>Cieľ hovoru</Eyebrow>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-[14px] text-white/70">
-                  {q.dominik_goal.map((g, i) => (
-                    <span key={g} className="flex items-center gap-2">
-                      {i > 0 ? <span className="text-white/25">→</span> : null}
-                      {g}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DominikCallPanel leadId={lead.id} phone={lead.company.phone} />
-          </div>
-        </div>
-      </Card>
-    );
+  if (HANDOFF_STATUSES.includes(lead.status) || (lead.status === "lost" && (lead.consent || lead.qualification))) {
+    return <HandoffCard lead={lead} />;
   }
 
   if (lead.status === "analyzed") {
@@ -326,8 +265,8 @@ function StateBanner({ lead }: { lead: LeadDetail }) {
         </div>
         <p className="mt-2 text-[15px] text-white/60">
           {lead.analysis?.nothing_found
-            ? "Nenašli sme výrazný dôvod volať. Ak vidíš niečo, čo analýza nenašla, doplň to do poznámky a pošli lead kamarátovi — inak ho vyraď."
-            : "Niektoré údaje nie sú dostatočne overené. Skontroluj ich a potom lead pošli kamarátovi."}
+            ? "Nenašli sme výrazný dôvod volať. Ak vidíš niečo, čo analýza nenašla, doplň to do poznámky a pošli lead volajúcemu — inak ho vyraď."
+            : "Niektoré údaje nie sú dostatočne overené. Skontroluj ich a potom lead pošli volajúcemu."}
         </p>
         <ul className="mt-3 space-y-1 text-[14px] text-white/50">
           {lead.priority_reasons.map((r) => (
@@ -346,7 +285,7 @@ function StateBanner({ lead }: { lead: LeadDetail }) {
     return (
       <Card className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
         <div>
-          <div className="text-[12px] font-semibold tracking-[0.16em] text-blue-200 uppercase">☎️ U kamaráta na volaní</div>
+          <div className="text-[12px] font-semibold tracking-[0.16em] text-blue-200 uppercase">☎️ U volajúceho</div>
           <p className="mt-2 text-[15px] text-white/60">
             {lead.status === "called"
               ? `Volané ${lead.call_attempts}× — čaká sa na ďalší pokus.`
@@ -378,6 +317,126 @@ function StateBanner({ lead }: { lead: LeadDetail }) {
       </div>
       <StageButtons leadId={lead.id} status={lead.status} />
     </Card>
+  );
+}
+
+const HANDOFF_STATUSES: LeadStatus[] = ["dominik_call", "contacted", "interested", "demo", "offer_sent", "negotiation", "won", "paid"];
+
+/**
+ * Dominikov handoff: kto volal, čo presne zaznelo (súhlas ≠ záujem), prečo bol lead vybraný,
+ * stav webu a istota, odporúčaný pravdivý úvod a kroky pipeline.
+ */
+async function HandoffCard({ lead }: { lead: LeadDetail }) {
+  const c = lead.consent;
+  const q = lead.qualification;
+  const settings = await (await db()).getSettings();
+  const callerSpeech = allUsers().find((u) => u.username === c?.by_user)?.speech;
+  const opening = c ? dominikOpening2({ adminName: adminName(), lead, callerSpeech }) : (q?.dominik_opening ?? []);
+  const ws = lead.website_status;
+  const src = leadSource(lead);
+  return (
+    <Card className="relative overflow-hidden p-6 ring-ok/20 sm:p-8">
+      <div className="pointer-events-none absolute -top-32 -right-24 size-80 rounded-full bg-ok/10 blur-3xl" />
+      <div className="relative">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[12px] font-semibold tracking-[0.16em] text-green-300 uppercase">
+            🟢 {c?.kind === "info" ? "Chce informácie" : "Súhlas s kontaktom"}
+          </span>
+          <StatusPill status={lead.status} />
+        </div>
+        <p className="mt-3 text-[16px] text-white/80">
+          {c ? `${c.by_name} · ${fmtDateTime(c.at)}` : q ? `${q.caller} · ${fmtDateTime(q.called_at)}` : "—"}
+          {" — "}
+          <span className="text-white/55">súhlas s kontaktom nie je záujem o web; ten zisťuješ ty.</span>
+        </p>
+
+        <dl className="mt-5 grid gap-x-8 gap-y-2.5 text-[14px] sm:grid-cols-2">
+          <HRow label="Kontaktná osoba" value={c?.contact_person ?? lead.company.contact_person} />
+          <HRow label="Telefón" value={lead.company.phone} />
+          <HRow label="Mesto / segment" value={`${lead.company.city ?? "—"} · ${categoryOf(lead.company.category).label}`} />
+          <HRow label="Pôvodný zdroj" value={src} />
+          <HRow
+            label="Stav webu"
+            value={ws ? `${WEBSITE_STATUS_LABEL[ws]}${lead.website_issue ? ` — ${ISSUE_LABEL[lead.website_issue] ?? lead.website_issue}` : ""}` : "neurčený (starší lead)"}
+          />
+          <HRow label="Istota / skóre" value={lead.score ? `${lead.score.points} b. (${lead.score.band})` : (lead.analysis?.confidence ?? "—")} />
+          <HRow label="Čo klient povedal" value={c?.company_said ?? q?.company_said ?? null} />
+          <HRow label="Čo ho zaujalo" value={c?.caught_attention ?? null} />
+          <HRow label="Počul cenu" value={c ? (c.heard_price ? `áno${settings.package.price ? ` (${settings.package.price} €)` : ""}` : "nie") : "—"} />
+          <HRow label="Kedy volať" value={c ? [c.call_on ? fmtDate(c.call_on) : null, c.call_note].filter(Boolean).join(" · ") || "kedykoľvek" : "—"} />
+          <HRow label="E-mail" value={c?.email ?? q?.email ?? null} />
+          <HRow label="Poznámka" value={c?.note ?? null} />
+        </dl>
+        {lead.analysis?.why_this_lead ? (
+          <p className="mt-4 text-[14px] text-white/55">
+            <span className="text-white/35">Prečo vybraný: </span>
+            {lead.analysis.why_this_lead}
+          </p>
+        ) : null}
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_1fr]">
+          <div>
+            <Eyebrow>Pravdivý úvod</Eyebrow>
+            <ol className="mt-3 space-y-2.5">
+              {opening.map((line, i) => (
+                <li key={i} className="flex gap-3 text-[16px] leading-relaxed text-white/90">
+                  <span className="mt-1 font-mono text-[12px] text-white/25">{i + 1}</span>
+                  <span>„{line}“</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-[13px] text-white/40">
+              Nehovor „počul som, že máte záujem“ — firma iba dovolila, aby si sa ozval.
+            </p>
+            {lead.sale ? (
+              <p className="mt-4 text-[14px] text-white/70">
+                Predaj: {lead.sale.price ?? "—"} €{lead.sale.paid_at ? ` · zaplatené ${fmtDate(lead.sale.paid_at)}` : ""}
+              </p>
+            ) : null}
+          </div>
+          {lead.status === "paid" ? (
+            <div className="rounded-3xl bg-ok/10 p-5 text-[15px] text-green-100 ring-1 ring-ok/25">✅ Zaplatené. Hotovo.</div>
+          ) : lead.status === "lost" ? (
+            <div className="rounded-3xl bg-white/[0.03] p-5 text-[14px] text-white/55 ring-1 ring-line">
+              Stratené{lead.lost_reason ? ` (${lead.lost_reason})` : ""}.
+            </div>
+          ) : (
+            <SalesPanel leadId={lead.id} status={lead.status} phone={lead.company.phone} defaultPrice={settings.package.price} />
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function HRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-line/60 pb-1.5">
+      <dt className="shrink-0 text-white/40">{label}</dt>
+      <dd className="text-right text-white/85">{value || "—"}</dd>
+    </div>
+  );
+}
+
+function ScoreBox({ lead }: { lead: LeadDetail }) {
+  const s = lead.score;
+  if (!s) return null;
+  return (
+    <Section icon="📊" title={`Skóre ${s.points} (${{ high: "vysoko", medium: "stredne", low: "nízko" }[s.band]})`}>
+      <p className="mb-2 text-[12px] text-white/35">Pravidlá v{s.version} — každý bod má dôvod.</p>
+      <ul className="space-y-1 text-[13px]">
+        {s.factors.map((f) => (
+          <li key={f.key}>
+            <span className="text-green-300">+{f.points}</span> {f.label}
+          </li>
+        ))}
+        {s.risks.map((f) => (
+          <li key={f.key}>
+            <span className="text-yellow-200">{f.points}</span> {f.label}
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }
 

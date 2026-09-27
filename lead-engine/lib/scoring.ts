@@ -81,15 +81,18 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-/** Kľúče v poradí priority: email → telefón → doména → názov+mesto. */
+/** Kľúče v poradí priority: IČO → email → telefón → doména → názov+mesto. */
 export function dedupeKeys(c: {
   name: string;
   city: string | null;
   phone: string | null;
   email: string | null;
   website: string | null;
+  ico?: string | null;
 }): string[] {
   const keys: string[] = [];
+  const ico = (c.ico ?? "").replace(/\D/g, "");
+  if (ico.length >= 6 && ico.length <= 8) keys.push(`ico:${ico.padStart(8, "0")}`);
   if (c.email) keys.push(`email:${c.email.trim().toLowerCase()}`);
   if (c.phone) {
     let d = c.phone.replace(/[^\d+]/g, "");

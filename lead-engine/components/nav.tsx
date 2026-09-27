@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bell, Columns3, Home, List, Plus, Settings } from "lucide-react";
+import { BarChart3, Bell, Columns3, Euro, Home, List, Plus, Settings } from "lucide-react";
 import { cn } from "./ui";
 
 const ITEMS = [
@@ -11,6 +11,8 @@ const ITEMS = [
   { href: "/leady/leads", label: "Leady", icon: List },
   { href: "/leady/pipeline", label: "Pipeline", icon: Columns3 },
   { href: "/leady/inbox", label: "Inbox", icon: Bell, badge: true },
+  { href: "/leady/analytics", label: "Analytika", icon: BarChart3 },
+  { href: "/leady/money", label: "Peniaze", icon: Euro },
   { href: "/leady/add", label: "Pridať firmu", icon: Plus },
   { href: "/leady/settings", label: "Nastavenia", icon: Settings },
 ];
@@ -56,7 +58,7 @@ export function NavLinks({ unread }: { unread: number }) {
 
 export function MobileTabs({ unread }: { unread: number }) {
   const path = usePathname();
-  const items = ITEMS.filter((i) => i.href !== "/leady/settings");
+  const items = ITEMS.filter((i) => !["/leady/settings", "/leady/add", "/leady/money"].includes(i.href));
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
@@ -79,6 +81,39 @@ export function MobileTabs({ unread }: { unread: number }) {
                 {badge && unread > 0 ? (
                   <span className="absolute top-0.5 right-2 size-2 rounded-full bg-ok ring-2 ring-bg" />
                 ) : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/** Spodná lišta volajúceho: iba Dnes a Zárobok. Na obrazovke hovoru sa skryje (tam je vlastné tlačidlo). */
+export function CallerTabs() {
+  const path = usePathname();
+  if (path.startsWith("/leady/leads/")) return null;
+  const items = [
+    { href: "/leady", label: "Dnes", icon: Home },
+    { href: "/leady/earnings", label: "Zárobok", icon: Euro },
+  ];
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+      aria-label="Navigácia"
+    >
+      <ul className="mx-auto flex max-w-md justify-around px-2 py-2">
+        {items.map(({ href, label, icon: Icon }) => {
+          const active = isActive(path, href);
+          return (
+            <li key={href}>
+              <Link
+                href={href}
+                className={cn("flex flex-col items-center gap-0.5 rounded-xl px-6 py-1.5 text-[12px]", active ? "text-white" : "text-white/40")}
+              >
+                <Icon className="size-6" strokeWidth={1.8} />
+                {label}
               </Link>
             </li>
           );

@@ -4,34 +4,49 @@ import { promisify } from "node:util";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, sessionSecret, timingSafeStringEqual, verifySession } from "./session";
-import type { Role, SessionUser } from "./types";
+import type { Role, SessionUser, UserInfo } from "./types";
 import { blobConfigured } from "./db/blob-token";
 
-type UserRecord = SessionUser & { password: string };
+type UserRecord = UserInfo & { password: string };
 
 /**
  * Predvolené účty Lead Engine. Repozitár je verejný, preto tu sú iba
  * scrypt hashe (heslá má Dominik). Prepíše ich env LE_USERS.
+ *
+ * Žiadna logika nie je viazaná na konkrétne meno: volajúci = rola "caller",
+ * nové leady dostáva prvý AKTÍVNY volajúci. Neaktívny (Jozo) ostáva kvôli histórii
+ * (hovory, výsledky, priradenia), ale neprihlási sa a nedostáva nové leady.
  */
 const DEFAULT_USERS: UserRecord[] = [
   {
     username: "dominik",
     name: "Dominik Jankovič",
     role: "admin",
+    active: true,
     password: "scrypt$xkYE-gY_9dUibtGstpqi1Q$7dOACQLDdF-ViIlnG2lTz8BkZaHZqXW0_TDfw5uMqq0",
+  },
+  {
+    username: "sona",
+    name: "Soňa",
+    role: "caller",
+    active: true,
+    speech: "f",
+    password: "scrypt$KQFspmMlTon9wgYg8J3R2g$Dbt4UsEyhbwWR3JY1HFRiBNpsFmE1KvlmFCLhN0QPPI",
   },
   {
     username: "jozo",
     name: "Jozo",
     role: "caller",
+    active: false,
+    speech: "m",
     password: "scrypt$OM_JJ5aWWF8JoyQlPhu4pQ$TKc6Uc8l3gG6KxOE-t_7yZzM8vNZOHLvoOHnSNXjRJo",
   },
 ];
 
 /**
- * Používatelia z env LE_USERS (heslo môže byť aj scrypt$salt$hash):
- *   "dominik|Dominik|admin|heslo;jozo|Jozo|caller|heslo2"
- * Bez LE_USERS: lokálne demo účty dominik/dominik a jozo/jozo, na serveri DEFAULT_USERS.
+ * Používatelia z env LE_USERS (heslo môže byť aj scrypt$salt$hash), voliteľne na konci „inactive“ a „f“/„m“:
+ *   "dominik|Dominik|admin|heslo;sona|Soňa|caller|heslo2|f;jozo|Jozo|caller|heslo3|m|inactive"
+ * Bez LE_USERS: lokálne demo účty (heslo = meno), na serveri DEFAULT_USERS.
  */
 export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
   const raw = process.env.LE_USERS;
@@ -40,8 +55,9 @@ export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
     return {
       demo: true,
       users: [
-        { username: "dominik", name: "Dominik Jankovič", role: "admin", password: "dominik" },
-        { username: "jozo", name: "Jozo", role: "caller", password: "jozo" },
+        { username: "dominik", name: "Dominik Jankovič", role: "admin", active: true, password: "dominik" },
+        { username: "sona", name: "Soňa", role: "caller", active: true, speech: "f", password: "sona" },
+        { username: "jozo", name: "Jozo", role: "caller", active: false, speech: "m", password: "jozo" },
       ],
     };
   }
@@ -50,16 +66,29 @@ export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
     .map((row) => row.trim())
     .filter(Boolean)
     .map((row) => {
-      const [username, name, role, ...pw] = row.split("|");
+      const parts = row.split("|");
+      // Voliteľné príznaky na konci: active|inactive a f|m (tvar slovies v scenári).
+      const flags: string[] = [];
+      while (parts.length > 4 && /^(active|inactive|f|m)$/i.test(parts[parts.length - 1].trim())) {
+        flags.push(parts.pop()!.trim().toLowerCase());
+      }
+      const [username, name, role, ...pw] = parts;
       return {
         username: username.trim().toLowerCase(),
         name: name.trim(),
         role: (role.trim() === "admin" ? "admin" : "caller") as Role,
+        active: !flags.includes("inactive"),
+        speech: flags.includes("f") ? ("f" as const) : flags.includes("m") ? ("m" as const) : undefined,
         password: pw.join("|"),
       };
     })
     .filter((u) => u.username && u.password.length >= 6);
   return { users, demo: false };
+}
+
+/** Všetci používatelia bez hesiel (aj neaktívni — kvôli histórii a filtrom). */
+export function allUsers(): UserInfo[] {
+  return configuredUsers().users.map(({ username, name, role, active, speech }) => ({ username, name, role, active, speech }));
 }
 
 const scryptAsync = promisify(scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
@@ -79,14 +108,21 @@ export async function authenticate(username: string, password: string): Promise<
   const u = users.find((x) => x.username === username.trim().toLowerCase());
   // Porovnávame aj pri neexistujúcom mene, aby čas odpovede neprezrádzal účty.
   const ok = await passwordMatches(u?.password ?? "__none__", password);
-  if (!u || !ok) return null;
+  if (!u || !ok || !u.active) return null;
   return { username: u.username, name: u.name, role: u.role };
 }
 
+/** Aktívni volajúci — dostávajú nové leady. */
 export function callers(): SessionUser[] {
   return configuredUsers()
-    .users.filter((u) => u.role === "caller")
+    .users.filter((u) => u.role === "caller" && u.active)
     .map(({ username, name, role }) => ({ username, name, role }));
+}
+
+/** Meno podľa username (aj neaktívneho) — pre históriu. */
+export function userName(username: string | null | undefined): string {
+  if (!username) return "—";
+  return configuredUsers().users.find((u) => u.username === username)?.name ?? username;
 }
 
 export function adminName(): string {
@@ -107,13 +143,18 @@ export function setupStatus(): { ready: boolean; persistent: boolean } {
 
 export async function currentUser(): Promise<SessionUser | null> {
   const jar = await cookies();
-  return verifySession(jar.get(SESSION_COOKIE)?.value);
+  const s = await verifySession(jar.get(SESSION_COOKIE)?.value);
+  if (!s) return null;
+  // Deaktivovaný alebo odstránený účet stratí prístup hneď, nie až po vypršaní cookie.
+  const u = configuredUsers().users.find((x) => x.username === s.username);
+  if (!u || !u.active || u.role !== s.role) return null;
+  return { username: u.username, name: u.name, role: u.role };
 }
 
 /** Pre stránky a server actions — bez session presmeruje na login. */
 export async function requireUser(role?: Role): Promise<SessionUser> {
   const u = await currentUser();
-  if (!u) redirect("/leady/login");
+  if (!u) redirect("/leady/login?reauth=1");
   if (role && u.role !== role) redirect("/leady");
   return u;
 }

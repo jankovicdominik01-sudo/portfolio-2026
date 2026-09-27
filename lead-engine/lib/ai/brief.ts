@@ -28,8 +28,8 @@ export function matchOffer(offers: Offer[], category: CategoryId): Offer | null 
 }
 
 export function offerLine(offer: Offer): string {
-  const price = offer.estimated_price ? ` Cenovo by sme sa mali zmestiť približne do ${offer.estimated_price} eur.` : "";
-  return `Dominikovi teraz ostal jeden rozpracovaný web pre ${CATEGORY_GENITIVE[offer.category]}, pôvodný klient ho nakoniec neprebral. Napadlo mi, že by sa možno hodil práve vám — vedel by ho upraviť pre vás.${price}`;
+  const price = offer.estimated_price ? ` Stál by ${offer.estimated_price} eur.` : "";
+  return `Dominikovi teraz zostal jeden hotový web pre ${CATEGORY_GENITIVE[offer.category]}, pôvodný klient ho nakoniec neprevzal. Možno by sa dal prispôsobiť vám.${price}`;
 }
 
 export const DOMINIK_INTRO =
@@ -46,7 +46,7 @@ export function whatNotToSay(category: CategoryId, hasOffer: boolean): string[] 
     "Nezačínaj Dominikom ani cenou — najprv normálny rozhovor.",
     "Nesľubuj termíny ani presnú cenu — to rieši Dominik.",
   ];
-  if (!hasOffer) list.push("Nespomínaj žiadny hotový ani rozpracovaný web — pre tento segment ho nemáme.");
+  if (!hasOffer) list.push("Nespomínaj hotový web ani cenu — pre tento segment ho nemáme.");
   if (categoryOf(category).gallery) list.push("Nekritizuj ich fotky ani realizácie — to je ich hrdosť.");
   return list;
 }
@@ -86,7 +86,7 @@ export function defaultObjections(hasOffer: boolean, price: number | null) {
 
 /**
  * Dominikov odporúčaný vstup do hovoru (3–5 viet) — skladá sa z toho,
- * čo reálne povedal kamarát a čo sme reálne našli.
+ * čo reálne povedal volajúci a čo sme reálne našli.
  */
 export function dominikOpening(opts: {
   adminName: string;
@@ -105,7 +105,7 @@ export function dominikOpening(opts: {
       : "Spomínal mi, že ste sa bavili o webe a že by ste neboli proti, keby som sa ozval.",
     obs ? `Pozeral som si vaše stránky a všimol som si hlavne to, že ${lowerFirst(stripDot(obs))}.` : null,
     lead.call_brief?.offer
-      ? "Mám rozpracovaný web pre podobnú firmu, takže by som vám vedel rýchlo ukázať, ako by to mohlo vyzerať."
+      ? "Mám hotový web, ktorý pôvodný klient neprevzal, takže by som vám vedel rýchlo ukázať, ako by to mohlo vyzerať."
       : null,
     "Chcel som sa len spýtať, či je to pre vás ešte aktuálne a čo by ste od toho potrebovali.",
   ].filter((x): x is string => !!x);

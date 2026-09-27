@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/leady/actions";
 import type { SessionUser } from "@/lib/types";
-import { NavLinks, MobileTabs } from "./nav";
+import { NavLinks, MobileTabs, CallerTabs } from "./nav";
 import { SearchPalette } from "./search";
 
 function Logo() {
@@ -73,7 +73,7 @@ export function AdminShell({ user, unread, children }: { user: SessionUser; unre
   );
 }
 
-/** Kamarát nevidí Dominikov obchodný svet — iba svoje hovory. */
+/** Volajúci nevidí Dominikov obchodný svet — iba svoje hovory a svoje peniaze. */
 export function CallerShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   return (
     <div className="glow min-h-dvh">
@@ -86,7 +86,8 @@ export function CallerShell({ user, children }: { user: SessionUser; children: R
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-[640px] px-4 pt-6 pb-24">{children}</main>
+      <main className="mx-auto max-w-[640px] px-4 pt-6 pb-28">{children}</main>
+      <CallerTabs />
     </div>
   );
 }
