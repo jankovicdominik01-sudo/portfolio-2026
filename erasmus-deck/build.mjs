@@ -1,11 +1,12 @@
 // Builds the Erasmus+ deck into one self-contained HTML file.
 // Fonts, CSS, map data and JS are inlined so the deck also works offline;
-// photos stay as separate files in public/erasmus/img.
+// photos (erasmus-deck/img) are copied next to it as img/.
 //
-//   node erasmus-deck/build.mjs                 -> public/erasmus/index.html
+//   node erasmus-deck/build.mjs --out <dir>     -> <dir>/index.html + <dir>/img
 //   node erasmus-deck/build.mjs --fragment f    -> also writes a body-only copy to f
+// The Erasmus site build (erasmus-site/build.mjs) calls this with --out dist/slovakia.
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, cpSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -68,10 +69,12 @@ ${content}</body>
 </html>
 `;
 
-const outDir = join(here, "..", "public", "erasmus");
+const o = process.argv.indexOf("--out");
+const outDir = o !== -1 && process.argv[o + 1] ? process.argv[o + 1] : join(here, "..", "erasmus-site", "dist", "slovakia");
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, "index.html"), full);
-console.log(`public/erasmus/index.html  ${(full.length / 1024).toFixed(0)} KB`);
+cpSync(join(here, "img"), join(outDir, "img"), { recursive: true });
+console.log(`slovakia/index.html      ${(full.length / 1024).toFixed(0)} KB`);
 
 const i = process.argv.indexOf("--fragment");
 if (i !== -1 && process.argv[i + 1]) {

@@ -3,10 +3,11 @@
 A 14-slide, English-language presentation for the Erasmus+ visit to Turkey:
 Slovakia → Senica → our school (Súkromná stredná odborná škola podnikania) → Erasmus+.
 
-The finished deck is **`public/erasmus/index.html`** (served at `/erasmus/index.html`).
-It is one self-contained file (fonts, styles, map and code inlined) plus the photos in
-`public/erasmus/img/`. Copy the whole `public/erasmus/` folder to a USB stick and it runs
-offline in any modern browser (Chrome or Edge recommended).
+This deck is part of the Erasmus+ Mersin 2026 site (see `erasmus-site/README.md`),
+where it is served at **`/slovakia`** next to the hub and the agriculture deck.
+The build writes one self-contained file (fonts, styles, map and code inlined) plus the
+photos from `erasmus-deck/img/` into `erasmus-site/dist/slovakia/`, which runs offline in
+any modern browser (Chrome or Edge recommended).
 
 ## Presenting
 
@@ -32,7 +33,8 @@ erasmus-deck/src/index.html   slide markup and speaker notes
 erasmus-deck/src/deck.css     design tokens and layout
 erasmus-deck/src/deck.js      navigation, map camera, animations
 erasmus-deck/src/credits.json photo credits shown with C
-node erasmus-deck/build.mjs   rebuilds public/erasmus/index.html
+node erasmus-deck/build.mjs   rebuilds erasmus-site/dist/slovakia (or pass --out <dir>)
+erasmus-deck/img/             photos
 ```
 
 `tools/build_map.py` regenerates `src/map-data.json` from Natural Earth data;
