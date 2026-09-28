@@ -9,13 +9,19 @@ import { computeScore, priorityFromScore } from "./score";
 import { identityMatch, mergeSources } from "./identity";
 import { forbiddenClaims, unverifiedWebClaim } from "./script";
 import { pickCaller } from "./workflow";
+import { effectiveRouting, routeLead } from "./routing";
+import { BANDS, SCORE_VERSION } from "./score";
 import {
   ARCHIVE_REASONS,
   ClaimSchema,
   LeadInputSchema,
   ObjectionSchema,
   ProductRefSchema,
+  RadarProfileSchema,
   type Analysis,
+  type Evidence,
+  type RadarProfile,
+  type Score,
   type CallBrief,
   type Company,
   type Lead,
@@ -91,6 +97,8 @@ export const ResearchSchema = z.object({
 export const ResearchedItemSchema = z.object({
   company: z.record(z.string(), z.unknown()),
   research: z.unknown().optional(),
+  /** Lead Radar: overená entita (evidencia, stav webu, kvalita dát, odporúčaný volajúci). */
+  radar: z.unknown().optional(),
   reject: z.object({ reason: z.enum(ARCHIVE_REASONS), why: t(300) }).optional(),
 });
 
@@ -117,6 +125,7 @@ const newId = (p: string) => `${p}_${crypto.randomUUID().replace(/-/g, "").slice
 const now = () => new Date().toISOString();
 
 export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof ResearchedItemSchema>): Promise<ResearchedResult> {
+  if (raw.radar !== undefined) return ingestRadar(actor, raw);
   const parsedCompany = LeadInputSchema.safeParse({ ...raw.company, source: "routine" });
   const name = String(raw.company.name ?? "?");
   if (!parsedCompany.success) return { status: "invalid", name, error: parsedCompany.error.issues[0]?.message ?? "firma" };
@@ -312,5 +321,210 @@ export async function ingestResearched(actor: SessionUser, raw: z.infer<typeof R
   });
   await ev("created", "Lead pridaný (rannej rutiny)");
   await ev("analysis", `Výskum rannej rutiny · skóre ${score.points} · ${caller ? `pridelené: ${caller}` : "bez volajúceho"}`);
+  return { status: "ready", leadId: base.id, name: input.name };
+}
+
+
+/* ─────────────── Lead Radar ─────────────── */
+
+/** Stav zdravia webu (Lead.website_status) z profilu. „Nemá web“ sa nikdy neuloží — iba „web sme nenašli“. */
+export function websiteStatusFromProfile(p: RadarProfile): NonNullable<Lead["website_status"]> {
+  const res = p.website?.status ?? p.website_resolution ?? "uncertain";
+  if (res === "no_website_found") return "no_website";
+  if (res !== "confirmed" && res !== "probable") return "uncertain";
+  const st = p.website?.health?.state;
+  return st === "broken" ? "broken" : st === "weak" ? "weak" : st === "working" ? "working" : "uncertain";
+}
+
+/** Skóre radaru → ScoreSchema (body a dôvody sú z radaru; pásmo podľa BANDS). */
+export function scoreFromProfile(p: RadarProfile, offerFit: Score["offer_fit"]): Score {
+  const items = p.score?.reasons ?? [];
+  const points = p.score?.points ?? 0;
+  return {
+    version: SCORE_VERSION * 100 + 3,
+    points,
+    band: points >= BANDS.high ? "high" : points >= BANDS.medium ? "medium" : "low",
+    factors: items.filter((i) => i.points > 0).map((i) => ({ key: i.key, label: i.label, points: i.points })),
+    risks: items.filter((i) => i.points <= 0).map((i) => ({ key: i.key, label: i.label, points: i.points })),
+    offer_fit: offerFit,
+  };
+}
+
+/** Evidencia pre admin/analýzu z profilu (každé tvrdenie má zdroj). */
+export function evidenceFromProfile(p: RadarProfile, at: string): Evidence[] {
+  const ev: Evidence[] = [];
+  const add = (source: Evidence["source"], url: string | null, page: string | null, excerpt: string) =>
+    ev.push({ id: `E${ev.length + 1}`, source, url, page, excerpt: excerpt.slice(0, 380), checked_at: at });
+  for (const x of p.identity?.evidence ?? []) add("catalog", null, "identita", x);
+  if (p.website?.url) add("web", p.website.url, "web", `${p.website.status}: ${(p.website.evidence ?? []).join("; ")}`);
+  for (const i of p.website?.health?.issues ?? []) add("web", p.website?.url ?? null, "zdravie webu", `${i.text}${i.excerpt ? ` — ${i.excerpt}` : ""}`);
+  for (const s of (p.socials ?? []).filter((x) => x.match === "confirmed")) add("catalog", s.url ?? null, s.platform, (s.evidence ?? []).join("; ") || s.platform);
+  if (p.description && p.description.confidence !== "unknown") add("catalog", null, "popis", `${p.description.text} (zdroje: ${p.description.sources.join(", ")})`);
+  return ev.slice(0, 20);
+}
+
+export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof ResearchedItemSchema>): Promise<ResearchedResult> {
+  const name = String(raw.company.name ?? "?");
+  const parsedCompany = LeadInputSchema.safeParse({ ...raw.company, source: "routine" });
+  if (!parsedCompany.success) return { status: "invalid", name, error: parsedCompany.error.issues[0]?.message ?? "firma" };
+  const pp = RadarProfileSchema.safeParse(raw.radar);
+  if (!pp.success) {
+    const i = pp.error.issues[0];
+    return { status: "invalid", name, error: `radar.${i?.path.join(".")}: ${i?.message}` };
+  }
+  const profile = pp.data;
+  const input = parsedCompany.data;
+  const country = raw.company.country === "CZ" ? "CZ" : "SK";
+  const ico = typeof raw.company.ico === "string" && /^\d{6,8}$/.test(raw.company.ico.trim()) ? raw.company.ico.trim() : null;
+  const at = now();
+  const sources = (Array.isArray(raw.company.sources) ? raw.company.sources : [])
+    .filter((x): x is { source: string; url?: string | null } => !!x && typeof x === "object" && typeof (x as { source?: unknown }).source === "string")
+    .map((x) => ({ source: x.source.slice(0, 40), url: typeof x.url === "string" ? x.url.slice(0, 500) : null, seen_at: at }));
+  const socialKeys = (profile.socials ?? [])
+    .filter((x) => x.match === "confirmed" && x.handle)
+    .map((x) => `social:${x.platform}:${String(x.handle).toLowerCase()}`);
+
+  const r = await db();
+  const keys = [...new Set([...dedupeKeys({ ...input, ico }), ...socialKeys])];
+  const existing = await r.findCompanyByKeys(keys);
+  if (existing) {
+    const idm = identityMatch(existing, { ...input, ico, country });
+    if (idm.same === true) {
+      await r.updateCompany(existing.id, {
+        sources: mergeSources(existing.sources, sources),
+        ico: existing.ico ?? ico,
+        dedupe_keys: [...new Set([...existing.dedupe_keys, ...keys])],
+        updated_at: at,
+      });
+      return { status: "duplicate", name: input.name };
+    }
+  }
+
+  const company: Company = {
+    id: newId("co"),
+    name: input.name,
+    category: input.category,
+    city: input.city,
+    region: input.region,
+    contact_person: input.contact_person,
+    phone: input.phone,
+    email: input.email,
+    address: input.address,
+    website: input.website,
+    social_profiles: input.social_profiles,
+    dedupe_keys: keys,
+    created_at: at,
+    updated_at: at,
+    ico,
+    sources,
+    do_not_call: false,
+    country,
+    profile,
+  };
+  await r.insertCompany(company);
+  const base: Lead = {
+    id: newId("ld"),
+    company_id: company.id,
+    status: "archived",
+    priority: "low",
+    priority_reasons: [],
+    source: "routine",
+    source_url: input.source_url,
+    assigned_to: null,
+    analysis: null,
+    call_brief: null,
+    trust: { web: "unverified", phone: "unverified", company: "unverified", hook: "unverified" },
+    qualification: null,
+    next_action: null,
+    next_action_at: null,
+    last_contact: null,
+    call_attempts: 0,
+    archive_reason: null,
+    notes: "",
+    created_at: at,
+    updated_at: at,
+    website_resolution: profile.website?.status ?? profile.website_resolution ?? "uncertain",
+    data_quality: profile.data_quality ?? "research",
+    recommended_caller: profile.recommended_caller ?? null,
+    caller_fit: profile.caller_fit ?? null,
+    commercial_problem: profile.commercial_problems?.[0]?.code ?? null,
+    exploration: profile.exploration ?? false,
+  };
+  const ev = (kind: "created" | "analysis" | "archive", label: string) =>
+    r.insertEvent({ id: newId("ev"), lead_id: base.id, at: now(), actor: actor.name, kind, label });
+
+  if (raw.reject) {
+    const why = raw.reject.why;
+    await r.insertLead({ ...base, archive_reason: raw.reject.reason, priority_reasons: [why], notes: why });
+    await ev("archive", `Lead Radar firmu preveril a vyradil: ${why}`);
+    return { status: "rejected", leadId: base.id, name: input.name };
+  }
+  if (!input.phone) return { status: "invalid", name, error: "Bez telefónu sa nedá volať" };
+
+  const offers = await r.listOffers();
+  const offer = matchOffer(offers, company.category);
+  const fit: Score["offer_fit"] = offers.some((o) => o.available && o.category === company.category) ? "fits" : offers.some((o) => o.available) ? "no_fit" : "unknown";
+  const score = scoreFromProfile(profile, fit);
+  const evidence = evidenceFromProfile(profile, at);
+  const probs = profile.commercial_problems ?? [];
+  const analysis: Analysis = {
+    engine: "routine",
+    model: "lead-radar",
+    analyzed_at: at,
+    company_summary: profile.description?.text ?? "Presné zameranie sa nepodarilo spoľahlivo overiť.",
+    why_this_lead: probs.map((x) => x.label).join(" · ") || "Bez obchodného dôvodu",
+    positive_points: [],
+    observations: probs.slice(0, 4).map((x) => ({ text: `${x.label}${x.heuristic ? " (názor, nie fakt)" : ""}`, evidence_ids: evidence.filter((e) => e.page === "zdravie webu" || e.page === "web").slice(0, 2).map((e) => e.id) })),
+    customer_risk: null,
+    customer_gap: null,
+    opportunity: probs[0]?.label ?? "",
+    primary_hook: probs[0]?.label ?? "",
+    secondary_hook: probs[1]?.label ?? null,
+    nothing_found: probs.length === 0,
+    confidence: profile.identity?.confidence === "high" ? "high" : profile.identity?.confidence === "medium" ? "medium" : "low",
+    evidence,
+    warnings: profile.data_quality_why ?? [],
+  };
+  const res = base.website_resolution;
+  const trust: Trust = {
+    web: res === "confirmed" ? "verified" : res === "probable" ? "partial" : "unverified",
+    phone: profile.primary_phone?.confidence === "high" ? "verified" : "partial",
+    company: profile.identity?.confidence === "high" ? "verified" : "partial",
+    hook: probs.some((x) => !x.heuristic) ? "verified" : "partial",
+  };
+  const settings = await r.getSettings();
+  const active = callers().map((u) => u.username);
+  const route = routeLead(company.category, profile.recommended_caller, effectiveRouting(settings), active);
+  const common: Lead = {
+    ...base,
+    priority: priorityFromScore(score),
+    priority_reasons: [...score.factors, ...score.risks].map((f) => `${f.points > 0 ? "+" : ""}${f.points} ${f.label}`),
+    analysis,
+    call_brief: null,
+    trust,
+    website_status: websiteStatusFromProfile(profile),
+    website_issue: (profile.website?.health?.issues ?? []).slice().sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0]?.key ?? null,
+    website_checked_at: profile.last_verified?.website ?? at,
+    business_check: ["high", "medium"].includes(profile.category?.confidence ?? "") ? "confirmed" : "uncertain",
+    score,
+    caller_fit: { score: profile.caller_fit?.score ?? 50, reasons: [...(profile.caller_fit?.reasons ?? []), ...route.reasons] },
+  };
+  void offer;
+  if (base.data_quality === "research" || !route.caller) {
+    const why = base.data_quality === "research" ? `Dáta treba doplniť: ${(profile.data_quality_why ?? []).join(", ")}` : "Nie je aktívny volajúci";
+    await r.insertLead({ ...common, status: "analyzed", next_action: "review", notes: why });
+    await ev("created", "Lead pridaný (Lead Radar)");
+    await ev("analysis", `Na overenie: ${why}`);
+    return { status: "review", leadId: base.id, name: input.name, why };
+  }
+  await r.insertLead({
+    ...common,
+    status: "ready_to_call",
+    assigned_to: route.caller,
+    assigned_history: [{ user: route.caller, at, by: "Lead Radar" }],
+    next_action: "caller_call",
+  });
+  await ev("created", "Lead pridaný (Lead Radar)");
+  await ev("analysis", `Lead Radar · ${(base.data_quality ?? "").toUpperCase()} · skóre ${score.points} · ${route.reasons.join("; ")}`);
   return { status: "ready", leadId: base.id, name: input.name };
 }

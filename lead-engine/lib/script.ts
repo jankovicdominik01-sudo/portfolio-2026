@@ -7,7 +7,17 @@
  *  4. Dominik        — hotový web, pôvodný klient ho neprevzal (iba ak ponuka sedí na segment)
  *  5. súhlas         — „Mohol by sa vám ozvať?“
  */
-import { categoryOf, type CategoryId, type Company, type Lead, type Offer } from "./types";
+import {
+  categoryOf,
+  DATA_QUALITY_LABEL,
+  WEBSITE_RESOLUTION_LABEL,
+  type CategoryId,
+  type Company,
+  type Lead,
+  type Offer,
+  type RadarProfile,
+  type WebsiteResolution,
+} from "./types";
 import { ISSUE_LABEL, offerFit } from "./score";
 
 export type Speech = "f" | "m";
@@ -15,7 +25,28 @@ export type Speech = "f" | "m";
 const v = (s: Speech | undefined, f: string, m: string) => (s === "f" ? f : s === "m" ? m : `${m}(a)`);
 
 /** Úprimné otázky k podnikaniu — Soňa sa pýta, lebo ju to zaujíma, netvári sa ako zákazníčka. */
-export const SEGMENT_QUESTIONS: Record<CategoryId, string[]> = {
+export const SEGMENT_QUESTIONS: Partial<Record<CategoryId, string[]>> = {
+  kadernictvo: ["Robíte skôr dámske strihy a farbenie, alebo aj pánske?", "Objednávajú sa k vám ľudia skôr cez telefón, alebo cez Instagram?"],
+  barber: ["Robíte aj úpravu brady, alebo skôr strihy?", "Objednávajú sa k vám ľudia skôr cez telefón, alebo online?"],
+  makeup: ["Robíte skôr svadobné líčenie, alebo aj bežné akcie?", "Kde vás ľudia najčastejšie nájdu — cez Instagram?"],
+  nechty: ["Robíte skôr gél lak, alebo aj modeláž?", "Objednávajú sa k vám ľudia skôr cez správy na Instagrame?"],
+  mihalnice: ["Robíte predlžovanie mihalníc aj úpravu obočia?", "Objednávajú sa k vám ľudia skôr cez Instagram?"],
+  kozmetika: ["Ktoré ošetrenie si u vás ľudia pýtajú najčastejšie?", "Objednávajú sa k vám ľudia skôr telefonicky?"],
+  fotograf: ["Fotíte skôr svadby, alebo aj rodinné a firemné fotenie?", "Kde vás klienti najčastejšie nájdu?"],
+  video: ["Robíte skôr svadobné videá, alebo aj firemné?"],
+  svadby: ["Robíte kompletnú organizáciu, alebo skôr výzdobu?"],
+  reality: ["Robíte skôr predaj bytov, alebo aj domy a pozemky?", "Kde vás ľudia najčastejšie nájdu, keď predávajú?"],
+  developer: ["Na aký projekt sa teraz najviac sústredíte?"],
+  interier: ["Robíte skôr celé návrhy bytov, alebo aj jednotlivé miestnosti?"],
+  architekt: ["Robíte skôr rodinné domy, alebo aj komerčné stavby?"],
+  kuchyne: ["Robíte kuchyne celé na mieru, alebo aj z hotových dielcov?", "Koľko dopredu máte teraz plno?"],
+  stavebnictvo: ["Robíte skôr rekonštrukcie, alebo aj novostavby?", "Koľko dopredu máte teraz plno?"],
+  maliar: ["Robíte skôr byty, alebo aj fasády?"],
+  fasady: ["Robíte aj zatepľovanie, alebo skôr samotné fasády?"],
+  kurenie: ["Robíte skôr kotly, alebo aj tepelné čerpadlá?"],
+  autoservis: ["Robíte skôr bežný servis, alebo aj väčšie opravy?"],
+  pneuservis: ["Máte teraz v sezóne veľa prezúvania?"],
+  detailing: ["Robíte skôr čistenie interiérov, alebo aj keramickú ochranu?"],
   zahradnictvo: [
     "Robíte aj zakladanie a údržbu trávnikov, alebo skôr predaj rastlín?",
     "Čo by ste teraz na jeseň odporučili ľuďom urobiť v záhrade?",
@@ -48,6 +79,22 @@ export type CallCard = {
   web_verified: boolean;
   /** Pravdivá odpoveď na „Odkiaľ máte moje číslo?“ */
   source_answer: string;
+  /** Čo o firme VIEME a čo NEVIEME (Lead Radar). null pri starších leadoch bez profilu. */
+  truth: TruthCard | null;
+};
+
+export type TruthCard = {
+  category: { label: string; confidence: string; verified: boolean };
+  phone: { value: string | null; confidence: string | null; sources: string[] };
+  web: { status: WebsiteResolution; label: string; url: string | null; domain: string | null; issues: string[] };
+  socials: { platform: string; url: string; label: string }[];
+  does: { text: string; verified: boolean; sources: string[] };
+  why_calling: string[];
+  why_trust: string[];
+  dont_say: string[];
+  angle: string;
+  data_quality: { tier: string; label: string; why: string[] };
+  country: string;
 };
 
 const SOURCE_NAME: Record<string, string> = {
@@ -74,7 +121,12 @@ function verifiedLabel(at: string | null | undefined, nowIso: string): string | 
 }
 
 /** Stav webu je dostatočne overený na tvrdenie (nie na otázku)? */
-export function webClaimAllowed(lead: Pick<Lead, "website_status" | "website_checked_at">, nowIso: string): boolean {
+export function webClaimAllowed(
+  lead: Pick<Lead, "website_status" | "website_checked_at"> & { website_resolution?: Lead["website_resolution"] },
+  nowIso: string,
+): boolean {
+  // Lead Radar: tvrdiť o webe smieme iba pri webe, ktorý firme POTVRDENE patrí.
+  if (lead.website_resolution && lead.website_resolution !== "confirmed") return false;
   if (!lead.website_status || lead.website_status === "uncertain" || lead.website_status === "working") return false;
   if (!lead.website_checked_at) return false;
   // Starší údaj než 14 dní už netvrdíme — web mohol medzitým ožiť.
@@ -117,6 +169,10 @@ export function buildCallCard(opts: {
       : `${v(s, "Pozerala", "Pozeral")} som si vašu stránku a na mobile sa mi zle čítala.`;
   }
 
+  const prof = company.profile ?? null;
+  const truth = prof ? truthCard(prof, lead, s, nowIso) : null;
+  if (truth) transition = truth.angle;
+
   const dominik =
     fit === "fits"
       ? "Mám kamaráta, ktorý robí weby. Teraz mu zostal jeden hotový, pretože pôvodný klient ho nakoniec neprevzal. Možno by sa vám dal prispôsobiť."
@@ -131,18 +187,110 @@ export function buildCallCard(opts: {
   if (!claim) cautions.unshift("Stav webu nie je 100 % overený — NEHOVOR, že web nefunguje alebo že ho nemajú. Iba sa spýtaj.");
   if (fit !== "fits") cautions.push("Nespomínaj hotový web ani cenu — pre tento segment ho nemáme.");
   if (lead.business_check === "uncertain") cautions.push("Nie je isté, čo presne firma dnes robí — najprv sa opýtaj.");
+  if (truth) for (const d of truth.dont_say) if (!cautions.includes(d)) cautions.unshift(d);
+  cautions.push("Nesľubuj SEO, hosting, e-shop, reklamu, údržbu ani neobmedzené úpravy — obsah balíka povie Dominik.");
 
   return {
     why,
     verified: verifiedLabel(lead.website_checked_at, nowIso),
     opener: `Dobrý deň, volám sa ${callerName}. Mám na vás krátku otázku.`,
-    questions: SEGMENT_QUESTIONS[cat.id].slice(0, 2),
+    questions: (SEGMENT_QUESTIONS[cat.id] ?? SEGMENT_QUESTIONS.ine ?? []).slice(0, 2),
     transition,
     dominik,
     consent_question: "Mohol by sa vám o tom ozvať?",
     cautions,
-    web_verified: claim,
+    web_verified: truth ? truth.web.status === "confirmed" && claim : claim,
     source_answer: sourceAnswer(company, lead.source_url),
+    truth,
+  };
+}
+
+/* ─────────────── Lead Radar: pravdivá karta ─────────────── */
+
+const PLATFORM_LABEL: Record<string, string> = { instagram: "Instagram", facebook: "Facebook", google: "Google" };
+/** Objektívny problém webu → ľudská veta pre volajúceho (bez technických slov). */
+const ISSUE_SPOKEN: Record<string, string> = {
+  no_viewport: "na mobile sa mi zle čítala",
+  no_portfolio: "nevidel(a) som tam vaše realizácie",
+  no_cta: "nenašiel/nenašla som tam, ako sa u vás rýchlo objednať",
+  old_copyright: "vyzerá, že sa dlhšie neaktualizovala",
+  frames: "na mobile sa nedá poriadne používať",
+  construction: "svieti na nej, že je vo výstavbe",
+  phone_missing: "nie je na nej vaše aktuálne číslo",
+  no_https: "prehliadač pri nej píše, že je nezabezpečená",
+  slow: "načítavala sa dosť dlho",
+};
+
+export function truthCard(p: RadarProfile, lead: Pick<Lead, "website_checked_at">, s: Speech | undefined, nowIso: string): TruthCard {
+  const cat = categoryOf(p.category?.id);
+  const catVerified = ["high", "medium"].includes(p.category?.confidence ?? "");
+  const res: WebsiteResolution = p.website?.status ?? p.website_resolution ?? "uncertain";
+  const health = p.website?.health;
+  const issues = (health?.issues ?? []).slice().sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+  const socials = (p.socials ?? [])
+    .filter((x) => x.match === "confirmed" && x.url)
+    .map((x) => ({ platform: x.platform, url: x.url as string, label: `${PLATFORM_LABEL[x.platform] ?? x.platform}${x.handle && !x.handle.includes("/") ? ` @${x.handle}` : ""}` }));
+  const probs = p.commercial_problems ?? [];
+  const has = (code: string) => probs.find((x) => x.code === code);
+  const fresh = !lead.website_checked_at || new Date(nowIso).getTime() - new Date(lead.website_checked_at).getTime() <= 14 * DAY;
+  const channels = [...new Set(socials.map((x) => PLATFORM_LABEL[x.platform] ?? x.platform))].join(" a ");
+
+  let angle: string;
+  if (res === "no_website_found" && socials.length) {
+    // CASE A — social-first: netvrdíme „nemáte web“, pýtame sa (zároveň overí naše dáta)
+    angle = `${v(s, "Pozerala", "Pozeral")} som si vašu prezentáciu a ${v(s, "našla", "našiel")} som vás hlavne cez ${channels}. Máte aj vlastnú stránku?`;
+  } else if (res === "no_website_found") {
+    angle = `${v(s, "Hľadala", "Hľadal")} som si vás na internete a vlastnú stránku som ${v(s, "nenašla", "nenašiel")} — máte nejakú?`;
+  } else if (res === "confirmed" && health?.state === "broken" && fresh) {
+    // CASE B — potvrdený nefunkčný web
+    angle = `${v(s, "Pozerala", "Pozeral")} som si vašu stránku ${p.website?.domain ?? ""} a ${v(s, "všimla", "všimol")} som si, že momentálne nefunguje.`.replace("  ", " ");
+  } else if (res === "confirmed" && has("SOCIAL_WEB_GAP") && fresh) {
+    // CASE C — Instagram ukazuje prácu, web nie (objektívne: web nemá realizácie)
+    angle = `Vaše práce na Instagrame vyzerajú fakt dobre — na stránke som ich ale ${v(s, "nenašla", "nenašiel")}. Nerozmýšľali ste to tam dať?`;
+  } else if (res === "confirmed" && has("BRAND_WEBSITE_MISMATCH") && fresh) {
+    angle = `Na Instagrame máte veľmi pekné fotky — stránka ich podľa mňa neukazuje až tak dobre. Nerozmýšľali ste ju osviežiť?`;
+  } else if (res === "confirmed" && health?.state === "weak" && fresh) {
+    const top = issues.find((x) => ISSUE_SPOKEN[x.key]);
+    const said = top ? ISSUE_SPOKEN[top.key].replace("(a)", s === "f" ? "a" : s === "m" ? "" : "(a)").replace("nenašiel/nenašla", v(s, "nenašla", "nenašiel")) : "niečo by sa na nej dalo vylepšiť";
+    angle = `${v(s, "Pozerala", "Pozeral")} som si vašu stránku a ${said}.`;
+  } else if (res === "probable") {
+    angle = `${v(s, "Pozerala", "Pozeral")} som si vás na internete — je stránka ${p.website?.domain ?? ""} vaša?`.replace("  ", " ");
+  } else {
+    angle = `${v(s, "Pozerala", "Pozeral")} som si vás na internete a nie som si ${v(s, "istá", "istý")}, či máte aktuálnu stránku — máte nejakú?`;
+  }
+
+  const dont: string[] = [];
+  if (res === "confirmed" || res === "probable") dont.push(`Nehovor, že nemajú web — ${res === "confirmed" ? "majú potvrdený" : "pravdepodobne majú"} web ${p.website?.domain ?? ""}.`.replace("  ", " "));
+  if (res === "no_website_found") dont.push("Nehovor „nemáte web“ — vieme iba, že sme ho nenašli. Opýtaj sa.");
+  if (res === "uncertain") dont.push("Stav webu nie je istý — nič o webe netvrď, iba sa opýtaj.");
+  if (res === "confirmed" && health?.state === "broken" && !fresh) dont.push("Kontrola webu je staršia ako 14 dní — netvrď, že nefunguje.");
+  if (!catVerified) dont.push("Odbor nie je overený — najprv sa opýtaj, čo robia.");
+  if (!p.description || p.description.confidence === "unknown") dont.push("Nevieme presne, čo robia — nič nepredpokladaj.");
+  const ph = p.primary_phone;
+  if (ph && ph.confidence !== "high") dont.push("Číslo je z jedného zdroja — na začiatku si over, že voláš správnej firme.");
+  if (probs.some((x) => x.heuristic)) dont.push("Dojem z webu je názor, nie fakt — hovor „podľa mňa“, nikdy „máte zlý web“.");
+
+  const trust = [...(p.identity?.evidence ?? []).slice(0, 3), ...(p.website?.evidence ?? []).slice(0, 2), ...socials.slice(0, 1).map((x) => `${x.label} patrí firme`)];
+  return {
+    category: { label: `${cat.emoji} ${cat.label}`, confidence: p.category?.confidence ?? "unknown", verified: catVerified },
+    phone: { value: ph?.value ?? null, confidence: ph?.confidence ?? null, sources: ph?.sources ?? [] },
+    web: {
+      status: res,
+      label: WEBSITE_RESOLUTION_LABEL[res],
+      url: p.website?.url ?? null,
+      domain: p.website?.domain ?? null,
+      issues: issues.slice(0, 3).map((x) => x.text),
+    },
+    socials,
+    does: p.description && p.description.confidence !== "unknown"
+      ? { text: p.description.text, verified: true, sources: p.description.sources }
+      : { text: "Presné zameranie sa nepodarilo spoľahlivo overiť.", verified: false, sources: [] },
+    why_calling: probs.map((x) => x.label),
+    why_trust: [...new Set(trust)].slice(0, 5),
+    dont_say: dont,
+    angle,
+    data_quality: { tier: p.data_quality ?? "research", label: DATA_QUALITY_LABEL[p.data_quality ?? "research"], why: p.data_quality_why ?? [] },
+    country: p.country,
   };
 }
 

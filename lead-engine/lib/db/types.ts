@@ -77,6 +77,8 @@ export function normalizeState(s: DbState): DbState {
   s.settings ??= defaultSettings();
   s.settings.compensation ??= defaultSettings().compensation;
   s.settings.package ??= defaultSettings().package;
+  s.settings.routing ??= {};
+  s.settings.radar ??= { runs: [], query_log: [] };
   if (s.version !== 2) {
     for (const o of s.offers ?? []) {
       if (o.id === "offer_zahradnictvo" && o.estimated_price === 300 && /Rozpracovaný koncept/.test(o.note)) {

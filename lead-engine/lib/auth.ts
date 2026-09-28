@@ -13,9 +13,9 @@ type UserRecord = UserInfo & { password: string };
  * Predvolené účty Lead Engine. Repozitár je verejný, preto tu sú iba
  * scrypt hashe (heslá má Dominik). Prepíše ich env LE_USERS.
  *
- * Žiadna logika nie je viazaná na konkrétne meno: volajúci = rola "caller",
- * nové leady dostáva prvý AKTÍVNY volajúci. Neaktívny (Jozo) ostáva kvôli histórii
- * (hovory, výsledky, priradenia), ale neprihlási sa a nedostáva nové leady.
+ * Žiadna logika nie je viazaná na konkrétne meno: volajúci = rola "caller".
+ * Nové leady rozdeľuje routing (segment → volajúci, Nastavenia → Routing) medzi AKTÍVNYCH volajúcich.
+ * Aktívni sú Soňa aj Jozo; história Joza z 1.0 ostáva nedotknutá.
  */
 const DEFAULT_USERS: UserRecord[] = [
   {
@@ -37,7 +37,7 @@ const DEFAULT_USERS: UserRecord[] = [
     username: "jozo",
     name: "Jozo",
     role: "caller",
-    active: false,
+    active: true,
     speech: "m",
     password: "scrypt$OM_JJ5aWWF8JoyQlPhu4pQ$TKc6Uc8l3gG6KxOE-t_7yZzM8vNZOHLvoOHnSNXjRJo",
   },
@@ -57,7 +57,7 @@ export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
       users: [
         { username: "dominik", name: "Dominik Jankovič", role: "admin", active: true, password: "dominik" },
         { username: "sona", name: "Soňa", role: "caller", active: true, speech: "f", password: "sona" },
-        { username: "jozo", name: "Jozo", role: "caller", active: false, speech: "m", password: "jozo" },
+        { username: "jozo", name: "Jozo", role: "caller", active: true, speech: "m", password: "jozo" },
       ],
     };
   }

@@ -9,7 +9,10 @@ import { authenticate, loginRateLimited, loginSucceeded, requireUser, setupStatu
 import { SESSION_COOKIE, SESSION_TTL_S, signSession } from "@/lib/session";
 import {
   AccessError,
+  addCallerFeedback,
   analyzeLead,
+  resolveFeedback,
+  saveRouting,
   archiveLead,
   assignLead,
   createOrMergeLead,
@@ -31,6 +34,7 @@ import {
   CALLER_OUTCOMES,
   CATEGORY_IDS,
   DOMINIK_OUTCOMES,
+  FEEDBACK_KINDS,
   LEAD_STATUSES,
   LeadInputSchema,
   normalizeUrl,
@@ -418,4 +422,59 @@ export async function markReadAction(ids: string[] | "all"): Promise<ActionResul
   await (await db()).markNotificationsRead(ids);
   refreshAll();
   return { ok: true, message: "" };
+}
+
+/* ─────────────── Lead Radar ─────────────── */
+
+const FeedbackInput = z.object({
+  kind: z.enum(FEEDBACK_KINDS),
+  note: z.string().trim().max(300).nullable().optional().transform((v) => v || null),
+  url: z
+    .string()
+    .trim()
+    .max(300)
+    .nullable()
+    .optional()
+    .transform((v) => (v ? normalizeUrl(v) : null)),
+});
+
+/** Volajúci: „Má web, systém ho nenašiel“, „Zlý web“, „Zlá kategória“… → lead ide na preverenie. */
+export async function feedbackAction(leadId: string, input: z.input<typeof FeedbackInput>): Promise<ActionResult> {
+  const user = await requireUser();
+  const p = FeedbackInput.safeParse(input);
+  if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Skontroluj údaje." };
+  try {
+    await addCallerFeedback(user, leadId, p.data);
+    revalidatePath("/leady");
+    revalidatePath("/leady/quality");
+    return { ok: true, message: "Ďakujem — dáta sa preveria." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function resolveFeedbackAction(leadId: string, feedbackId: string): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    await resolveFeedback(user, leadId, feedbackId);
+    refreshAll();
+    return { ok: true, message: "Vybavené." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const RoutingInput = z.record(z.enum(CATEGORY_IDS), z.string().trim().max(40).nullable());
+
+export async function saveRoutingAction(input: z.input<typeof RoutingInput>): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  const p = RoutingInput.safeParse(input);
+  if (!p.success) return { ok: false, message: "Neplatný routing." };
+  try {
+    await saveRouting(user, p.data);
+    refreshAll();
+    return { ok: true, message: "Routing uložený — platí pre nové leady." };
+  } catch (e) {
+    return fail(e);
+  }
 }

@@ -73,7 +73,7 @@ export function supabaseRepository(url: string, serviceKey: string): Repository 
 
     async getSettings() {
       const row = must(await sb.from("settings").select("value").eq("id", "main").maybeSingle()) as { value: Settings } | null;
-      return row?.value ?? defaultSettings();
+      return { ...defaultSettings(), ...(row?.value ?? {}) };
     },
     async saveSettings(value) {
       must(await sb.from("settings").upsert({ id: "main", value }));

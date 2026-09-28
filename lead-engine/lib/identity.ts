@@ -7,7 +7,15 @@ import { dedupeKeys } from "./scoring";
 
 export type Identity = { same: boolean | null; confidence: "high" | "medium" | "low"; reason: string };
 
-type Incoming = { name: string; city: string | null; phone: string | null; email: string | null; website: string | null; ico?: string | null };
+type Incoming = {
+  name: string;
+  city: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  ico?: string | null;
+  country?: "SK" | "CZ" | null;
+};
 
 const icoOf = (v: string | null | undefined) => {
   const d = (v ?? "").replace(/\D/g, "");
@@ -15,6 +23,9 @@ const icoOf = (v: string | null | undefined) => {
 };
 
 export function identityMatch(existing: Company, incoming: Incoming): Identity {
+  // Krajina je súčasť identity: rovnaký názov / brand v SK a v CZ nie je automaticky jedna firma.
+  if (existing.country && incoming.country && existing.country !== incoming.country)
+    return { same: false, confidence: "high", reason: "Iná krajina" };
   const a = icoOf(existing.ico);
   const b = icoOf(incoming.ico);
   if (a && b) return a === b ? { same: true, confidence: "high", reason: "Rovnaké IČO" } : { same: false, confidence: "high", reason: "Iné IČO" };

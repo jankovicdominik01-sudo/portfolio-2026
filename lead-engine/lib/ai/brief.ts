@@ -6,7 +6,7 @@ import { categoryOf } from "../types";
  * (ponuka a cena NIKDY nepochádzajú z AI, iba z tabuľky offers).
  */
 
-const CATEGORY_GENITIVE: Record<CategoryId, string> = {
+const CATEGORY_GENITIVE: Partial<Record<CategoryId, string>> = {
   zahradnictvo: "záhradníctvo",
   stolarstvo: "stolársku firmu",
   kovovyroba: "kovovýrobu",
@@ -19,6 +19,14 @@ const CATEGORY_GENITIVE: Record<CategoryId, string> = {
   podlahy: "podlahárov",
   obklady: "obkladačov",
   kominarstvo: "kominárov",
+  kuchyne: "kuchynské štúdio",
+  stavebnictvo: "stavebnú firmu",
+  maliar: "maliarov",
+  kadernictvo: "kaderníctvo",
+  kozmetika: "kozmetický salón",
+  fotograf: "fotografa",
+  reality: "realitnú kanceláriu",
+  interier: "interiérové štúdio",
   ine: "podobnú firmu",
 };
 
@@ -29,7 +37,7 @@ export function matchOffer(offers: Offer[], category: CategoryId): Offer | null 
 
 export function offerLine(offer: Offer): string {
   const price = offer.estimated_price ? ` Stál by ${offer.estimated_price} eur.` : "";
-  return `Dominikovi teraz zostal jeden hotový web pre ${CATEGORY_GENITIVE[offer.category]}, pôvodný klient ho nakoniec neprevzal. Možno by sa dal prispôsobiť vám.${price}`;
+  return `Dominikovi teraz zostal jeden hotový web pre ${CATEGORY_GENITIVE[offer.category] ?? "podobnú firmu"}, pôvodný klient ho nakoniec neprevzal. Možno by sa dal prispôsobiť vám.${price}`;
 }
 
 export const DOMINIK_INTRO =

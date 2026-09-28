@@ -3,7 +3,8 @@ import { requireUser, allUsers } from "@/lib/auth";
 import { listLeads } from "@/lib/leads";
 import { db } from "@/lib/db";
 import { breakdown, countLeads, factorLift, leadSource, rates, websiteProblem, MIN_SAMPLE, type Counts } from "@/lib/analytics";
-import { categoryOf } from "@/lib/types";
+import { categoryOf, WEBSITE_RESOLUTION_LABEL } from "@/lib/types";
+import { countryOf, discoverySource } from "@/lib/quality";
 import { ISSUE_LABEL, WEIGHTS } from "@/lib/score";
 import { Card, Eyebrow, Section, cn } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
@@ -91,11 +92,23 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       </FadeIn>
 
       <FadeIn delay={0.1} className="mt-5 space-y-5">
-        <Breakdown title="Podľa zdroja" rows={breakdown(leads, calls, users, leadSource)} />
+        <Breakdown title="SK vs CZ" rows={breakdown(leads, calls, users, countryOf)} />
+        <Breakdown title="Podľa discovery zdroja (jedna firma = jeden lead)" rows={breakdown(leads, calls, users, discoverySource)} />
+        <Breakdown title="Podľa zdroja (katalóg)" rows={breakdown(leads, calls, users, leadSource)} />
+        <Breakdown
+          title="Podľa stavu webu (Lead Radar)"
+          rows={breakdown(leads, calls, users, (l) => l.website_resolution ?? "bez radaru")}
+          label={(k) => WEBSITE_RESOLUTION_LABEL[k as keyof typeof WEBSITE_RESOLUTION_LABEL] ?? k}
+        />
+        <Breakdown
+          title="Segment × krajina"
+          rows={breakdown(leads, calls, users, (l) => `${l.company.category}|${countryOf(l)}`)}
+          label={(k) => `${categoryOf(k.split("|")[0]).label} · ${k.split("|")[1]}`}
+        />
         <Breakdown
           title="Podľa problému webu"
           rows={breakdown(leads, calls, users, websiteProblem)}
-          label={(k) => ISSUE_LABEL[k] ?? { no_website: "bez webu", broken: "nefunkčný", weak: "slabý", uncertain: "neisté", working: "funkčný", unknown: "neurčené (staršie)" }[k] ?? k}
+          label={(k) => ISSUE_LABEL[k] ?? { no_website: "web sme nenašli", broken: "nefunkčný", weak: "slabý", uncertain: "neisté", working: "funkčný", unknown: "neurčené (staršie)" }[k] ?? k}
         />
         <Breakdown title="Podľa segmentu" rows={breakdown(leads, calls, users, (l) => l.company.category)} label={(k) => categoryOf(k).label} />
         <Breakdown title="Podľa pásma skóre" rows={breakdown(leads, calls, users, (l) => l.score?.band ?? "bez skóre")} />

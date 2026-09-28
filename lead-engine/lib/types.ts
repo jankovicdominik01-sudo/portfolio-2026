@@ -187,19 +187,42 @@ export type LeadSource = (typeof LEAD_SOURCES)[number];
 /* ─────────────────────────── Vertikály ─────────────────────────── */
 
 export const CATEGORIES = [
-  { id: "zahradnictvo", label: "Záhradníctvo", emoji: "🌱", gallery: true },
-  { id: "stolarstvo", label: "Stolárstvo", emoji: "🪵", gallery: true },
-  { id: "kovovyroba", label: "Kovovýroba / zváranie", emoji: "⚙️", gallery: true },
-  { id: "brany-ploty", label: "Brány a ploty", emoji: "🚧", gallery: true },
-  { id: "murari", label: "Murári", emoji: "🧱", gallery: true },
-  { id: "tesari", label: "Tesári", emoji: "🪚", gallery: true },
-  { id: "strechy", label: "Strechy / pokrývači / klampiari", emoji: "🏠", gallery: true },
-  { id: "vodoinstalater", label: "Vodoinštalatér", emoji: "🚰", gallery: false },
-  { id: "elektrikar", label: "Elektrikár", emoji: "⚡", gallery: false },
-  { id: "podlahy", label: "Podlahy", emoji: "🪟", gallery: true },
-  { id: "obklady", label: "Obklady a dlažby", emoji: "🔲", gallery: true },
-  { id: "kominarstvo", label: "Kominárstvo", emoji: "🔥", gallery: false },
-  { id: "ine", label: "Iné remeslo", emoji: "🛠️", gallery: false },
+  /* ── Jozo (remeslá, stavba, auto) — pôvodné id ostávajú kvôli dátam ── */
+  { id: "zahradnictvo", label: "Záhrady / záhradníctvo", emoji: "🌱", gallery: true, code: "GARDEN", caller: "jozo" },
+  { id: "stolarstvo", label: "Stolárstvo / nábytok na mieru", emoji: "🪵", gallery: true, code: "CUSTOM_FURNITURE", caller: "jozo" },
+  { id: "kuchyne", label: "Kuchyne na mieru", emoji: "🍽️", gallery: true, code: "KITCHENS", caller: "jozo" },
+  { id: "kovovyroba", label: "Kovovýroba / zváranie", emoji: "⚙️", gallery: true, code: "OTHER_LOCAL_SERVICE", caller: "jozo" },
+  { id: "brany-ploty", label: "Brány, ploty, pergoly", emoji: "🚧", gallery: true, code: "GATES_FENCES", caller: "jozo" },
+  { id: "stavebnictvo", label: "Stavebníctvo / rekonštrukcie", emoji: "🏗️", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
+  { id: "murari", label: "Murári", emoji: "🧱", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
+  { id: "tesari", label: "Tesári", emoji: "🪚", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
+  { id: "strechy", label: "Strechy / pokrývači / klampiari", emoji: "🏠", gallery: true, code: "ROOFING", caller: "jozo" },
+  { id: "fasady", label: "Fasády / zatepľovanie", emoji: "🧱", gallery: true, code: "FACADE", caller: "jozo" },
+  { id: "maliar", label: "Maliar / natierač", emoji: "🎨", gallery: true, code: "PAINTER", caller: "jozo" },
+  { id: "podlahy", label: "Podlahy", emoji: "🪟", gallery: true, code: "FLOORING", caller: "jozo" },
+  { id: "obklady", label: "Obklady a dlažby", emoji: "🔲", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
+  { id: "vodoinstalater", label: "Vodoinštalatér", emoji: "🚰", gallery: false, code: "PLUMBER", caller: "jozo" },
+  { id: "kurenie", label: "Kúrenie / tepelné čerpadlá", emoji: "🔥", gallery: false, code: "HEATING", caller: "jozo" },
+  { id: "elektrikar", label: "Elektrikár", emoji: "⚡", gallery: false, code: "ELECTRICIAN", caller: "jozo" },
+  { id: "kominarstvo", label: "Kominárstvo", emoji: "🔥", gallery: false, code: "OTHER_LOCAL_SERVICE", caller: "jozo" },
+  { id: "autoservis", label: "Autoservis", emoji: "🔧", gallery: false, code: "CAR_SERVICE", caller: "jozo" },
+  { id: "pneuservis", label: "Pneuservis", emoji: "🛞", gallery: false, code: "TIRE_SERVICE", caller: "jozo" },
+  { id: "detailing", label: "Auto detailing", emoji: "✨", gallery: true, code: "DETAILING", caller: "jozo" },
+  /* ── Soňa (vizuálne a osobné služby, reality, interiér) ── */
+  { id: "kadernictvo", label: "Kaderníctvo", emoji: "💇", gallery: true, code: "HAIR", caller: "sona" },
+  { id: "barber", label: "Barber", emoji: "💈", gallery: true, code: "BARBER", caller: "sona" },
+  { id: "makeup", label: "Make-up / vizáž", emoji: "💄", gallery: true, code: "MAKEUP", caller: "sona" },
+  { id: "nechty", label: "Nechty / manikúra", emoji: "💅", gallery: true, code: "NAILS", caller: "sona" },
+  { id: "mihalnice", label: "Mihalnice / obočie", emoji: "👁️", gallery: true, code: "LASHES", caller: "sona" },
+  { id: "kozmetika", label: "Kozmetika / beauty", emoji: "🧴", gallery: false, code: "BEAUTY", caller: "sona" },
+  { id: "fotograf", label: "Fotograf", emoji: "📷", gallery: true, code: "PHOTOGRAPHY", caller: "sona" },
+  { id: "video", label: "Video / kameraman", emoji: "🎬", gallery: true, code: "VIDEO", caller: "sona" },
+  { id: "svadby", label: "Svadobné služby", emoji: "💍", gallery: true, code: "WEDDING", caller: "sona" },
+  { id: "reality", label: "Reality / makléri", emoji: "🏡", gallery: true, code: "REAL_ESTATE", caller: "sona" },
+  { id: "developer", label: "Developer", emoji: "🏢", gallery: true, code: "DEVELOPER", caller: "sona" },
+  { id: "interier", label: "Interiérový dizajn", emoji: "🛋️", gallery: true, code: "INTERIOR_DESIGN", caller: "sona" },
+  { id: "architekt", label: "Architekt", emoji: "📐", gallery: true, code: "ARCHITECTURE", caller: "sona" },
+  { id: "ine", label: "Iná lokálna služba", emoji: "🛠️", gallery: false, code: "OTHER_LOCAL_SERVICE", caller: null },
 ] as const;
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as [CategoryId, ...CategoryId[]];
@@ -229,6 +252,160 @@ export const ClaimSchema = z.object({
 });
 export type Claim = z.infer<typeof ClaimSchema>;
 
+/* ─────────────────────────── Lead Radar (overená business entita) ─────────────────────────── */
+
+/** Fakt s pôvodom: odkiaľ ho vieme, ako isto, kedy overený. */
+export const FactSchema = z.object({
+  value: z.string(),
+  confidence: z.enum(["high", "medium", "low"]),
+  sources: z.array(z.string()),
+  evidence: z.array(z.string()).optional().default([]),
+  verified_at: z.string().nullable().optional(),
+});
+export type Fact = z.infer<typeof FactSchema>;
+
+/**
+ * Stav webu z pohľadu IDENTITY (patrí web firme?). „Firma nemá web“ neexistuje:
+ * confirmed = dôkaz (telefón/IČO/e-mail/odkaz), probable = stredné signály, no_website_found = hľadali sme a nenašli,
+ * uncertain = nevieme (nehľadalo sa dosť / web sa nenačítal / iba podobný názov).
+ */
+export const WEBSITE_RESOLUTIONS = ["confirmed", "probable", "no_website_found", "uncertain"] as const;
+export type WebsiteResolution = (typeof WEBSITE_RESOLUTIONS)[number];
+export const WEBSITE_RESOLUTION_LABEL: Record<WebsiteResolution, string> = {
+  confirmed: "Web potvrdený",
+  probable: "Web pravdepodobne ich",
+  no_website_found: "Web sme nenašli",
+  uncertain: "Web neistý",
+};
+export const DATA_QUALITY = ["gold", "silver", "research"] as const;
+export type DataQuality = (typeof DATA_QUALITY)[number];
+export const DATA_QUALITY_LABEL: Record<DataQuality, string> = { gold: "GOLD", silver: "SILVER", research: "RESEARCH" };
+
+const loose = z.array(z.record(z.string(), z.unknown())).optional().default([]);
+export const RadarProfileSchema = z
+  .object({
+    version: z.number(),
+    entity_id: z.string().nullable().optional(),
+    country: z.enum(["SK", "CZ"]),
+    legal_name: z.string().nullable().optional(),
+    brand_names: z.array(z.string()).optional().default([]),
+    historical_names: z.array(z.string()).optional().default([]),
+    city: z.string().nullable().optional(),
+    addresses: z.array(FactSchema).optional().default([]),
+    company_ids: z.array(FactSchema).optional().default([]),
+    phones: z.array(FactSchema).optional().default([]),
+    emails: z.array(FactSchema).optional().default([]),
+    primary_phone: z.object({ value: z.string(), confidence: z.string(), sources: z.array(z.string()) }).nullable().optional(),
+    website: z
+      .object({
+        url: z.string().nullable(),
+        domain: z.string().nullable(),
+        status: z.enum(WEBSITE_RESOLUTIONS),
+        confidence: z.string().nullable().optional(),
+        evidence: z.array(z.string()).optional().default([]),
+        health: z
+          .object({
+            state: z.string(),
+            issues: z.array(z.object({ key: z.string(), text: z.string(), excerpt: z.string().optional(), points: z.number().optional() })).optional().default([]),
+          })
+          .passthrough()
+          .nullable()
+          .optional(),
+      })
+      .nullable()
+      .optional(),
+    website_resolution: z.enum(WEBSITE_RESOLUTIONS).optional(),
+    websites: loose,
+    historical_websites: loose,
+    rejected_websites: loose,
+    socials: z
+      .array(
+        z
+          .object({
+            platform: z.string(),
+            url: z.string().nullable().optional(),
+            handle: z.string().nullable().optional(),
+            display_name: z.string().nullable().optional(),
+            bio: z.string().nullable().optional(),
+            website: z.string().nullable().optional(),
+            match: z.string().nullable().optional(),
+            evidence: z.array(z.string()).optional().default([]),
+            activity: z.string().nullable().optional(),
+            source: z.string().nullable().optional(),
+          })
+          .passthrough(),
+      )
+      .optional()
+      .default([]),
+    category: z
+      .object({ id: z.string(), code: z.string(), subcategory: z.string().nullable().optional(), confidence: z.string(), evidence: z.array(z.string()) })
+      .passthrough()
+      .nullable()
+      .optional(),
+    services: z.array(z.string()).optional().default([]),
+    description: z.object({ text: z.string(), confidence: z.string(), sources: z.array(z.string()) }).nullable().optional(),
+    business_status: z.object({ value: z.string(), evidence: z.array(z.string()) }).nullable().optional(),
+    commercial_problems: z
+      .array(z.object({ code: z.string(), label: z.string(), evidence: z.array(z.string()), heuristic: z.boolean().optional() }))
+      .optional()
+      .default([]),
+    social_first: z.boolean().optional().default(false),
+    identity: z.object({ confidence: z.string(), evidence: z.array(z.string()) }).optional(),
+    data_quality: z.enum(DATA_QUALITY).nullable().optional(),
+    data_quality_why: z.array(z.string()).optional().default([]),
+    recommended_caller: z.string().nullable().optional(),
+    caller_fit: z.object({ score: z.number(), reasons: z.array(z.string()) }).nullable().optional(),
+    score: z
+      .object({ points: z.number(), reasons: z.array(z.object({ key: z.string(), points: z.number(), label: z.string() })) })
+      .nullable()
+      .optional(),
+    sources: loose,
+    possible_duplicates: loose,
+    source_unavailable: z.array(z.string()).optional().default([]),
+    register: z.record(z.string(), z.unknown()).nullable().optional(),
+    last_verified: z.record(z.string(), z.string()).optional().default({}),
+    trace: z.array(z.object({ step: z.string(), detail: z.string(), at: z.string().optional() })).optional().default([]),
+    exploration: z.boolean().optional().default(false),
+    web_search_queries: z.array(z.string()).optional().default([]),
+  })
+  .passthrough();
+export type RadarProfile = z.infer<typeof RadarProfileSchema>;
+
+/** Spätná väzba volajúceho — senzor kvality dát. */
+export const FEEDBACK_KINDS = [
+  "has_other_web",
+  "wrong_web",
+  "wrong_category",
+  "wrong_description",
+  "business_gone",
+  "wrong_phone",
+  "duplicate",
+  "not_target",
+  "bad_opportunity",
+] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+export const FEEDBACK_LABEL: Record<FeedbackKind, string> = {
+  has_other_web: "Má web, systém ho nenašiel",
+  wrong_web: "Zlý web priradený",
+  wrong_category: "Zlá kategória",
+  wrong_description: "Zlý popis",
+  business_gone: "Firma už neexistuje",
+  wrong_phone: "Zlý telefón",
+  duplicate: "Duplicitný lead",
+  not_target: "Nie je cieľový segment",
+  bad_opportunity: "Dôvod hovoru nesedí",
+};
+export const FeedbackSchema = z.object({
+  id: z.string(),
+  kind: z.enum(FEEDBACK_KINDS),
+  note: z.string().nullable(),
+  url: z.string().nullable(),
+  by: z.string(),
+  at: z.string(),
+  resolved_at: z.string().nullable().optional(),
+});
+export type Feedback = z.infer<typeof FeedbackSchema>;
+
 /* ─────────────────────────── Company ─────────────────────────── */
 
 export const CompanySchema = z.object({
@@ -253,6 +430,10 @@ export const CompanySchema = z.object({
   sources: z.array(z.object({ source: z.string(), url: z.string().nullable(), seen_at: z.string() })).optional(),
   /** Firma povedala „už nám nevolajte“ — nikdy sa nevráti do fronty. */
   do_not_call: z.boolean().optional(),
+  /** SK | CZ — súčasť identity (rovnaký názov v Brne a v Bratislave = dve firmy). */
+  country: z.enum(["SK", "CZ"]).nullable().optional(),
+  /** Lead Radar: overená entita s evidenciou ku každému údaju. */
+  profile: RadarProfileSchema.nullable().optional(),
 });
 export type Company = z.infer<typeof CompanySchema>;
 
@@ -382,11 +563,23 @@ export const LeadSchema = z.object({
   /** Kedy lead prvýkrát dosiahol fázu Dominikovho pipeline (contacted, interested, …) — pre funnely aj po strate. */
   stage_at: z.record(z.string(), z.string()).optional(),
   assigned_history: z.array(z.object({ user: z.string().nullable(), at: z.string(), by: z.string() })).optional(),
+  /* ── 3.0 Lead Radar ── */
+  website_resolution: z.enum(WEBSITE_RESOLUTIONS).nullable().optional(),
+  data_quality: z.enum(DATA_QUALITY).nullable().optional(),
+  recommended_caller: z.string().nullable().optional(),
+  caller_fit: z.object({ score: z.number(), reasons: z.array(z.string()) }).nullable().optional(),
+  /** Hlavný obchodný problém (SOCIAL_FIRST_BUSINESS, BROKEN_WEBSITE, SOCIAL_WEB_GAP, …). */
+  commercial_problem: z.string().nullable().optional(),
+  exploration: z.boolean().optional(),
+  feedback: z.array(FeedbackSchema).optional(),
+  /** Volajúci nahlásil chybu v dátach → preveriť (rutina / Dominik). */
+  needs_reverify: z.boolean().optional(),
 });
 export type Lead = z.infer<typeof LeadSchema>;
 
 export const WEBSITE_STATUS_LABEL: Record<NonNullable<Lead["website_status"]>, string> = {
-  no_website: "Bez webu",
+  // „Bez webu“ netvrdíme nikdy — vieme iba, že sme ho nenašli.
+  no_website: "Web sme nenašli",
   broken: "Nefunkčný web",
   weak: "Slabý / zastaraný web",
   working: "Funkčný web",
@@ -489,6 +682,18 @@ export const SettingsSchema = z.object({
     maintenance: z.string().nullable(),
     delivery: z.string().nullable(),
   }),
+  /** Routing kategória → volajúci (username). Chýbajúca kategória = predvolený volajúci z CATEGORIES. */
+  routing: z.record(z.string(), z.string().nullable()).optional().default({}),
+  /** Posledné behy Lead Radaru (zdravie zdrojov, dopyty, kvalita) — pre admin a rotáciu lokalít. */
+  radar: z
+    .object({
+      runs: z.array(z.record(z.string(), z.unknown())).default([]),
+      query_log: z.array(z.record(z.string(), z.unknown())).default([]),
+      /** Golden dataset (ručne overené firmy) — súkromné, nie v repozitári. */
+      golden: z.array(z.record(z.string(), z.unknown())).optional(),
+    })
+    .optional()
+    .default({ runs: [], query_log: [] }),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -508,6 +713,8 @@ export function defaultSettings(): Settings {
       maintenance: null,
       delivery: null,
     },
+    routing: {},
+    radar: { runs: [], query_log: [] },
   };
 }
 
@@ -614,14 +821,35 @@ export function normalizeUrl(v: string | null): string | null {
 }
 
 const CATEGORY_ALIASES: [RegExp, CategoryId][] = [
+  [/barber|holi[cč]/i, "barber"],
+  [/kader/i, "kadernictvo"],
+  [/make-?up|viz[aá][zž]/i, "makeup"],
+  [/necht|nehty|manik[uú]r/i, "nechty"],
+  [/mihal|[rř]as[yi]|oboč/i, "mihalnice"],
+  [/kozmet|kosmet|beauty/i, "kozmetika"],
+  [/fotograf/i, "fotograf"],
+  [/kameram|video/i, "video"],
+  [/svad|svat/i, "svadby"],
+  [/realit|makl/i, "reality"],
+  [/developer/i, "developer"],
+  [/interi[eé]r/i, "interier"],
+  [/architekt/i, "architekt"],
+  [/kuchyn/i, "kuchyne"],
+  [/rekon[sš]tr|stavebn/i, "stavebnictvo"],
+  [/maliar|mal[ií][rř]/i, "maliar"],
+  [/fas[aá]d|zatepl/i, "fasady"],
+  [/k[uú]ren|topen|tepeln/i, "kurenie"],
+  [/pneu/i, "pneuservis"],
+  [/autoserv|oprava [aá]ut/i, "autoservis"],
+  [/detailing/i, "detailing"],
   [/z[aá]hrad/i, "zahradnictvo"],
   [/stol[aá]r/i, "stolarstvo"],
   [/kov|zv[aá]r/i, "kovovyroba"],
-  [/br[aá]n|plot/i, "brany-ploty"],
+  [/br[aá]n|plot|pergol/i, "brany-ploty"],
   [/mur[aá]r/i, "murari"],
   [/tes[aá]r/i, "tesari"],
   [/strech|pokr[yý]v|klamp/i, "strechy"],
-  [/vod|in[sš]tal/i, "vodoinstalater"],
+  [/vodo|in[sš]tal/i, "vodoinstalater"],
   [/elektr/i, "elektrikar"],
   [/podlah/i, "podlahy"],
   [/obklad|dla[zž]/i, "obklady"],

@@ -71,7 +71,27 @@ supabase/migrations/     SQL schéma
 
 Autorizácia: session cookie alebo `Authorization: Bearer $LE_API_KEY`.
 
-### Ranná rutina
+### Lead Radar (3.0) — ranná rutina
+
+`routine/radar_run.py` + balík `routine/radar/`. Z malého množstva údajov poskladá **overenú business entitu**:
+
+```
+DISCOVERY (katalógy SK/CZ, registre RPO/ARES, výsledky vyhľadávania: web / Instagram / Facebook)
+→ ENTITY RESOLUTION (IČO, telefón, e-mail, doména, odkaz web↔social; negatívne signály: iné IČO, iná krajina)
+→ WEBSITE HUNTING (katalóg, e-mail, bio, vyhľadávanie telefónu/názvu) → FINGERPRINT → OWNERSHIP
+→ KLASIFIKÁCIA + POPIS (iba z evidencie) → COMMERCIAL SIGNALS → GOLD/SILVER/RESEARCH → ROUTING Soňa/Jozo
+```
+
+- „Web sme nenašli“ ≠ „nemá web“: stav webu je `confirmed / probable / no_website_found / uncertain`.
+- Instagram/Facebook/Google/Seznam sa **priamo nesťahujú** (login wall, 429, robots/podmienky). Profily sa hľadajú
+  cez výsledky vyhľadávania — v rutine nástrojom WebSearch (kolá: skript → `search_requests.json` → agent →
+  `search_results.json` → skript), voliteľne Brave / Google CSE / Places API (env kľúče).
+- Každý údaj má pôvod a čerstvosť (Fact: value, confidence, sources, verified_at), celý postup je v TRACE LEAD.
+- Testy: `python3 -m unittest discover -s routine -p "test_*.py"` (vrátane spec fixtures A–E, identity, klasifikácie).
+- Golden set (ručne overené reálne firmy) je v súkromnom úložisku (`/leady/api/v1/golden`), meranie presnosti:
+  `routine/radar_golden.py`.
+
+### Ranná rutina (1.0)
 
 `runMorningRoutine` (lib/routine.ts) je hotová pipeline — chýba jej iba zdroj firiem.
 Discovery (hľadanie firiem podľa zadania „záhradníctva v okolí Skalice“) sa pripojí buď ako

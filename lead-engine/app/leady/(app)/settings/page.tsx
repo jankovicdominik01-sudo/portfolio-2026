@@ -5,6 +5,8 @@ import { Card, Eyebrow, Section } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
 import { OffersEditor } from "@/components/offers-editor";
 import { ReassignButton } from "@/components/reassign-button";
+import { RoutingEditor } from "@/components/routing-editor";
+import { defaultRouting } from "@/lib/routing";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Nastavenia" };
@@ -12,7 +14,7 @@ export const metadata = { title: "Nastavenia" };
 export default async function SettingsPage() {
   await requireUser("admin");
   const repo = await db();
-  const offers = await repo.listOffers();
+  const [offers, settings] = await Promise.all([repo.listOffers(), repo.getSettings()]);
   const { users, demo } = configuredUsers();
   const storage = {
     supabase: "Supabase (Postgres)",
@@ -34,6 +36,20 @@ export default async function SettingsPage() {
               segment, pre ktorý je tu web označený ako dostupný (commercial fit). Obsah balíka a odmenu nastavíš v Peniaze.
             </p>
             <OffersEditor offers={offers} />
+          </Section>
+        </FadeIn>
+
+        <FadeIn delay={0.08}>
+          <Section icon="🧭" title="Routing — kto volá ktorý segment">
+            <p className="mb-5 max-w-2xl text-[14px] text-white/50">
+              Nové leady dostane volajúci podľa segmentu. Predvolené rozdelenie (Soňa: beauty, reality, interiér, foto; Jozo: remeslá, stavba,
+              auto) je iba štart — systém ho sám nemení, len zbiera výsledky caller × segment × krajina v Kvalite dát.
+            </p>
+            <RoutingEditor
+              routing={settings.routing ?? {}}
+              defaults={defaultRouting()}
+              callers={users.filter((u) => u.role === "caller" && u.active).map((u) => ({ username: u.username, name: u.name }))}
+            />
           </Section>
         </FadeIn>
 
