@@ -92,6 +92,7 @@ def main():
     ap.add_argument("--engine")
     ap.add_argument("--key")
     ap.add_argument("--work", default="/tmp/golden")
+    ap.add_argument("--final", action="store_true", help="vyhodnotiť aj s nevykonanými dopytmi (tie ostanú neisté)")
     a = ap.parse_args()
     os.makedirs(a.work, exist_ok=True)
     entries = load(a)
@@ -111,7 +112,7 @@ def main():
                 if s.get("url") and s["url"] == g["seed"].get("profile"):
                     by_seed[g["id"]] = e
     search.save()
-    if search.pending:
+    if search.pending and not a.final:
         json.dump({"queries": search.pending}, open(os.path.join(a.work, "search_requests.json"), "w"), ensure_ascii=False, indent=1)
         print(f"ČAKÁ NA VYHĽADÁVANIE: {len(search.pending)} dopytov → {a.work}/search_requests.json")
         sys.exit(10)

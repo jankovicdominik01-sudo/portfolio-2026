@@ -355,3 +355,71 @@ class FalseCategoryRegression(unittest.TestCase):
     def test_side_mention_of_real_estate_is_not_reality(self):
         e = self.fp_entity("Stavby rodinných domov", "stavby rodinných domov na kľúč, zhodnocujeme vaše nehnuteľnosti, rekonštrukcie, rekonštrukcie bytov")
         self.assertEqual(C.classify(e)["id"], "stavebnictvo")
+
+
+class QARegressions(unittest.TestCase):
+    """Ďalšie reálne omyly z QA 28. 9. 2026."""
+
+    def test_association_is_not_a_business(self):
+        e = run([rec(name="Asociace českých kameramanů", country="CZ", phone="777 119 845")])[0]
+        self.assertTrue(e.get("stopped"))
+
+    def test_https_bad_cert_but_http_works_is_not_broken(self):
+        class N(FakeNet):
+            def get(self, url, limit=0, **kw):
+                if url.startswith("https://"):
+                    return {"status": 0, "url": url, "body": "", "chain": [url], "ssl_error": "hostname mismatch", "elapsed": 0.2}
+                return super().get(url)
+        pages = {"http://www.svitko.sk/": site("Záhradníctvo Švitko", phone="0902 372 187", extra="záhradníctvo, okrasné dreviny")}
+        r = P.Radar(N(pages), Search([FakeAgent({})]), log=lambda *a: None)
+        with mock.patch.object(P, "resolves", return_value=True), mock.patch.object(P, "register_for", return_value=None):
+            e = r.run([rec(name="Záhradníctvo Švitko", phone="0902 372 187", websites=["https://www.svitko.sk"])])[0]
+        self.assertEqual(e["website_resolution"], "confirmed")
+        self.assertNotEqual(e["website"]["health"]["state"], "broken")
+        self.assertIn("bad_cert", [i["key"] for i in e["website"]["health"]["issues"]])
+
+    def test_unrelated_social_link_on_website_is_not_confirmed(self):
+        pages = {"https://royas.cz": site("ROYAS výroba plotů", phone="602 657 304", socials=["royasploty", "nadrazkakajov"])}
+        e = run([rec(name="ROYAS", country="CZ", phone="602 657 304", websites=["https://royas.cz"])], pages, {})[0]
+        m = {s["handle"]: s["match"] for s in e["socials"]}
+        self.assertEqual(m.get("royasploty"), "confirmed")
+        self.assertEqual(m.get("nadrazkakajov"), "uncertain")
+
+    def test_primary_phone_prefers_more_sources(self):
+        e = from_record(rec(phone="0415 624 189"))
+        from radar.entity import add_fact
+        add_fact(e["phones"], "+421415624189", "website", "high")
+        add_fact(e["phones"], "+421202044827", "website", "high")
+        self.assertEqual(Q.phone_confidence(e)[0], "+421415624189")
+
+
+class QARegressions2(unittest.TestCase):
+    def test_bea_is_not_beauty_other_salon(self):
+        pages = {"https://vandabeauty.sk": site("Kozmetický salón BEAUTY VANDA", phone="0911 000 111", city="Banská Bystrica", extra="kozmetický salón Banská Bystrica")}
+        results = {'"KOZMETICKÝ SALÓN BEA" Banská Bystrica': [{"title": "Kozmetika Banská Bystrica | Kozmetický salón BEAUTY VANDA", "url": "https://www.vandabeauty.sk/", "snippet": ""}]}
+        e = run([rec(name="Beáta Buranská - KOZMETICKÝ SALÓN BEA", city="Banská Bystrica", description="kozmetický salón")], pages, results)[0]
+        self.assertNotIn(e["website_resolution"], ("confirmed", "probable"))
+
+    def test_named_but_rejected_web_is_uncertain_not_no_web(self):
+        pages = {"https://marikabeauty.sk": site("Marika Bajcurová - kozmetika", phone="0905 424 894", city="Vranov nad Topľou", extra="Bajcurová vizáž")}
+        results = {'"0917 928 161"': [], '"Mária Bajcurová" Vranov nad Topľou': [{"title": "Marika Bajcurová - kozmetika", "url": "http://www.marikabeauty.sk/kontakt.html", "snippet": ""}]}
+        e = run([rec(name="Mária Bajcurová", city="Vranov nad Topľou", phone="0917 928 161", description="kozmetika a vizáž")], pages, results)[0]
+        self.assertNotEqual(e["website_resolution"], "no_website_found")
+
+    def test_catalog_section_alone_is_not_enough(self):
+        e = from_record(rec(name="Exima", description="", vertical="interier"))
+        e["seed_category"] = "interier"
+        self.assertEqual(C.classify(e)["confidence"], "low")
+
+
+class QARegressions3(unittest.TestCase):
+    def test_same_query_twice_is_one_search(self):
+        # jediný vyhľadaný dopyt (ostatné čakajú) nesmie stačiť na „web sme nenašli“
+        e = run([rec(name="Drevo Mráz")], {}, {'"Drevo Mráz" Senica': []})[0]
+        self.assertEqual(e["website_resolution"], "uncertain")
+
+    def test_instagram_matches_brand_variant(self):
+        from radar.social import matches_entity, parse_instagram
+        e = from_record(rec(name="Katarína Freund - Beauty by Katy", city="Malacky"))
+        p = parse_instagram("https://www.instagram.com/beautykaty_malacky/", "Beauty by Katy - kozmetika, permanentný makeup", "")
+        self.assertEqual(matches_entity(p, e)[0], "probable")

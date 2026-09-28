@@ -53,7 +53,13 @@ class Radar:
                 keep.append(e)
         return ents, keep
 
+    ORG = re.compile(r"\b(z\.\s?s\.|o\.\s?z\.|asociac|asociace|spolek|svaz|zvaz|zdruzenie|sdruzeni|nadacia|nadace|komora|cech|"
+                     r"skola|univerzit|obec |mesto |mestsky|obecni|statni|stat\w* podnik|cirkev|farnost)", re.I)
+
     def stop_reason(self, e):
+        nm = bez(" ".join(e["brand_names"] + ([e["legal_name"]] if e["legal_name"] else [])))
+        if self.ORG.search(nm):
+            return "nie je firma (združenie / úrad / škola)"
         seg = C.never_segment(e)
         if seg:
             return f"mimo segment ({seg})"
@@ -142,9 +148,9 @@ class Radar:
                                   budget=budget, meta={"purpose": "enrich:" + purpose, "country": e["country"]})
             if res is None:
                 continue
-            if purpose in ("phone", "name_city", "name", "ico", "legal_name"):
-                e["web_search_done"] = e.get("web_search_done", 0) + 1
+            if purpose in ("phone", "name_city", "name", "ico", "legal_name") and q not in e["web_search_queries"]:
                 e["web_search_queries"].append(q)
+                e["web_search_done"] = len(e["web_search_queries"])  # rôzne dopyty, nie opakovania
             self.absorb(e, res, q)
         return e
 
@@ -174,7 +180,10 @@ class Radar:
             blob = bez((r.get("title") or "") + " " + (r.get("snippet") or "") + " " + host(u))
             hit_phone = any(p in re.sub(r"\D", "", blob) for p in ph9)
             # kandidát smie byť voľnejší (overuje ho až fingerprint): stačí najvýraznejšie slovo názvu (≥5 znakov)
-            hit_name = bool(toks) and (all(t in blob for t in list(toks)[:2]) or max(toks, key=len) in blob and len(max(toks, key=len)) >= 5)
+            from .normalize import has_word
+            variants = [name_tokens(n) for n in e["brand_names"] + ([e["legal_name"]] if e["legal_name"] else [])]
+            hit_name = any(v and (all(has_word(t, blob) for t in v[:3]) or (len(max(v, key=len)) >= 5 and has_word(max(v, key=len), blob)))
+                           for v in variants)
             if seed := result_to_seed(r, e["country"]):
                 if hit_phone or hit_name:
                     d = host(u)
@@ -221,7 +230,8 @@ class Radar:
                  "redirect_chain": fp.get("chain"), "checked_at": now(), "fp": fp}
             trace(e, "website", f"{c['domain']}: {own['verdict']} — {'; '.join(own['evidence'] + own['negative'])[:200]}")
             if own["verdict"] == "rejected":
-                e["rejected_websites"].append({"domain": c["domain"], "why": "; ".join(own["negative"])[:200], "source": c["sources"]})
+                e["rejected_websites"].append({"domain": c["domain"], "why": "; ".join(own["negative"])[:200], "source": c["sources"],
+                                               "name_hit": bool(own.get("name_hit"))})
                 continue
             if own["verdict"] == "unreachable":
                 # web nevieme načítať: neznamená „nemá web“ → ostáva kandidát, zdravie rozhodne (broken / unknown)
@@ -242,10 +252,13 @@ class Radar:
                     add_fact(e["company_ids"], i, "website", MEDIUM, [f"web {w['domain']}"])
                 for key in fp.get("socials", [])[:4]:
                     plat, handle = key.split(":", 1)
+                    # web môže odkazovať aj na cudzie profily (krčma v obci, partner) → potvrdíme iba súvisiaci handle
+                    related = self.related_handle(e, handle, w["domain"]) or len(fp.get("socials", [])) == 1
                     if not any(s["platform"] == plat and (s.get("handle") or "").lower() == handle for s in e["socials"]):
                         e["socials"].append({"platform": plat, "handle": handle, "url": f"https://www.{plat}.com/{handle}/",
-                                             "match": "confirmed", "source": "website", "evidence": [f"web {w['domain']} odkazuje na profil"],
-                                             "activity": "unknown", "confidence": "high", "verified_at": now()})
+                                             "match": "confirmed" if related else "uncertain", "source": "website",
+                                             "evidence": [f"web {w['domain']} odkazuje na profil" + ("" if related else " (handle nesúvisí s názvom — neisté)")],
+                                             "activity": "unknown", "confidence": "high" if related else "low", "verified_at": now()})
                     else:
                         for s in e["socials"]:
                             if s["platform"] == plat and (s.get("handle") or "").lower() == handle:
@@ -263,6 +276,17 @@ class Radar:
                 w["verdict"] = "confirmed"  # starý web z katalógu, ktorý nefunguje a nový sme nenašli = ich (nefunkčný) web
         e["last_verified"]["website"] = now()
         return e
+
+    @staticmethod
+    def related_handle(e, handle, domain):
+        from .normalize import handle_tokens
+        h = re.sub(r"[^a-z0-9]", "", bez(handle))
+        d = re.sub(r"[^a-z0-9]", "", bez(domain.split(".")[0]))
+        toks = set()
+        for n in e["brand_names"] + ([e["legal_name"]] if e["legal_name"] else []):
+            toks |= set(name_tokens(n))
+        return (len(d) >= 4 and (d in h or h in d)) or any(len(t) >= 4 and t in h for t in toks) or \
+            any(len(t) >= 4 and t in d for t in handle_tokens(handle))
 
     # ─────────── PASS 5 ───────────
     def pass5(self, e):
@@ -290,6 +314,9 @@ class Radar:
         identity_confidence(e)
         res = e["website_resolution"]
         web = next((w for w in e["websites"] if w["verdict"] in ("confirmed", "probable")), None)
+        reg_name = bez((e.get("register") or {}).get("name") or "")
+        if self.ORG.search(reg_name):
+            self._stop(e, "nie je firma (združenie / úrad / škola)")
         tier, why = Q.gate(e, res)
         e["data_quality"], e["data_quality_why"] = tier, why
         rec, fit, reasons = Q.caller_fit(e, self.routing, self.active)

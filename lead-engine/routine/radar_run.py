@@ -325,7 +325,9 @@ def main():
         if e.get("stopped") and e["stopped"].startswith(("už je v Lead Engine", "meno na zozname", "mimo dnešného")):
             continue  # nič nové — neukladáme
         if e.get("stopped") or e.get("data_quality") == "research":
-            reason = "inactive" if "zanikla" in (e.get("stopped") or "") else "irrelevant_segment" if "segment" in (e.get("stopped") or "") \
+            web_ok = (e.get("website") or {}).get("health", {}) and (e.get("website") or {}).get("health", {}).get("state") == "working"
+            reason = "quality_web" if web_ok and not e.get("commercial_problems") else \
+                "inactive" if "zanikla" in (e.get("stopped") or "") else "irrelevant_segment" if "segment" in (e.get("stopped") or "") \
                 else "bad_contact" if "kontakt" in (e.get("stopped") or "") else "unverifiable"
             if e["phones"] or e["company_ids"]:
                 rejected.append({"company": company_out(e), "reject": {"reason": reason, "why": (e.get("stopped") or "; ".join(e.get("data_quality_why", [])))[:280]},

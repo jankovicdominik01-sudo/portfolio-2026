@@ -193,7 +193,18 @@ LEGAL = re.compile(
     re.I,
 )
 GENERIC = {"studio", "salon", "salón", "centrum", "servis", "service", "sluzby", "sluzba", "group", "team", "shop",
-           "design", "slovakia", "slovensko", "cz", "sk", "eu", "the", "and", "pre", "pro", "plus", "art"}
+           "design", "slovakia", "slovensko", "cz", "sk", "eu", "the", "and", "pre", "pro", "plus", "art",
+           # názvy odborov — nerozlišujú firmu („Kozmetický salón Bea“ ≠ každý kozmetický salón v meste)
+           "kozmeticky", "kozmeticke", "kozmetika", "kosmeticky", "kosmetika", "kadernictvo", "kadernictvi", "beauty",
+           "stolarstvo", "truhlarstvi", "zahradnictvo", "zahradnictvi", "stavby", "stavebna", "stavebni", "reality",
+           "realitna", "realitni", "interier", "interiery", "fotograf", "foto", "photo", "strechy", "podlahy", "elektro",
+           "autoservis", "pneuservis", "detailing", "nechty", "nehty", "vizaz", "makeup", "agentura", "agentúra",
+           "rekonstrukcie", "rekonstrukce", "kovovyroba", "tesarstvo", "maliarstvo", "prace", "práce"}
+
+
+def has_word(token, text):
+    """Slovo od začiatku slova („bea“ nie je v „beauty“, „obocie“ nie je v „pobociek“)."""
+    return re.search(r"(?<![a-z0-9])" + re.escape(token) + r"(?![a-z0-9])", text) is not None
 
 
 def name_tokens(name, drop=()):

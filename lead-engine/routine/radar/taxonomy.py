@@ -151,7 +151,7 @@ SONA_DEFAULT = sorted(k for k, v in CATS.items() if v["caller"] == "sona")
 JOZO_DEFAULT = sorted(k for k, v in CATS.items() if v["caller"] == "jozo")
 
 # Ktoré kategórie sa NIKDY neberú (iný biznis model / nízka potreba webu v tejto ponuke).
-NEVER = re.compile(r"cukrar|pekar|psi salon|psie salon|strihanie psov|restaurac|pizz|bistro|kaviar|pohostin|taxi|"
+NEVER = re.compile(r"kvetinar|aranzovan\w* kytic|donask\w* kvet|cukrar|pekar|psi salon|psie salon|strihanie psov|restaurac|pizz|bistro|kaviar|pohostin|taxi|"
                    r"stahovan|upratov|autoskol|lekar|zubar|stomatolog|lekaren|poistov|advokat|notar|ucto|danov",
                    re.I)
 

@@ -32,7 +32,9 @@ def website_resolution(e):
         return "probable", prob[0]
     searched = e.get("web_search_done", 0)
     unreachable = [c for c in e["website_candidates"] if c.get("verdict") == "unreachable"]
-    if unc or unreachable or searched < 2:
+    # web s názvom firmy, ktorý sme odmietli (iný telefón…) = možno ich web → NIKDY „nenašli sme“, iba neistota
+    named_rejected = [r for r in e["rejected_websites"] if r.get("name_hit")]
+    if unc or unreachable or named_rejected or searched < 2:
         return "uncertain", (unc or [None])[0]
     return "no_website_found", None
 
@@ -77,9 +79,10 @@ def phone_confidence(e):
         prim = [s for s in f["sources"] if not s.startswith("search:")]
         c = "high" if (len(set(f["sources"])) >= 2 and prim) or "website" in f["sources"] or "google_business" in f["sources"] \
             else "medium" if prim else "low"
-        if not best or RANK[c] > RANK[best[1]] or (RANK[c] == RANK[best[1]] and f["value"].startswith(("+4219", "+4206", "+4207"))):
-            best = (f["value"], c, f["sources"])
-    return best  # (e164, conf, sources) | None
+        key = (RANK[c], len(set(f["sources"])), f["value"].startswith(("+4219", "+4206", "+4207")))
+        if not best or key > best[3]:
+            best = (f["value"], c, f["sources"], key)
+    return best[:3] if best else None  # (e164, conf, sources) | None — najviac nezávislých zdrojov vyhráva
 
 
 def gate(e, res):

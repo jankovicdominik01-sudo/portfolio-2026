@@ -115,13 +115,13 @@ def matches_entity(profile, entity):
     for w in entity["websites"]:
         if f"{profile['platform']}:{(profile.get('handle') or '').lower()}" in w.get("social_links", []):
             strong.append(f"web {w['domain']} odkazuje na tento profil")
-    toks = set()
-    for n in entity["brand_names"] + ([entity["legal_name"]] if entity["legal_name"] else []):
-        toks |= set(name_tokens(n))
     ptoks = set(handle_tokens(profile.get("handle") or "")) | set(name_tokens(profile.get("display_name") or ""))
     hjoined = re.sub(r"[^a-z0-9]", "", bez(profile.get("handle") or ""))
-    name_hit = bool(toks) and (toks <= ptoks or all(t in hjoined for t in toks))
-    city_hit = bool(entity["city"]) and bez(entity["city"]) in bez(" ".join(x for x in (profile.get("city"), profile.get("bio"), profile.get("display_name")) if x))
+    # každý variant názvu zvlášť („Katarína Freund - Beauty by Katy“ aj „Beauty by Katy“)
+    variants = [set(name_tokens(n)) for n in entity["brand_names"] + ([entity["legal_name"]] if entity["legal_name"] else [])]
+    name_hit = any(v and (v <= ptoks or all(t in hjoined for t in v)) for v in variants)
+    city_hit = bool(entity["city"]) and (bez(entity["city"]) in bez(" ".join(x for x in (profile.get("city"), profile.get("bio"), profile.get("display_name")) if x))
+                                         or re.sub(r"[^a-z]", "", bez(entity["city"])) in hjoined)
     if name_hit:
         mid.append("názov firmy v mene / handle profilu")
     if city_hit:

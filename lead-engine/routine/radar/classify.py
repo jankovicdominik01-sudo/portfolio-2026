@@ -57,7 +57,7 @@ SERVICES = [
 ]
 SERVICES = [(re.compile(r"\b(?:" + a + ")"), b, c) for a, b, c in SERVICES]
 
-STRONG_SRC = {"website", "instagram_bio", "facebook_page", "google_business", "catalog_section"}
+STRONG_SRC = {"website", "website_title", "instagram_bio", "facebook_page", "google_business", "catalog_section"}
 MEDIUM_SRC = {"catalog", "register_nace", "website_body"}
 
 
@@ -68,7 +68,8 @@ def evidence_texts(e):
         if w.get("verdict") in ("confirmed", "probable"):
             fp = w.get("fp") or {}
             # hlavička webu (title / meta / nadpisy) = čím sa firma prezentuje; telo = iba pri opakovanej zmienke
-            out.append((f"web {w['domain']}", "website", " ".join([fp.get("title", ""), fp.get("meta", ""), " ".join(fp.get("h", []))])))
+            out.append((f"web {w['domain']} (titulok)", "website_title", fp.get("title", "")))
+            out.append((f"web {w['domain']}", "website", " ".join([fp.get("meta", ""), " ".join(fp.get("h", []))])))
             out.append((f"web {w['domain']} (text)", "website_body", fp.get("text", "")[:8000]))
     for s in e["socials"]:
         if s.get("match") in ("confirmed", "probable") and (s.get("bio") or s.get("display_name")):
@@ -106,7 +107,8 @@ def classify(e):
             continue
         name_hit = bool(core.search(bez(names)))
         if hits or name_hit:
-            w = sum(3 if k in STRONG_SRC else 1 if k == "website_body" else 2 if k in MEDIUM_SRC else 1 for _, k in hits) + (1 if name_hit else 0)
+            w = sum(4 if k == "website_title" else 3 if k in STRONG_SRC else 1 if k == "website_body" else 2 if k in MEDIUM_SRC else 1
+                    for _, k in hits) + (1 if name_hit else 0)
             scores[cid] = (w, hits, name_hit)
     if not scores:
         return {"id": "ine", "code": "OTHER_LOCAL_SERVICE", "subcategory": None, "confidence": "unknown",
@@ -116,9 +118,11 @@ def classify(e):
     best = max(scores, key=lambda c: (scores[c][0] + prefer.get(c, 0)))
     w, hits, name_hit = scores[best]
     strong = [h for h in hits if h[1] in STRONG_SRC]
-    kinds = {h[1] for h in hits} - {"website_body"}
+    kinds = {("website" if h[1] == "website_title" else h[1]) for h in hits} - {"website_body"}
     # iba zmienky v texte webu (bez nadpisu, bio, katalógu) nestačia na istú kategóriu
     conf = "high" if (strong and len(hits) >= 2 and len(kinds) >= 2) else "medium" if strong or len(kinds) >= 1 else "low"
+    if kinds == {"catalog_section"}:
+        conf = "low"  # iba sekcia katalógu (firma si ju vybrala sama, sekcie sú široké) — bez iného dôkazu neistá
     ev = [f"„{CATS[best]['label']}“ potvrdzuje: {src}" for src, _ in hits[:4]]
     if name_hit and not hits:
         ev.append("iba názov firmy — odbor NEOVERENÝ")

@@ -14,14 +14,14 @@ import json
 import re
 import urllib.parse
 
-from .normalize import (bez, digits, emails_in, email_domain, host, ico_norm, name_tokens, phone_e164, phones_in,
+from .normalize import (bez, has_word, digits, emails_in, email_domain, host, ico_norm, name_tokens, phone_e164, phones_in,
                         is_own_web_candidate, FREE_HOSTS)
 
 SUBPAGE = re.compile(r"kontakt|contact|o-nas|o_nas|onas|about|impressum|o-mne|o-firme|firma|kde-nas", re.I)
 PORTFOLIO = re.compile(r"realiz[aá]ci|galeri|portf[oó]li|projekt|referenc|na[sš]e pr[aá]ce|uk[aá]žky|fotogaleri|"
                        r"before|pred a po|pr[aá]ce|works|gallery", re.I)
 CTA = re.compile(r"<form|href=\"tel:|href='tel:|mailto:|objedna|rezerv|nez[aá]v[aä]zn|dopyt|popt[aá]vk|cenov[aá] ponuk", re.I)
-SOCIAL_LINK = re.compile(r"https?://(?:www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)/([A-Za-z0-9_.\-]+)(?:/([0-9]+))?", re.I)
+SOCIAL_LINK = re.compile(r"https?://(?:www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)/([A-Za-z0-9_.\-%]+)(?:/([0-9]+))?", re.I)
 SOCIAL_SKIP = {"sharer", "sharer.php", "share", "plugins", "tr", "dialog", "p", "reel", "explore", "watch", "groups",
                "events", "hashtag", "profile.php", "pages", "people", "business", "policies", "help", "login"}
 ICO_RE = re.compile(r"I[ČC]O?\s*[:.]?\s*(\d[\d ]{5,10}\d)", re.I)
@@ -37,7 +37,7 @@ def social_links(body):
     out = []
     for m in SOCIAL_LINK.finditer(body or ""):
         plat = "instagram" if "instagram" in m.group(1).lower() else "facebook"
-        h = m.group(2).strip(".").lower()
+        h = urllib.parse.unquote(m.group(2)).strip(".").lower()
         if h in SOCIAL_SKIP or len(h) < 2:
             continue
         key = f"{plat}:{h}"
@@ -117,6 +117,26 @@ def fingerprint(url, net, country=None, max_subpages=2):
         r = net.get(url)
     except Blocked as b:
         return {"url": url, "error": f"blocked: {b}", "reachable": False}
+    first_ssl = r.get("ssl_error")
+    if not r.get("body"):
+        # pred tvrdením „nefunguje“ skús varianty: http / https, s www aj bez (Švitko: https zlý certifikát, http funguje)
+        u0 = urllib.parse.urlparse(url)
+        h0 = u0.hostname or ""
+        alt_hosts = [h0[4:]] if h0.startswith("www.") else ["www." + h0]
+        for sch in ("https", "http"):
+            for hh in [h0] + alt_hosts:
+                v = f"{sch}://{hh}{u0.path or '/'}"
+                if v.rstrip("/") == url.rstrip("/"):
+                    continue
+                try:
+                    rv = net.get(v, retries=0)
+                except Blocked:
+                    continue
+                if rv.get("body"):
+                    r = dict(rv, ssl_error=first_ssl or rv.get("ssl_error"))
+                    break
+            if r.get("body"):
+                break
     fp = {"requested": url, "final_url": r["url"], "status": r["status"], "chain": r.get("chain", [url]),
           "ssl_error": r.get("ssl_error"), "elapsed": r.get("elapsed"), "reachable": bool(r["body"]), "raw_len": len(r["body"])}
     if not r["body"]:
@@ -183,8 +203,11 @@ def ownership(entity, fp, source):
     # stredné signály
     body = bez(fp.get("title", "") + " " + fp.get("meta", "") + " " + " ".join(fp.get("h", [])) + " " + fp.get("text", "")[:6000])
     names = entity["brand_names"] + ([entity["legal_name"]] if entity["legal_name"] else [])
-    name_hit = any((toks := name_tokens(n)) and all(t in body for t in toks[:2]) for n in names)
     city_hit = bool(entity["city"]) and bez(entity["city"]) in body
+    # značka celá, alebo výrazné slovo (≥6 znakov, napr. priezvisko) spolu s mestom
+    name_hit = any((toks := name_tokens(n)) and (all(has_word(t, body) for t in toks[:3]) or
+                                                 (city_hit and len(max(toks, key=len)) >= 6 and has_word(max(toks, key=len), body)))
+                   for n in names)
     mids = []
     if name_hit:
         mids.append("názov firmy je na webe")
@@ -212,7 +235,7 @@ def ownership(entity, fp, source):
     else:
         verdict, conf = "rejected", "low"
         neg.append("na webe nie je názov, telefón, IČO ani e-mail firmy")
-    return {"verdict": verdict, "confidence": conf, "evidence": ev + mids, "negative": neg}
+    return {"verdict": verdict, "confidence": conf, "evidence": ev + mids, "negative": neg, "name_hit": name_hit}
 
 
 # ─────────────── zdravie webu (objektívne signály) ───────────────
@@ -237,9 +260,10 @@ def health(fp, entity=None, category_portfolio=False, today=None):
         return {"state": "broken", "issues": issues}
     st = fp.get("status") or 0
     if not fp.get("reachable"):
-        if st in (404, 410) or st >= 500:
+        if st in (404, 410):
             add("http_error", f"Web {dom} vracia chybu {st}", f"GET → HTTP {st}", 6)
             return {"state": "broken", "issues": issues}
+        # 5xx môže byť dočasný výpadok → nič netvrdíme (overí recheck pred hovorom)
         return {"state": "unknown", "issues": [], "note": "Web sa nepodarilo načítať — nič o ňom netvrdíme."}
     low = (fp.get("body_head") or "").lower()
     t = bez(fp.get("text", ""))

@@ -89,6 +89,11 @@ def from_record(rec):
             e["legal_name"] = name
         else:
             e["brand_names"].append(name)
+            # „Lýdia Vančová - KOZMETIKA LÝDIA“ → aj značka „KOZMETIKA LÝDIA“ (pod ňou firmu poznajú zákazníci / web)
+            if " - " in name:
+                brand = name.split(" - ", 1)[1].strip()
+                if len(brand) >= 4 and brand not in e["brand_names"]:
+                    e["brand_names"].append(brand)
     if rec.get("legal_name"):
         e["legal_name"] = rec["legal_name"]
     e["city"] = rec.get("city") or None
@@ -318,7 +323,12 @@ def identity_confidence(e):
     srcs = {s["source"] for s in e["sources"]}
     if len(srcs) >= 2:
         ev.append(f"nájdená v {len(srcs)} zdrojoch: {', '.join(sorted(srcs))}")
-    conf = HIGH if (reg.get("found") and (ph_hi or web)) or (ph_hi and web) or (reg.get("found") and len(srcs) >= 2) \
+    # register nájdený podľa IČO z katalógu a názov sedí = register potvrdzuje, že katalógový záznam je táto firma
+    reg_by_ico = reg.get("found") and not reg.get("matched_by") and any(
+        set(name_tokens(n)) & set(name_tokens(reg.get("name") or "")) for n in e["brand_names"])
+    if reg_by_ico:
+        ev.append("register (podľa IČO) potvrdzuje názov z katalógu")
+    conf = HIGH if (reg.get("found") and (ph_hi or web)) or (ph_hi and web) or (reg.get("found") and len(srcs) >= 2) or reg_by_ico \
         else MEDIUM if (reg.get("found") or ph_hi or web or len(srcs) >= 2) \
         else LOW
     e["identity"] = {"confidence": conf, "evidence": ev + [x for x in e["identity"]["evidence"] if x not in ev]}
