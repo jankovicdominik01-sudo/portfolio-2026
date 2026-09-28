@@ -4,20 +4,19 @@ import { apiAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { runMorningRoutine } from "@/lib/routine";
 import { ResearchedItemSchema, ingestResearched, type ResearchedResult } from "@/lib/research";
-import { callers } from "@/lib/auth";
-import { DAILY_NEW, freshCount } from "@/lib/queue";
-import { pickCaller } from "@/lib/workflow";
+import { morningStatus, saveRadarRun } from "@/lib/leads";
 
 /**
- * GET: koľko nových leadov má ranná rutina dnes doplniť (aktívnemu volajúcemu do DAILY_NEW nevolaných).
+ * GET: čo má ranná rutina dnes doplniť — PER VOLAJÚCI (Soňa aj Jozo majú vlastnú frontu a vlastné segmenty),
+ * routing kategória → volajúci, nedávne discovery dopyty (aby sa lokality neopakovali) a leady na preverenie.
+ * Staré polia (caller / fresh / target / need) ostávajú pre spätnú kompatibilitu = prvý volajúci.
  */
 export async function GET() {
   const user = await apiAuth();
   if (!user || user.role !== "admin") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const caller = pickCaller(callers());
-  const leads = await (await db()).listLeads();
-  const fresh = caller ? freshCount(leads, caller) : 0;
-  return NextResponse.json({ caller, fresh, target: DAILY_NEW, need: caller ? Math.max(0, DAILY_NEW - fresh) : 0 });
+  const m = await morningStatus(user);
+  const first = m.callers[0];
+  return NextResponse.json({ ...m, caller: first?.caller ?? null, fresh: first?.fresh ?? 0, target: first?.target ?? 10, need: first?.need ?? 0 });
 }
 
 export const maxDuration = 300;
@@ -32,6 +31,8 @@ const Body = z.object({
   query: z.string().max(300).optional(),
   candidates: z.array(z.record(z.string(), z.unknown())).max(200).optional().default([]),
   researched: z.array(ResearchedItemSchema).max(120).optional().default([]),
+  /** Lead Radar: zdravie zdrojov, štatistiky behu, yield dopytov. */
+  radar_report: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(req: Request) {
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `${i?.path.join(".")}: ${i?.message}` }, { status: 400 });
   }
 
+  if (body.data.radar_report) await saveRadarRun(user, body.data.radar_report);
   const results: ResearchedResult[] = [];
   for (const item of body.data.researched) {
     try {

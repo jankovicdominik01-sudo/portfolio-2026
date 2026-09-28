@@ -10,6 +10,7 @@ import { OUTCOME_LABEL, type CallerOutcome } from "@/lib/types";
 import { telHref } from "@/lib/format";
 import { Button, ButtonLink, Eyebrow, inputClass, cn } from "./ui";
 import { SuccessMark } from "./motion";
+import { FeedbackBox, TruthPanel } from "./truth-card";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const screen = {
@@ -157,13 +158,17 @@ export function CallScreen(p: CallScreenProps) {
               <p className="mt-4 text-red-300">Telefón chýba — napíš Dominikovi.</p>
             )}
 
-            {/* PREČO VOLÁME */}
-            <Box label="Prečo voláme" className="mt-6">
-              <p className="text-[17px] leading-snug font-medium">{p.card.why}</p>
-              <p className={cn("mt-1.5 text-[13px]", p.card.web_verified ? "text-green-300/80" : "text-yellow-200/80")}>
-                {p.card.web_verified ? `✓ ${p.card.verified ?? "Overené"}` : "⚠ Stav webu nie je 100 % overený — iba sa pýtaj"}
-              </p>
-            </Box>
+            {p.card.truth ? (
+              <TruthPanel t={p.card.truth} />
+            ) : (
+              /* PREČO VOLÁME (staršie leady bez profilu radaru) */
+              <Box label="Prečo voláme" className="mt-6">
+                <p className="text-[17px] leading-snug font-medium">{p.card.why}</p>
+                <p className={cn("mt-1.5 text-[13px]", p.card.web_verified ? "text-green-300/80" : "text-yellow-200/80")}>
+                  {p.card.web_verified ? `✓ ${p.card.verified ?? "Overené"}` : "⚠ Stav webu nie je 100 % overený — iba sa pýtaj"}
+                </p>
+              </Box>
+            )}
 
             {/* SCENÁR */}
             <div className="mt-6 space-y-5">
@@ -177,7 +182,7 @@ export function CallScreen(p: CallScreenProps) {
                   </span>
                 ))}
               </Line>
-              <Line n={3} label="Prechod k webu">
+              <Line n={3} label={p.card.truth ? "Uhol hovoru" : "Prechod k webu"}>
                 „{p.card.transition}“
               </Line>
               <Line n={4} label="Dominik">
@@ -235,6 +240,8 @@ export function CallScreen(p: CallScreenProps) {
                 ))}
               </div>
             </details>
+
+            <FeedbackBox leadId={p.leadId} />
 
             <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/90 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-xl">
               <div className="mx-auto max-w-[560px]">

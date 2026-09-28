@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiAuth } from "@/lib/auth";
 import { z } from "zod";
-import { getLead, patchLeadFacts } from "@/lib/leads";
+import { getLead, patchLeadFacts, patchLeadProfile } from "@/lib/leads";
+import { RadarProfileSchema } from "@/lib/types";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await apiAuth();
@@ -26,7 +27,18 @@ const Facts = z.object({
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await apiAuth();
   if (!user || user.role !== "admin") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const p = Facts.safeParse(await req.json().catch(() => ({})));
+  const body = await req.json().catch(() => ({}));
+  if (body && typeof body === "object" && "radar" in body) {
+    // Lead Radar recheck pred hovorom: nový profil (web, zdravie, kvalita dát)
+    const rp = RadarProfileSchema.safeParse((body as { radar: unknown }).radar);
+    if (!rp.success) return NextResponse.json({ error: `radar.${rp.error.issues[0]?.path.join(".")}: ${rp.error.issues[0]?.message}` }, { status: 400 });
+    try {
+      return NextResponse.json({ ok: true, ...(await patchLeadProfile(user, (await params).id, rp.data)) });
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "error" }, { status: 400 });
+    }
+  }
+  const p = Facts.safeParse(body);
   if (!p.success) return NextResponse.json({ error: p.error.issues[0]?.message }, { status: 400 });
   try {
     const score = await patchLeadFacts(user, (await params).id, p.data);

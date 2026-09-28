@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { RadarPanel } from "@/components/radar-panel";
 import { ArrowLeft, Globe, Mail, Phone } from "lucide-react";
 import { requireUser, callers, adminName, allUsers } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -103,6 +104,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-5">
+          <RadarPanel lead={lead} />
           {a ? (
             <>
               {a.nothing_found ? (
@@ -212,7 +214,8 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
               <Row label="E-mail" value={c.email} />
               <Row label="Mesto" value={c.city} />
               <Row label="Adresa" value={c.address} />
-              <Row label="Web" value={c.website ? displayUrl(c.website) : "nemá"} />
+              <Row label="Web" value={c.website ? displayUrl(c.website) : "nenašli sme"} />
+              <Row label="Krajina" value={c.country ?? c.profile?.country ?? null} />
               <Row label="IČO" value={c.ico ?? null} />
               <Row label="Zdroje" value={(c.sources ?? []).map((x) => x.source).join(", ") || leadSource(lead)} />
               <Row label="Volajúci" value={lead.assigned_to} />

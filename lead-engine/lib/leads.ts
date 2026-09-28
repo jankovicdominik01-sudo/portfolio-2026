@@ -19,6 +19,9 @@ import { buildToday } from "./queue";
 import { computeScore, priorityFromScore } from "./score";
 import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
+import { applyFeedback, type FeedbackInput } from "./feedback";
+import { effectiveRouting } from "./routing";
+import { scoreFromProfile, websiteStatusFromProfile } from "./research";
 import { commissionEffects, compensationConfigured, earnings, recompute, type MoneyEvent } from "./money";
 import { computePriority, computeTrust, dedupeKeys, isReadyToCall } from "./scoring";
 import { endOfDay, addDays } from "./format";
@@ -42,6 +45,7 @@ import {
   type LeadStatus,
   type LeadWithCompany,
   type NextAction,
+  type RadarProfile,
   type SessionUser,
 } from "./types";
 
@@ -367,9 +371,10 @@ async function applyMoney(lead: Lead, ev: MoneyEvent) {
   }
 }
 
-export async function saveSettings(u: SessionUser, next: Settings) {
+export async function saveSettings(u: SessionUser, input: Pick<Settings, "compensation" | "package">) {
   assertAdmin(u);
   const r = await db();
+  const next: Settings = { ...(await r.getSettings()), compensation: input.compensation, package: input.package };
   await r.saveSettings(next);
   const [all, leads] = await Promise.all([r.listCommissions(), r.listLeads()]);
   const updated = recompute(all, next, leads);
@@ -601,3 +606,113 @@ export async function patchLeadFacts(u: SessionUser, leadId: string, f: LeadFact
   return score;
 }
 const CALLER_PHASE: LeadStatus[] = ["ready_to_call", "called", "analyzed"];
+
+
+/* ─────────────────────────── Lead Radar: feedback, recheck, routing, behy ─────────────────────────── */
+
+/** Volajúci nahlási chybu v dátach. Iba na lead, ktorý vidí (svoj). */
+export async function addCallerFeedback(u: SessionUser, leadId: string, input: FeedbackInput) {
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  const company = await r.getCompany(lead.company_id);
+  if (!company) throw new Error("Firma neexistuje.");
+  if (u.role !== "admin" && lead.assigned_to !== u.username) throw new AccessError("Tento lead nie je tvoj.");
+  const res = applyFeedback(lead, company, input, u.username, now(), id("fb"));
+  if (Object.keys(res.company).length) await r.updateCompany(company.id, { ...res.company, updated_at: now() });
+  await r.updateLead(lead.id, res.lead);
+  await event(lead.id, u.name, "note", res.event);
+}
+
+export async function resolveFeedback(u: SessionUser, leadId: string, feedbackId: string) {
+  assertAdmin(u);
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  const feedback = (lead.feedback ?? []).map((f) => (f.id === feedbackId ? { ...f, resolved_at: now() } : f));
+  await r.updateLead(lead.id, { feedback, needs_reverify: feedback.some((f) => !f.resolved_at), updated_at: now() });
+}
+
+/**
+ * Recheck pred hovorom (rutina): nový profil z radaru. Mení stav webu, kvalitu dát a skóre;
+ * ak lead už NIE JE bezpečný na volanie (RESEARCH), vyradí ho z fronty — ale iba ak ešte nebol volaný.
+ */
+export async function patchLeadProfile(u: SessionUser, leadId: string, profile: RadarProfile) {
+  assertAdmin(u);
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  const company = await r.getCompany(lead.company_id);
+  if (!company) throw new Error("Firma neexistuje.");
+  const before = lead.website_resolution ?? null;
+  const merged: RadarProfile = {
+    ...profile,
+    rejected_websites: [...(company.profile?.rejected_websites ?? []), ...(profile.rejected_websites ?? [])],
+  };
+  const web = merged.website?.status === "confirmed" || merged.website?.status === "probable" ? merged.website?.url ?? null : null;
+  await r.updateCompany(company.id, { profile: merged, website: web ?? company.website, updated_at: now() });
+  const offers = await r.listOffers();
+  const fit = offers.some((o) => o.available && o.category === company.category) ? "fits" : offers.some((o) => o.available) ? "no_fit" : "unknown";
+  const score = scoreFromProfile(merged, fit);
+  const after = merged.website?.status ?? merged.website_resolution ?? "uncertain";
+  const patch: Partial<Lead> = {
+    website_resolution: after,
+    website_status: websiteStatusFromProfile(merged),
+    website_issue: (merged.website?.health?.issues ?? []).slice().sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0]?.key ?? null,
+    website_checked_at: merged.last_verified?.website ?? now(),
+    data_quality: merged.data_quality ?? lead.data_quality ?? null,
+    commercial_problem: merged.commercial_problems?.[0]?.code ?? null,
+    needs_reverify: false,
+    score,
+    updated_at: now(),
+  };
+  if (merged.data_quality === "research" && lead.status === "ready_to_call" && !(lead.call_attempts ?? 0)) {
+    patch.status = "analyzed";
+    patch.next_action = "review";
+  }
+  await r.updateLead(lead.id, patch);
+  await event(lead.id, u.name, "analysis", `Recheck pred hovorom: web ${before ?? "?"} → ${after} · ${String(merged.data_quality ?? "").toUpperCase()}`);
+  return { before, after };
+}
+
+export async function saveRouting(u: SessionUser, routing: Record<string, string | null>) {
+  assertAdmin(u);
+  const r = await db();
+  const s = await r.getSettings();
+  await r.saveSettings({ ...s, routing });
+}
+
+/** Ranná rutina: koľko potrebuje každý aktívny volajúci + routing + nedávne dopyty (locality engine). */
+export async function morningStatus(u: SessionUser) {
+  assertAdmin(u);
+  const r = await db();
+  const [leads, settings] = await Promise.all([r.listLeads(), r.getSettings()]);
+  const routing = effectiveRouting(settings);
+  const target = 10;
+  const list = callers().map((c) => {
+    const fresh = leads.filter((l) => l.assigned_to === c.username && l.status === "ready_to_call" && !(l.call_attempts ?? 0)).length;
+    return { caller: c.username, name: c.name, fresh, target, need: Math.max(0, target - fresh) };
+  });
+  const cut = new Date(Date.now() - 21 * 86_400_000).toISOString();
+  const recent = (settings.radar?.query_log ?? [])
+    .filter((q) => String(q.purpose ?? "") === "discovery" && String(q.executed_at ?? "") >= cut)
+    .map((q) => String(q.query));
+  const reverify = leads.filter((l) => l.needs_reverify).map((l) => l.id);
+  return { callers: list, routing, recent_queries: [...new Set(recent)], reverify };
+}
+
+/** Uloží report behu radaru (zdravie zdrojov, štatistiky, yield dopytov). Drží 30 behov / 45 dní dopytov. */
+export async function saveRadarRun(u: SessionUser, report: Record<string, unknown>) {
+  assertAdmin(u);
+  const r = await db();
+  const s = await r.getSettings();
+  const cut = new Date(Date.now() - 45 * 86_400_000).toISOString();
+  const log = Array.isArray(report.query_log) ? (report.query_log as Record<string, unknown>[]) : [];
+  const { query_log: _q, ...rest } = report;
+  void _q;
+  const radar = {
+    runs: [...(s.radar?.runs ?? []), { ...rest, saved_at: now() }].slice(-30),
+    query_log: [...(s.radar?.query_log ?? []), ...log].filter((q) => String(q.executed_at ?? "") >= cut).slice(-3000),
+  };
+  await r.saveSettings({ ...s, radar });
+}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { BarChart3, Bell, Columns3, Euro, Home, List, Plus, Settings } from "lucide-react";
+import { BarChart3, Bell, Columns3, Euro, Gauge, Home, List, Plus, Settings } from "lucide-react";
 import { cn } from "./ui";
 
 const ITEMS = [
@@ -12,6 +12,7 @@ const ITEMS = [
   { href: "/leady/pipeline", label: "Pipeline", icon: Columns3 },
   { href: "/leady/inbox", label: "Inbox", icon: Bell, badge: true },
   { href: "/leady/analytics", label: "Analytika", icon: BarChart3 },
+  { href: "/leady/quality", label: "Kvalita dát", icon: Gauge },
   { href: "/leady/money", label: "Peniaze", icon: Euro },
   { href: "/leady/add", label: "Pridať firmu", icon: Plus },
   { href: "/leady/settings", label: "Nastavenia", icon: Settings },
@@ -58,7 +59,7 @@ export function NavLinks({ unread }: { unread: number }) {
 
 export function MobileTabs({ unread }: { unread: number }) {
   const path = usePathname();
-  const items = ITEMS.filter((i) => !["/leady/settings", "/leady/add", "/leady/money"].includes(i.href));
+  const items = ITEMS.filter((i) => !["/leady/settings", "/leady/add", "/leady/money", "/leady/quality"].includes(i.href));
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
