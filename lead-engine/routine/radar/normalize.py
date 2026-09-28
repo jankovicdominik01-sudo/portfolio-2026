@@ -22,7 +22,11 @@ NOT_OWN_WEB = re.compile(
     r"zlatestranky|azet|zoznam|bazos|firmy|finstat|orsr|indexpodnikatela|foaf|edb|zivefirmy|najisto|seznam|"
     r"wenetonline|registeruz|rpo|statistics|ares|justice|podnikatel|kurzy|hbi|wikipedia|booking|tripadvisor|"
     r"linktr|linktree|beacons|bio|notino|daibau|bizref|zahradnecentra|nehnutelnosti|reality|topreality|sreality|"
-    r"bezrealitky|mojandrej|salony|reservio|bookio|noona|treatwell|fresha|myfitness|poptavej|nabytek-info)\."
+    r"bezrealitky|mojandrej|salony|reservio|bookio|noona|treatwell|fresha|myfitness|poptavej|nabytek-info|"
+    r"virtualne|kompass|slovenskobcan|dnb|cylex|maxinfo|vsetkyfirmy|123dopyt|hladammajstra|trade|orlykozmetiky|"
+    r"orlygastronomie|zlatafirma|studiakrasy|vizaze|kozmetickesalony|kozmetickechirurgie|slovakiayp|yoys|zlavomat|"
+    r"crz|modrastrecha|voda-portal|starofservice|jooble|daibau|square|squareup|wikipedia|evendo|beremese|"
+    r"kozmetickesaloncz|firmo|ekatalog|najdifirmu|sluzby|mapy)\."
 )
 # Link-in-bio služby: nie sú web, ale môžu obsahovať odkaz na web.
 LINK_IN_BIO = re.compile(r"(^|\.)(linktr\.ee|linktree\.com|beacons\.ai|bio\.link|lnk\.bio|campsite\.bio|taplink\.cc)$")
@@ -149,9 +153,16 @@ def site_key(url):
     return host(url)
 
 
+# Adresárové podstránky (…/firma/123/…, /profile/…) nie sú web firmy.
+DIRECTORY_PATH = re.compile(r"/(firma|firmy|company|companies|profile|profil|detail|adresar|katalog|subjekty|dodavatelia)/", re.I)
+
+
 def is_own_web_candidate(url):
     h = host(url)
-    return bool(h) and "." in h and not NOT_OWN_WEB.search(h + ".") and not LINK_IN_BIO.search(h)
+    if not h or "." not in h or NOT_OWN_WEB.search(h + ".") or LINK_IN_BIO.search(h):
+        return False
+    path = urllib.parse.urlparse(url if "://" in url else "https://" + url).path
+    return not DIRECTORY_PATH.search(path)
 
 
 def email_domain(email):

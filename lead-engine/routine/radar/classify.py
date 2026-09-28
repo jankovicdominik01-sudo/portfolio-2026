@@ -55,10 +55,10 @@ SERVICES = [
     (r"interierov\w* (dizajn|design)|navrh\w* interier|design interier|3d vizualiz", "návrh interiérov", "interier"),
     (r"architekton|projekt\w* rodinn\w* dom|architekt", "architektúra a projekty", "architekt"),
 ]
-SERVICES = [(re.compile(a), b, c) for a, b, c in SERVICES]
+SERVICES = [(re.compile(r"\b(?:" + a + ")"), b, c) for a, b, c in SERVICES]
 
-STRONG_SRC = {"website", "instagram_bio", "facebook_page", "google_business"}
-MEDIUM_SRC = {"catalog", "register_nace"}
+STRONG_SRC = {"website", "instagram_bio", "facebook_page", "google_business", "catalog_section"}
+MEDIUM_SRC = {"catalog", "register_nace", "website_body"}
 
 
 def evidence_texts(e):
@@ -67,7 +67,9 @@ def evidence_texts(e):
     for w in e["websites"]:
         if w.get("verdict") in ("confirmed", "probable"):
             fp = w.get("fp") or {}
-            out.append((f"web {w['domain']}", "website", " ".join([fp.get("title", ""), fp.get("meta", ""), " ".join(fp.get("h", [])), fp.get("text", "")[:3000]])))
+            # hlavička webu (title / meta / nadpisy) = čím sa firma prezentuje; telo = iba pri opakovanej zmienke
+            out.append((f"web {w['domain']}", "website", " ".join([fp.get("title", ""), fp.get("meta", ""), " ".join(fp.get("h", []))])))
+            out.append((f"web {w['domain']} (text)", "website_body", fp.get("text", "")[:8000]))
     for s in e["socials"]:
         if s.get("match") in ("confirmed", "probable") and (s.get("bio") or s.get("display_name")):
             out.append((f"{s['platform']} {s.get('handle') or ''}".strip(), f"{s['platform']}_bio" if s["platform"] == "instagram" else "facebook_page",
@@ -77,6 +79,9 @@ def evidence_texts(e):
     reg = e.get("register") or {}
     if reg.get("nace_text"):
         out.append(("register", "register_nace", reg["nace_text"]))
+    if e.get("seed_category") and e.get("seed_category") in CATS and any(s["source"] in ("azet", "zlatestranky", "zlatestranky_cz", "zoznam") for s in e["sources"]):
+        # firma sa sama zaradila do tejto sekcie katalógu
+        out.append((f"sekcia katalógu ({CATS[e['seed_category']]['label']})", "catalog_section", CATS[e["seed_category"]]["label"] + " " + " ".join(CATS[e["seed_category"]]["terms_sk"])))
     return out
 
 
@@ -92,13 +97,16 @@ def classify(e):
         hits = []
         for src, kind, t in texts:
             bt = bez(t)
-            if core.search(bt) and not (avoid and avoid.search(bt)):
+            if avoid and avoid.search(bt) and kind != "website_body":
+                continue
+            n = len(core.findall(bt))
+            if n >= (2 if kind == "website_body" else 1):
                 hits.append((src, kind))
         if avoid and any(avoid.search(bez(t)) for _, _, t in texts if t) and not hits:
             continue
         name_hit = bool(core.search(bez(names)))
         if hits or name_hit:
-            w = sum(3 if k in STRONG_SRC else 2 if k in MEDIUM_SRC else 1 for _, k in hits) + (1 if name_hit else 0)
+            w = sum(3 if k in STRONG_SRC else 1 if k == "website_body" else 2 if k in MEDIUM_SRC else 1 for _, k in hits) + (1 if name_hit else 0)
             scores[cid] = (w, hits, name_hit)
     if not scores:
         return {"id": "ine", "code": "OTHER_LOCAL_SERVICE", "subcategory": None, "confidence": "unknown",
@@ -108,8 +116,9 @@ def classify(e):
     best = max(scores, key=lambda c: (scores[c][0] + prefer.get(c, 0)))
     w, hits, name_hit = scores[best]
     strong = [h for h in hits if h[1] in STRONG_SRC]
-    kinds = {h[1] for h in hits}
-    conf = "high" if (strong and len(hits) >= 2) or len(kinds) >= 2 else "medium" if hits else "low"
+    kinds = {h[1] for h in hits} - {"website_body"}
+    # iba zmienky v texte webu (bez nadpisu, bio, katalógu) nestačia na istú kategóriu
+    conf = "high" if (strong and len(hits) >= 2 and len(kinds) >= 2) else "medium" if strong or len(kinds) >= 1 else "low"
     ev = [f"„{CATS[best]['label']}“ potvrdzuje: {src}" for src, _ in hits[:4]]
     if name_hit and not hits:
         ev.append("iba názov firmy — odbor NEOVERENÝ")
@@ -123,6 +132,7 @@ def classify(e):
 
 def services(e, texts=None):
     texts = texts if texts is not None else evidence_texts(e)
+    texts = [x for x in texts if x[1] != "catalog_section"]
     found = {}
     for src, kind, t in texts:
         bt = bez(t)

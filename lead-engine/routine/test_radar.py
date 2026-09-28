@@ -338,3 +338,20 @@ class Blocking(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FalseCategoryRegression(unittest.TestCase):
+    """Reálne omyly z QA 28. 9. 2026 (spec 55): podreťazce a vedľajšie zmienky nesmú určiť kategóriu."""
+
+    def fp_entity(self, title, text):
+        e = from_record(rec(name="Firma X", description=""))
+        e["websites"].append({"domain": "x.sk", "verdict": "confirmed", "fp": {"title": title, "meta": "", "h": [title], "text": text}})
+        return e
+
+    def test_pobociek_is_not_obocie(self):
+        e = self.fp_entity("Stavebná spoločnosť", "realizácia pobočiek a expozitúr, stavebné práce, rekonštrukcie objektov, rekonštrukcie")
+        self.assertNotEqual(C.classify(e)["id"], "mihalnice")
+
+    def test_side_mention_of_real_estate_is_not_reality(self):
+        e = self.fp_entity("Stavby rodinných domov", "stavby rodinných domov na kľúč, zhodnocujeme vaše nehnuteľnosti, rekonštrukcie, rekonštrukcie bytov")
+        self.assertEqual(C.classify(e)["id"], "stavebnictvo")

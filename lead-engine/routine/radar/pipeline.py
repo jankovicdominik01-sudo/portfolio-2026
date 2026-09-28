@@ -94,26 +94,35 @@ class Radar:
         return True
 
     # ─────────── PASS 3 ───────────
+    @staticmethod
+    def brand(name):
+        """Značka na vyhľadávanie: „Lýdia Vančová - KOZMETIKA LÝDIA“ → „KOZMETIKA LÝDIA“; bez právnej formy."""
+        n = name.split(" - ", 1)[1] if " - " in name else name
+        n = re.sub(r",?\s*(spol\.?\s*)?s\.?\s?r\.?\s?o\.?|,?\s*a\.\s?s\.|,?\s*k\.\s?s\.", "", n, flags=re.I).strip(" ,-")
+        return n or name
+
     def queries(self, e):
-        """Fan-out dopyty v poradí užitočnosti (telefón je najlepší identifikátor malého podnikateľa)."""
-        name = display_name(e)
+        """Fan-out dopyty v poradí užitočnosti (telefón je najlepší identifikátor malého podnikateľa).
+        Hľadá sa značka, nie meno osoby ani právna forma. IČO až nakoniec (nízky výnos)."""
+        name = self.brand(display_name(e))
         city = e["city"] or ""
         qs = []
         ph = next((f["value"] for f in e["phones"]), None)
+        ig_first = CATS.get(e.get("seed_category") or "ine", CATS["ine"]).get("ig")
+        ig = ("instagram", f"site:instagram.com \"{name}\"")
+        fb = ("facebook", f"site:facebook.com \"{name}\" {city}".strip())
+        if name:
+            qs.append(("name_city", f"\"{name}\" {city}".strip()))
+            qs.append(ig if ig_first else fb)
         if ph:
             qs.append(("phone", f"\"{phone_variants(ph)[1]}\""))
-        if name and city:
-            qs.append(("name_city", f"\"{name}\" {city}"))
-        elif name:
-            qs.append(("name", f"\"{name}\""))
         if name:
-            qs.append(("instagram", f"site:instagram.com \"{name}\""))
-            qs.append(("facebook", f"site:facebook.com \"{name}\" {city}".strip()))
+            qs.append(fb if ig_first else ig)
+        if e.get("legal_name") and bez(self.brand(e["legal_name"])) != bez(name):
+            qs.append(("legal_name", f"\"{self.brand(e['legal_name'])}\" {city}".strip()))
         ico = next((f["value"] for f in e["company_ids"]), None)
         if ico:
             qs.append(("ico", f"\"{ico}\""))
-        if e.get("legal_name") and bez(e["legal_name"]) != bez(name):
-            qs.append(("legal_name", f"\"{e['legal_name']}\" {city}".strip()))
         return qs
 
     def enough(self, e):
@@ -164,7 +173,8 @@ class Radar:
             u = r.get("url") or ""
             blob = bez((r.get("title") or "") + " " + (r.get("snippet") or "") + " " + host(u))
             hit_phone = any(p in re.sub(r"\D", "", blob) for p in ph9)
-            hit_name = bool(toks) and all(t in blob for t in list(toks)[:2])
+            # kandidát smie byť voľnejší (overuje ho až fingerprint): stačí najvýraznejšie slovo názvu (≥5 znakov)
+            hit_name = bool(toks) and (all(t in blob for t in list(toks)[:2]) or max(toks, key=len) in blob and len(max(toks, key=len)) >= 5)
             if seed := result_to_seed(r, e["country"]):
                 if hit_phone or hit_name:
                     d = host(u)
@@ -293,22 +303,41 @@ class Radar:
         return e
 
     # ─────────── celé ───────────
-    def run(self, records, deep_limit=60):
+    def prescore(self, e):
+        """Lacné poradie pred vyhľadávaním: kontakt, register, evidencia odboru."""
+        from .classify import classify
+        c = classify(e)
+        return (bool(e["phones"]) * 3 + bool(e["company_ids"]) * 2 + bool((e.get("register") or {}).get("found")) * 2
+                + {"high": 3, "medium": 2, "low": 0, "unknown": 0}[c["confidence"]] + bool(e["socials"]))
+
+    def run(self, records, deep_limit=60, search_limit=25, budget_scale=1.0):
+        """search_limit = koľko firiem smie ísť do vyhľadávania (agent WebSearch je drahý);
+        budget_scale < 1 pri agentovi (menej dopytov na firmu), 1 pri API providerovi."""
         all_ents, keep = self.pass1(records)
         self.log(f"  PASS 1: {self.stats['seeds']} záznamov → {self.stats['entities']} firiem, ďalej {len(keep)}")
-        alive = [e for e in keep if self.pass2(e)]
-        self.log(f"  PASS 2: register → ďalej {len(alive)}")
-        # perspektívne najprv: s telefónom a IČO; rozpočet podľa hodnoty
-        alive.sort(key=lambda e: (not e["phones"], not e["company_ids"], not e["website_candidates"]))
-        for e in alive[:deep_limit]:
+        # register iba pre perspektívne firmy (lacné poradie najprv) — neplytvať requestami na zvyšok
+        keep.sort(key=lambda e: -self.prescore(e))
+        cand = keep[: int(deep_limit * 1.3)]
+        deep = [e for e in cand if self.pass2(e)][:deep_limit]
+        rest = [e for e in keep if e not in deep and not e.get("stopped")]
+        self.log(f"  PASS 2: register pre {len(cand)} → hĺbkovo {len(deep)}")
+        # PASS 4 najprv: weby z katalógu / e-mailu / IG bio (bez vyhľadávača)
+        for e in deep:
+            self.pass4(e)
+        # PASS 3 iba tam, kde web nie je potvrdený (skrytý web, social) — najperspektívnejšie firmy prvé
+        need = [e for e in deep if not any(w.get("verdict") == "confirmed" for w in e["websites"])]
+        for e in need[:search_limit]:
             tier = "high_value" if e["phones"] and e["company_ids"] else "promising" if e["phones"] else "ordinary"
-            self.pass3(e, BUDGET[tier])
+            b = max(3, round(BUDGET[tier] * budget_scale))
+            self.pass3(e, b)
             self.pass4(e)
-            # po nájdení webu / brandu môžu pribudnúť silnejšie dopyty (telefón z webu, brand)
-            self.pass3(e, BUDGET[tier])
+            self.pass3(e, b)  # po nájdení webu / brandu môžu pribudnúť silnejšie dopyty
             self.pass4(e)
+        for e in need[search_limit:]:
+            trace(e, "search", "mimo dnešného rozpočtu vyhľadávania → stav webu ostáva neistý")
+        for e in deep:
             self.pass5(e)
             self.pass6(e)
-        for e in alive[deep_limit:]:
+        for e in rest:
             self._stop(e, "mimo dnešného limitu hĺbkovej analýzy")
         return all_ents

@@ -157,8 +157,9 @@ NEVER = re.compile(r"cukrar|pekar|psi salon|psie salon|strihanie psov|restaurac|
 
 
 def compiled(cat_id):
+    """Výrazy sú KMENE slov → porovnávajú sa od začiatku slova („pobočiek“ nie je „obočie“)."""
     c = CATS[cat_id]
-    return re.compile(c["core"], re.I), (re.compile(c["avoid"], re.I) if c.get("avoid") else None)
+    return re.compile(r"\b(?:" + c["core"] + ")", re.I), (re.compile(r"\b(?:" + c["avoid"] + ")", re.I) if c.get("avoid") else None)
 
 
 def default_caller(cat_id, routing=None):

@@ -689,6 +689,8 @@ export const SettingsSchema = z.object({
     .object({
       runs: z.array(z.record(z.string(), z.unknown())).default([]),
       query_log: z.array(z.record(z.string(), z.unknown())).default([]),
+      /** Golden dataset (ručne overené firmy) — súkromné, nie v repozitári. */
+      golden: z.array(z.record(z.string(), z.unknown())).optional(),
     })
     .optional()
     .default({ runs: [], query_log: [] }),
