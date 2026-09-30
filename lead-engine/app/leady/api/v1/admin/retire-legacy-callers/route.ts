@@ -9,6 +9,9 @@ import { applyMigration, loadSnapshot, planMigration } from "@/lib/migrations/re
  * Predvolene na sucho: vráti zoznam zmien. Zapíše iba s {"apply": true}.
  * Idempotentná: druhý beh nič nenájde.
  */
+/** Veľa jednotlivých zápisov do úložiska; beh je idempotentný, pri prerušení stačí spustiť znova. */
+export const maxDuration = 300;
+
 const Body = z.object({
   apply: z.boolean().optional().default(false),
   /** Nevolané leady pôvodných volajúcich dostane tento aktívny operátor (inak ostanú nepriradené). */
