@@ -203,6 +203,7 @@ def profile_out(e):
         "register": {k: (e.get("register") or {}).get(k) for k in ("registry", "found", "ico", "name", "municipality", "established", "dead", "matched_by")} if e.get("register") else None,
         "last_verified": e.get("last_verified", {}), "trace": e["trace"][-60:], "exploration": e.get("exploration", False),
         "web_search_queries": e.get("web_search_queries", [])[:6],
+        "process_signals": e.get("process_signals", []), "tags": e.get("tags"),
     }
 
 

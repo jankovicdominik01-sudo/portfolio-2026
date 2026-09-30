@@ -367,6 +367,22 @@ export const RadarProfileSchema = z
     trace: z.array(z.object({ step: z.string(), detail: z.string(), at: z.string().optional() })).optional().default([]),
     exploration: z.boolean().optional().default(false),
     web_search_queries: z.array(z.string()).optional().default([]),
+    /* ── Opportunity Engine: procesné signály a tagy z webu (routine/radar/signals.py) ── */
+    process_signals: z
+      .array(z.object({ key: z.string(), level: z.string(), text: z.string(), excerpt: z.string(), source: z.string() }))
+      .optional()
+      .default([]),
+    tags: z
+      .object({
+        ads_status: z.enum(["TAG_PRESENT", "NOT_FOUND", "UNKNOWN"]),
+        spend: z.literal("UNKNOWN"),
+        google_ads: z.string().nullable(),
+        ga4: z.string().nullable(),
+        gtm: z.string().nullable(),
+        meta_pixel: z.string().nullable(),
+      })
+      .nullable()
+      .optional(),
   })
   .passthrough();
 export type RadarProfile = z.infer<typeof RadarProfileSchema>;
@@ -574,6 +590,14 @@ export const LeadSchema = z.object({
   feedback: z.array(FeedbackSchema).optional(),
   /** Volajúci nahlásil chybu v dátach → preveriť (rutina / Dominik). */
   needs_reverify: z.boolean().optional(),
+  /* ── Opportunity Engine (lib/opportunity.ts) a routing kanála (lib/channel.ts) ── */
+  opportunity: z.record(z.string(), z.unknown()).nullable().optional(),
+  channel_decision: z.record(z.string(), z.unknown()).nullable().optional(),
+  /** Ručne overená reklama (Transparency Center / Ad Library). Jediný spôsob, ako vznikne ACTIVE. */
+  ads_check: z
+    .object({ status: z.enum(["ACTIVE", "NOT_FOUND"]), url: z.string().nullable(), checked_at: z.string(), by: z.string() })
+    .nullable()
+    .optional(),
 });
 export type Lead = z.infer<typeof LeadSchema>;
 
@@ -883,5 +907,6 @@ export const NEXT_ACTIONS = {
   send_demo: { label: "Poslať ukážku", who: "admin", icon: "🖼️" },
   send_email: { label: "Poslať e-mail", who: "admin", icon: "📩" },
   follow_up: { label: "Follow-up", who: "admin", icon: "🗓️" },
+  async_message: { label: "Pripraviť demo + správu na schválenie", who: "admin", icon: "✉️" },
 } as const;
 export type NextAction = keyof typeof NEXT_ACTIONS;

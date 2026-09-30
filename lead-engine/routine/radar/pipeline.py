@@ -16,6 +16,7 @@ import re
 
 from . import classify as C
 from . import quality as Q
+from . import signals as SIG
 from .entity import (HIGH, MEDIUM, LOW, add_fact, dedupe_keys, display_name, from_record, identity_confidence, now,
                      own_domains, resolve, trace)
 from .net import Blocked, resolves
@@ -303,6 +304,10 @@ class Radar:
         e["description"] = C.describe(e, e["category"])
         e["business_status"] = C.business_status(e)
         e["commercial_problems"] = Q.opportunity(e, res, web)
+        fp = (web or {}).get("fp") or {}
+        e["process_signals"] = SIG.process_signals(fp)
+        e["tags"] = SIG.tags(fp)
+        fp.pop("raw_pages", None)  # HTML nepotrebujeme ďalej držať v pamäti
         e["social_first"] = any(p["code"] == "SOCIAL_FIRST_BUSINESS" for p in e["commercial_problems"])
         e["last_verified"].update(category=now(), social=now())
         trace(e, "classify", f"{e['category']['id']} ({e['category']['confidence']}) · popis: {e['description']['text']}")

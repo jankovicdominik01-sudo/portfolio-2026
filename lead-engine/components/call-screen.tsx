@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Phone } from "lucide-react";
 import { callerCallAction } from "@/app/leady/actions";
 import type { CallCard } from "@/lib/script";
+import type { OpportunityCallCard } from "@/lib/call-card";
 import { OUTCOME_LABEL, type CallerOutcome } from "@/lib/types";
 import { telHref } from "@/lib/format";
 import { Button, ButtonLink, Eyebrow, inputClass, cn } from "./ui";
@@ -40,6 +41,8 @@ export type CallScreenProps = {
   attempts: number;
   callbackNote: string | null;
   card: CallCard;
+  /** Call Card v2 (Opportunity Engine). Keď je, nahrádza pôvodný scenár. */
+  opportunityCard?: OpportunityCallCard | null;
   details: { label: string; points: number }[];
   risks: { label: string; points: number }[];
   websiteLabel: string | null;
@@ -158,6 +161,10 @@ export function CallScreen(p: CallScreenProps) {
               <p className="mt-4 text-red-300">Telefón chýba — napíš Dominikovi.</p>
             )}
 
+            {p.opportunityCard ? (
+              <OpportunityPanel c={p.opportunityCard} />
+            ) : (
+              <>
             {p.card.truth ? (
               <TruthPanel t={p.card.truth} />
             ) : (
@@ -193,6 +200,9 @@ export function CallScreen(p: CallScreenProps) {
                 <p className="mt-1.5 text-[19px] font-semibold">„{p.card.consent_question}“</p>
               </div>
             </div>
+
+              </>
+            )}
 
             <Box label="Ak sa spýtajú „odkiaľ máte moje číslo?“" className="mt-6">
               <p className="text-[15px] text-white/80">„{p.card.source_answer}“</p>
@@ -471,5 +481,69 @@ function Area(props: { label: string; value: string; onChange: (v: string) => vo
         className={cn(inputClass, "resize-none text-[16px]")}
       />
     </label>
+  );
+}
+
+const LEVEL_TONE = { VERIFIED: "text-green-300/85", OBSERVED: "text-sky-200/85", ESTIMATE: "text-yellow-200/85" } as const;
+
+/** Call Card v2: fakty s úrovňou dôkazu + pár viet na začiatok. Rozhovor vedie operátor sám. */
+function OpportunityPanel({ c }: { c: OpportunityCallCard }) {
+  return (
+    <div className="mt-6 space-y-5">
+      <Box label="Prečo táto firma">
+        <p className="text-[17px] leading-snug font-medium">{c.why_this_lead}</p>
+        {c.opportunity ? <p className="mt-2 text-[14px] text-white/60">Návrh: {c.opportunity}</p> : null}
+        <p className={cn("mt-2 text-[13px]", c.demo === "READY" ? "text-green-300/80" : "text-white/45")}>
+          Demo: {c.demo === "READY" ? "pripravené" : "zatiaľ nie"}
+        </p>
+      </Box>
+
+      {c.verified.length ? (
+        <Box label="Overené">
+          {c.verified.map((v) => (
+            <p key={v.text} className={cn("text-[15px]", LEVEL_TONE.VERIFIED)}>✓ {v.text}</p>
+          ))}
+        </Box>
+      ) : null}
+
+      {c.observed.length ? (
+        <Box label="Videli sme na webe">
+          {c.observed.map((o) => (
+            <div key={o.key + o.excerpt} className="mb-2 last:mb-0">
+              <p className={cn("text-[15px]", LEVEL_TONE.OBSERVED)}>{o.text}</p>
+              <p className="text-[13px] text-white/45">„{o.excerpt}“</p>
+            </div>
+          ))}
+        </Box>
+      ) : null}
+
+      {c.estimate.length ? (
+        <Box label="Odhad (iba s predpokladmi)">
+          {c.estimate.map((e) => (
+            <p key={e.text} className={cn("text-[15px]", LEVEL_TONE.ESTIMATE)}>
+              {e.text} <span className="text-white/45">({e.assumptions.join(", ")})</span>
+            </p>
+          ))}
+        </Box>
+      ) : null}
+
+      <Line n={1} label="Začiatok">„{c.opening}“</Line>
+      <Line n={2} label="Čo sme si všimli">„{c.context_pain}“</Line>
+      <Line n={3} label="Nápad">„{c.idea}“</Line>
+      <Line n={4} label="Môžeš sa opýtať">
+        {c.questions.map((q) => (
+          <span key={q} className="block">„{q}“</span>
+        ))}
+      </Line>
+      <div className="rounded-3xl bg-ok/[0.07] p-5 ring-1 ring-ok/25">
+        <Eyebrow className="text-green-300/80">Ďalší krok</Eyebrow>
+        <p className="mt-1.5 text-[19px] font-semibold">„{c.next_step}“</p>
+      </div>
+      <Box label="Pozor">
+        {c.cautions.map((x) => (
+          <p key={x} className="text-[14px] text-white/70">{x}</p>
+        ))}
+      </Box>
+    </div>
   );
 }

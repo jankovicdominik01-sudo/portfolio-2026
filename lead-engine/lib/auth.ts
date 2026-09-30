@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE, sessionSecret, timingSafeStringEqual, verifySession } from "./session";
 import type { Role, SessionUser, UserInfo } from "./types";
 import { blobConfigured } from "./db/blob-token";
+import { configuredOperators, isLegacy } from "./operators";
 
 type UserRecord = UserInfo & { password: string };
 
@@ -56,8 +57,10 @@ export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
       demo: true,
       users: [
         { username: "dominik", name: "Dominik Jankovič", role: "admin", active: true, password: "dominik" },
-        { username: "sona", name: "Soňa", role: "caller", active: true, speech: "f", password: "sona" },
-        { username: "jozo", name: "Jozo", role: "caller", active: true, speech: "m", password: "jozo" },
+        { username: "roman", name: "Roman", role: "caller", active: true, speech: "m", password: "roman" },
+        // Legacy: účty ostávajú kvôli histórii, nové leady nedostávajú (lib/operators.ts).
+        { username: "sona", name: "Soňa", role: "caller", active: false, speech: "f", password: "sona" },
+        { username: "jozo", name: "Jozo", role: "caller", active: false, speech: "m", password: "jozo" },
       ],
     };
   }
@@ -112,10 +115,19 @@ export async function authenticate(username: string, password: string): Promise<
   return { username: u.username, name: u.name, role: u.role };
 }
 
-/** Aktívni volajúci — dostávajú nové leady. */
+/**
+ * Aktívni volajúci = aktívny účet + operátor ACTIVE s kanálom CALL. Dostávajú nové leady.
+ * Legacy operátori (Soňa, Jozo) sem nepatria nikdy, aj keby mali aktívny účet.
+ */
 export function callers(): SessionUser[] {
-  return configuredUsers()
-    .users.filter((u) => u.role === "caller" && u.active)
+  const all = configuredUsers().users;
+  const ops = configuredOperators(all);
+  return all
+    .filter((u) => u.role === "caller" && u.active && !isLegacy(u.username))
+    .filter((u) => {
+      const op = ops.find((o) => o.operator_id === u.username);
+      return !!op && op.status === "ACTIVE" && op.channels.includes("CALL");
+    })
     .map(({ username, name, role }) => ({ username, name, role }));
 }
 

@@ -19,6 +19,9 @@ import { buildToday } from "./queue";
 import { computeScore, priorityFromScore } from "./score";
 import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
+import { opportunityCallCard } from "./call-card";
+import { hasDemoTemplate } from "./demo-templates";
+import type { Opportunity } from "./opportunity";
 import { applyFeedback, type FeedbackInput } from "./feedback";
 import { effectiveRouting } from "./routing";
 import { scoreFromProfile, websiteStatusFromProfile } from "./research";
@@ -546,10 +549,21 @@ export async function callerLeadView(u: SessionUser, leadId: string) {
     offers,
     nowIso: now(),
   });
+  // Call Card v2: iba leady, ktoré prešli Opportunity Engine. Staršie ostávajú na pôvodnej karte.
+  const opp = lead.opportunity as unknown as Opportunity | null | undefined;
+  const opportunityCard = opp?.version === 1
+    ? opportunityCallCard({
+        company: lead.company,
+        profile: lead.company.profile,
+        opportunity: opp,
+        operatorName: u.name,
+        demoReady: !!opp.recommended_system && hasDemoTemplate(opp.recommended_system.id),
+      })
+    : null;
   const q = await callerQueue(u);
   const order = [...q.callbacks, ...q.retries, ...q.fresh].map((l) => l.id);
   const next = order.find((x) => x !== lead.id) ?? null;
-  return { lead, card, next, price: settings.package.price };
+  return { lead, card, opportunityCard, next, price: settings.package.price };
 }
 
 /* ─────────────────────────── Overené fakty (rutina / backfill) ─────────────────────────── */

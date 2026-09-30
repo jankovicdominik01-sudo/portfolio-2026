@@ -5,7 +5,7 @@ import { applyFeedback } from "../lib/feedback";
 import { buildCallCard, truthCard, webClaimAllowed } from "../lib/script";
 import { identityMatch } from "../lib/identity";
 import { dataQuality } from "../lib/quality";
-import { normalizeCategory, type RadarProfile } from "../lib/types";
+import { categoryOf, normalizeCategory, type RadarProfile } from "../lib/types";
 import { NOW, OFFER, company, lead } from "./fixtures";
 
 const ACTIVE = ["sona", "jozo"];
@@ -52,26 +52,26 @@ function profile(p: Partial<RadarProfile> = {}): RadarProfile {
 
 /* ─────────── Routing (spec 44) ─────────── */
 
-test("default routing: beauty/makeup/reality → Soňa; stavba/elektrikár/záhrady → Jozo", () => {
+test("Soňa a Jozo sú legacy: predvolený routing ich nepoužíva, história v CATEGORIES ostáva", () => {
   const r = effectiveRouting(null);
-  for (const c of ["kadernictvo", "makeup", "reality", "kozmetika", "nechty", "fotograf", "interier"]) assert.equal(r[c], "sona", c);
-  for (const c of ["stavebnictvo", "elektrikar", "zahradnictvo", "stolarstvo", "autoservis", "detailing"]) assert.equal(r[c], "jozo", c);
+  for (const c of ["kadernictvo", "makeup", "stavebnictvo", "elektrikar", "autoservis"]) assert.equal(r[c], null, c);
+  assert.equal(categoryOf("kadernictvo").caller, "sona");
+  assert.equal(categoryOf("autoservis").caller, "jozo");
+  assert.deepEqual(categoriesFor("sona", defaultRouting()), []);
 });
 
-test("routing je konfigurovateľný a neaktívny volajúci má fallback", () => {
+test("legacy volajúci nedostane lead ani cez odporúčanie radaru, ani cez nastavenia", () => {
   const r = effectiveRouting({ routing: { kadernictvo: "jozo" } });
-  assert.equal(routeLead("kadernictvo", "sona", r, ACTIVE).caller, "jozo");
-  assert.equal(routeLead("elektrikar", null, effectiveRouting(null), ["sona"]).caller, "sona");
-  assert.equal(routeLead("elektrikar", "jozo", effectiveRouting(null), ACTIVE).caller, "jozo");
+  assert.equal(routeLead("kadernictvo", "sona", r, [...ACTIVE, "roman"]).caller, "roman");
+  assert.equal(routeLead("elektrikar", "jozo", effectiveRouting(null), ACTIVE).caller, null);
+  assert.equal(routeLead("elektrikar", null, effectiveRouting(null), ["roman"]).caller, "roman");
 });
 
-test("každý má vlastné segmenty — nie všetci dostanú záhradníctvo", () => {
-  const r = defaultRouting();
-  const sona = categoriesFor("sona", r);
-  const jozo = categoriesFor("jozo", r);
-  assert.ok(!sona.includes("zahradnictvo"));
-  assert.ok(sona.length >= 8 && jozo.length >= 12);
-  assert.equal(sona.filter((c) => jozo.includes(c)).length, 0);
+test("routing na aktívneho operátora podľa nastavení funguje", () => {
+  const r = effectiveRouting({ routing: { autoservis: "roman" } });
+  const route = routeLead("autoservis", null, r, ["roman", "peter"]);
+  assert.equal(route.caller, "roman");
+  assert.match(route.reasons.join(" "), /routing/);
 });
 
 test("nové kategórie sa rozpoznajú z textu", () => {
