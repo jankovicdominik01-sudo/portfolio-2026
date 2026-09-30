@@ -8,7 +8,9 @@ export const metadata: Metadata = {
   title: { default: "Lead Engine · DJWeby", template: "%s · Lead Engine" },
   description: "Interný obchodný systém DJWeby.",
   robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-  icons: { icon: "/leady-icon.svg" },
+  icons: { icon: "/leady-icon.svg", apple: "/apple-touch-icon.png" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Leady", statusBarStyle: "black-translucent" },
   alternates: { canonical: null },
   openGraph: null,
 };

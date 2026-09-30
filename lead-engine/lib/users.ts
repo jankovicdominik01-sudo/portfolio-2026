@@ -13,23 +13,13 @@ import type { Role, UserInfo } from "./types";
 export type UserRecord = UserInfo & { password: string };
 
 /**
- * Predvolený účet na serveri bez LE_USERS: iba admin. Repozitár je verejný, preto
- * tu je iba scrypt hash (heslo má Dominik). Operátorov pridáva env LE_USERS, nie kód.
+ * DEV / DEMO účty iba pre lokálny vývoj bez LE_USERS (heslo v čistom texte, nikdy na serveri).
+ * Nie sú to produkčné účty. Produkčné účty a ich hashe sú výhradne vo Vercel env LE_USERS.
+ * `roman` je tu iba preto, aby lokálne sedel na predvolený záznam operátora.
  */
-export const DEFAULT_USERS: UserRecord[] = [
-  {
-    username: "dominik",
-    name: "Dominik Jankovič",
-    role: "admin",
-    active: true,
-    password: "scrypt$xkYE-gY_9dUibtGstpqi1Q$7dOACQLDdF-ViIlnG2lTz8BkZaHZqXW0_TDfw5uMqq0",
-  },
-];
-
-/** Lokálny vývoj bez LE_USERS (heslo = meno). Nikdy na serveri. */
-export const DEMO_USERS: UserRecord[] = [
-  { username: "dominik", name: "Dominik Jankovič", role: "admin", active: true, password: "dominik" },
-  { username: "roman", name: "Roman", role: "caller", active: true, speech: "m", password: "roman" },
+export const DEV_USERS: UserRecord[] = [
+  { username: "dev-admin", name: "DEV admin", role: "admin", active: true, password: "dev-admin" },
+  { username: "roman", name: "Roman (DEV)", role: "caller", active: true, speech: "m", password: "dev-roman" },
 ];
 
 /**
@@ -61,10 +51,25 @@ export function parseUsers(raw: string): UserRecord[] {
     .filter((u) => u.username && u.password.length >= 6);
 }
 
-export function usersFor(raw: string | undefined, nodeEnv: string | undefined): { users: UserRecord[]; demo: boolean } {
-  if (raw) return { users: parseUsers(raw), demo: false };
-  if (nodeEnv === "production") return { users: DEFAULT_USERS, demo: false };
-  return { users: DEMO_USERS, demo: true };
+export type UsersConfig = { users: UserRecord[]; demo: boolean; error: string | null };
+
+/**
+ * Účty podľa prostredia. Produkcia je fail-safe:
+ *  - bez LE_USERS sa nikto neprihlási (žiadny zabudnutý predvolený účet v kóde),
+ *  - heslo musí byť scrypt hash (čistý text sa v produkcii odmietne),
+ *  - musí existovať aspoň jeden admin, inak sa neprihlási nikto.
+ */
+export function usersFor(raw: string | undefined, nodeEnv: string | undefined): UsersConfig {
+  const prod = nodeEnv === "production";
+  if (!raw?.trim()) {
+    return prod ? { users: [], demo: false, error: "LE_USERS nie je nastavené." } : { users: DEV_USERS, demo: true, error: null };
+  }
+  const parsed = parseUsers(raw);
+  if (!prod) return { users: parsed, demo: false, error: null };
+  const users = parsed.filter((u) => u.password.startsWith("scrypt$"));
+  if (users.length !== parsed.length) return { users: [], demo: false, error: "LE_USERS obsahuje heslo v čistom texte. V produkcii iba scrypt hash." };
+  if (!users.some((u) => u.role === "admin" && u.active)) return { users: [], demo: false, error: "LE_USERS nemá aktívneho admina." };
+  return { users, demo: false, error: null };
 }
 
 /**

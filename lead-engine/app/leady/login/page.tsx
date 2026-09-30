@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Prihlásenie" };
 
 export default function LoginPage() {
-  const { users, demo } = configuredUsers();
+  const { users, demo, error } = configuredUsers();
   const setup = setupStatus();
   return (
     <main className="glow relative grid min-h-dvh place-items-center px-5 py-16">
@@ -32,15 +32,15 @@ export default function LoginPage() {
           </div>
         ) : users.length === 0 ? (
           <div className="rounded-2xl bg-bad/10 p-4 text-sm text-red-200 ring-1 ring-bad/20">
-            Prihlásenie nie je nastavené. Doplň premennú <code>LE_USERS</code> na serveri.
+            Prihlásenie nie je nastavené: {error ?? "chýbajú účty"} Doplň premennú <code>LE_USERS</code> na serveri.
           </div>
         ) : (
           <LoginForm />
         )}
         {demo ? (
           <p className="mt-6 text-center text-xs text-white/35">
-            Lokálny režim · <span className="text-white/60">dominik / dominik</span> alebo{" "}
-            <span className="text-white/60">roman / roman</span>
+            DEV účty (iba lokálne) · <span className="text-white/60">dev-admin / dev-admin</span> alebo{" "}
+            <span className="text-white/60">roman / dev-roman</span>
           </p>
         ) : null}
       </div>

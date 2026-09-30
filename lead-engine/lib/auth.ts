@@ -2,13 +2,13 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, sessionSecret, timingSafeStringEqual, verifySession } from "./session";
-import { accountAllowed, passwordMatches, usersFor, type UserRecord } from "./users";
+import { accountAllowed, passwordMatches, usersFor, type UsersConfig } from "./users";
 import type { Role, SessionUser, UserInfo } from "./types";
 import { blobConfigured } from "./db/blob-token";
 import { configuredOperators } from "./operators";
 
 /** Účty: LE_USERS, inak predvolený admin (server) alebo demo účty (lokálne). */
-export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
+export function configuredUsers(): UsersConfig {
   return usersFor(process.env.LE_USERS, process.env.NODE_ENV);
 }
 
@@ -59,6 +59,7 @@ export function setupStatus(): { ready: boolean; persistent: boolean } {
     blobConfigured()
   );
   if (process.env.NODE_ENV !== "production") return { ready: true, persistent: true };
+  // Bez platného LE_USERS sa nikto neprihlási (fail-safe), login ukáže dôvod.
   // Testovací deploy bez úložiska: beží, ale dáta sú iba dočasné (upozornenie v UI).
   const ephemeralOk = process.env.LEADY_ALLOW_EPHEMERAL === "1";
   return { ready: (persistent || ephemeralOk) && !!sessionSecret(), persistent };

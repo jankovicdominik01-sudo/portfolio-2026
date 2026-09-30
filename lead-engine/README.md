@@ -110,7 +110,7 @@ tvrdenia bez platného evidence id sa zahodia, ponuka a cena sa berú výhradne 
 ```bash
 cd lead-engine
 npm install
-npm run dev          # http://localhost:3000/leady · dominik/dominik, roman/roman (iba lokálne demo účty)
+npm run dev          # http://localhost:3000/leady · DEV účty dev-admin/dev-admin, roman/dev-roman (iba lokálne)
 npm test             # TS logika (node:test) + Python regresné testy zberného skriptu
 ```
 
@@ -121,8 +121,9 @@ npm test             # TS logika (node:test) + Python regresné testy zberného 
    Bez toho beží v testovacom režime s upozornením.
 3. Settings → Domains: vlastná doména (napr. `leady.djweby.sk`, DNS CNAME na Vercel).
 
-Podpisový kľúč session vzniká pri builde (`next.config.ts`), v repozitári nie je. Bez `LE_USERS` existuje na serveri
-iba admin `dominik` (v kóde je iba scrypt hash).
+Podpisový kľúč session vzniká pri builde (`next.config.ts`), v repozitári nie je. Produkčné účty a ich hashe sú
+**iba** vo Vercel env `LE_USERS`, v kóde nie je žiadny. Produkcia je fail-safe: bez `LE_USERS`, s heslom v čistom texte
+alebo bez aktívneho admina sa neprihlási nikto.
 
 ### Operátori (volajúci)
 

@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { accountAllowed, DEFAULT_USERS, DEMO_USERS, hashPassword, parseUsers, passwordMatches, usersFor } from "../lib/users";
+import { accountAllowed, DEV_USERS, hashPassword, parseUsers, passwordMatches, usersFor } from "../lib/users";
 import { configuredOperators, DEFAULT_OPERATORS } from "../lib/operators";
 import { applyCallerOutcome, slotAt, WorkflowError } from "../lib/workflow";
 import { routeLead, effectiveRouting } from "../lib/routing";
@@ -43,14 +43,53 @@ test("volajúci sa prihlási iba so záznamom operátora ACTIVE alebo PAUSED", (
   assert.equal(accountAllowed({ username: "roman", role: "caller", active: true }, off), false);
 });
 
-test("heslo: scrypt hash sa overí, zlé heslo nie; server bez LE_USERS má iba admina", async () => {
+test("heslo: scrypt hash sa overí, zlé heslo nie", async () => {
   const h = await hashPassword("dlhe-heslo-romana");
   assert.match(h, /^scrypt\$/);
   assert.ok(await passwordMatches(h, "dlhe-heslo-romana"));
   assert.equal(await passwordMatches(h, "ine-heslo"), false);
-  assert.deepEqual(usersFor(undefined, "production").users.map((u) => u.username), ["dominik"]);
-  assert.deepEqual(DEMO_USERS.map((u) => u.username), ["dominik", "roman"]);
-  assert.equal(DEFAULT_USERS.length, 1);
+  assert.equal(await passwordMatches("scrypt$zly", "x"), false);
+});
+
+test("PRODUKCIA fail-safe: bez LE_USERS sa nikto neprihlási, žiadny účet z kódu", () => {
+  for (const raw of [undefined, "", "   "]) {
+    const c = usersFor(raw, "production");
+    assert.deepEqual(c.users, []);
+    assert.equal(c.demo, false);
+    assert.ok(c.error);
+  }
+});
+
+test("PRODUKCIA fail-safe: heslo v čistom texte alebo chýbajúci admin = nikto sa neprihlási", async () => {
+  const h = await hashPassword("dlhe-heslo-admina");
+  assert.deepEqual(usersFor(`admin|Admin|admin|${h};roman|Roman|caller|heslo123|m`, "production").users, []);
+  assert.deepEqual(usersFor(`roman|Roman|caller|${h}|m`, "production").users, []);
+  const ok = usersFor(`admin|Admin|admin|${h};roman|Roman|caller|${h}|m`, "production");
+  assert.equal(ok.error, null);
+  assert.deepEqual(ok.users.map((u) => u.username), ["admin", "roman"]);
+});
+
+test("DEV účty sú iba lokálne, jasne označené a nemajú produkčné mená ani hashe", () => {
+  const dev = usersFor(undefined, "development");
+  assert.equal(dev.demo, true);
+  assert.deepEqual(dev.users.map((u) => u.username), ["dev-admin", "roman"]);
+  assert.ok(DEV_USERS.every((u) => !u.password.startsWith("scrypt$")));
+  assert.ok(DEV_USERS.every((u) => /dev/i.test(u.name) || /dev/i.test(u.password)));
+});
+
+test("repozitár neobsahuje žiadny produkčný scrypt hash", () => {
+  const root = join(__dirname, "..");
+  const hits: string[] = [];
+  const walk = (dir: string) => {
+    for (const f of readdirSync(dir)) {
+      const p = join(dir, f);
+      if (["node_modules", ".next", ".data", "tests"].includes(f)) continue;
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/\.(ts|tsx|md|example|json|py)$/.test(f) && /scrypt\$[A-Za-z0-9_-]{8,}\$[A-Za-z0-9_-]{20,}/.test(readFileSync(p, "utf8"))) hits.push(p);
+    }
+  };
+  walk(root);
+  assert.deepEqual(hits, []);
 });
 
 /* ─────────── regresia: nikto iný než aktívny operátor ─────────── */
@@ -319,4 +358,16 @@ test("migrácia je idempotentná: po aplikovaní druhý beh nič nenájde", () =
   assert.equal(after.leads.length, s.leads.length);
   assert.equal(after.calls.length, s.calls.length);
   assert.equal(after.events.length, s.events.length);
+});
+
+/* ─────────── aplikácia na ploche ─────────── */
+
+import manifest from "../app/manifest";
+
+test("manifest: Lead Engine sa dá pridať na plochu ako aplikácia", () => {
+  const m = manifest();
+  assert.equal(m.display, "standalone");
+  assert.equal(m.start_url, "/leady");
+  assert.ok(m.icons?.some((i) => i.sizes === "192x192") && m.icons?.some((i) => i.sizes === "512x512"));
+  assert.ok(m.icons?.some((i) => i.purpose === "maskable"));
 });
