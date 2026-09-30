@@ -83,7 +83,7 @@ export function OpportunityPanel(p: OpportunityPanelProps) {
               <span className="text-[13px] text-white/55">{DIM_LABEL[k] ?? k}</span>
               <span className={cn("text-[12px] font-semibold tracking-wide", LEVEL_TONE[d.level])}>{d.level}</span>
             </div>
-            <p className="mt-1 text-[13px] text-white/70">{d.reasons[0] ?? "—"}</p>
+            <p className="mt-1 text-[13px] text-white/70">{d.reasons[0] ?? "nevieme"}</p>
           </div>
         ))}
       </div>
