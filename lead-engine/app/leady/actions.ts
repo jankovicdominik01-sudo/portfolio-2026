@@ -25,6 +25,9 @@ import {
   saveNotes,
   setStatus,
   updateCompany,
+  refreshOpportunity,
+  saveAdsCheck,
+  createDemo,
 } from "@/lib/leads";
 import { importRows, parseImport } from "@/lib/import";
 import { SALES_STEPS } from "@/lib/workflow";
@@ -474,6 +477,44 @@ export async function saveRoutingAction(input: z.input<typeof RoutingInput>): Pr
     await saveRouting(user, p.data);
     refreshAll();
     return { ok: true, message: "Routing uložený — platí pre nové leady." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* ─────────── Opportunity Engine ─────────── */
+
+export async function refreshOpportunityAction(leadId: string): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    const { opportunity, channel } = await refreshOpportunity(user, leadId);
+    refreshAll();
+    return { ok: true, message: `Príležitosť ${opportunity.priority}, kanál ${channel.channel}.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const AdsCheckInput = z.object({ status: z.enum(["ACTIVE", "NOT_FOUND"]), url: z.string().trim().max(500).nullable() });
+
+export async function adsCheckAction(leadId: string, input: z.input<typeof AdsCheckInput>): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    const v = AdsCheckInput.parse(input);
+    await saveAdsCheck(user, leadId, v.status, v.url || null);
+    refreshAll();
+    return { ok: true, message: "Kontrola reklamy uložená." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function createDemoAction(leadId: string): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    const d = await createDemo(user, leadId);
+    refreshAll();
+    return { ok: true, message: `Demo pripravené: /d/${d.code}` };
   } catch (e) {
     return fail(e);
   }

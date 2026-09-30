@@ -593,6 +593,8 @@ export const LeadSchema = z.object({
   /* ── Opportunity Engine (lib/opportunity.ts) a routing kanála (lib/channel.ts) ── */
   opportunity: z.record(z.string(), z.unknown()).nullable().optional(),
   channel_decision: z.record(z.string(), z.unknown()).nullable().optional(),
+  /** Demo (Demo Engine). Vytvára ho iba Dominik tlačidlom, nikdy automaticky. */
+  demo: z.record(z.string(), z.unknown()).nullable().optional(),
   /** Ručne overená reklama (Transparency Center / Ad Library). Jediný spôsob, ako vznikne ACTIVE. */
   ads_check: z
     .object({ status: z.enum(["ACTIVE", "NOT_FOUND"]), url: z.string().nullable(), checked_at: z.string(), by: z.string() })

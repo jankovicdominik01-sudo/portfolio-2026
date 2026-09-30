@@ -20,8 +20,11 @@ import { computeScore, priorityFromScore } from "./score";
 import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
 import { opportunityCallCard } from "./call-card";
-import { hasDemoTemplate } from "./demo-templates";
-import type { Opportunity } from "./opportunity";
+import { buildOpportunity, type Opportunity } from "./opportunity";
+import { chooseChannel } from "./channel";
+import { configuredOperators } from "./operators";
+import { buildDemoPayload, hasDemoTemplate, type DemoPayload } from "./demo-templates";
+import { draftFirstMessage } from "./style";
 import { applyFeedback, type FeedbackInput } from "./feedback";
 import { effectiveRouting } from "./routing";
 import { scoreFromProfile, websiteStatusFromProfile } from "./research";
@@ -729,4 +732,76 @@ export async function saveRadarRun(u: SessionUser, report: Record<string, unknow
     query_log: [...(s.radar?.query_log ?? []), ...log].filter((q) => String(q.executed_at ?? "") >= cut).slice(-3000),
   };
   await r.saveSettings({ ...s, radar });
+}
+
+/* ─────────────────────────── Opportunity Engine (Dominik) ─────────────────────────── */
+
+/** Prepočíta príležitosť a kanál z aktuálneho profilu. Nemení stav ani priradenie leadu. */
+export async function refreshOpportunity(u: SessionUser, leadId: string) {
+  assertAdmin(u);
+  const lead = await getLead(u, leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  const opportunity = buildOpportunity(lead, lead.company.category, lead.company.profile);
+  const active = callers().map((c) => c.username);
+  const channel = chooseChannel({
+    category: lead.company.category,
+    score_band: lead.score?.band,
+    opportunity,
+    has_phone: !!lead.company.phone,
+    has_email: !!lead.company.email,
+    do_not_contact: lead.status === "do_not_call",
+    operators: configuredOperators(allUsers()).filter((o) => active.includes(o.operator_id)),
+  });
+  await (await db()).updateLead(leadId, {
+    opportunity: opportunity as unknown as Lead["opportunity"],
+    channel_decision: channel as unknown as Lead["channel_decision"],
+    updated_at: now(),
+  });
+  await event(leadId, u.name, "analysis", `Opportunity ${opportunity.priority} · kanál ${channel.channel}`);
+  return { opportunity, channel };
+}
+
+/** Ručná kontrola reklamy (Transparency Center / Ad Library). ACTIVE vyžaduje odkaz. */
+export async function saveAdsCheck(u: SessionUser, leadId: string, status: "ACTIVE" | "NOT_FOUND", url: string | null) {
+  assertAdmin(u);
+  if (status === "ACTIVE" && !url) throw new Error("ACTIVE potrebuje odkaz na reklamu.");
+  if (url && !/^https:\/\//.test(url)) throw new Error("Odkaz musí začínať https://");
+  await (await db()).updateLead(leadId, { ads_check: { status, url, checked_at: now(), by: u.username }, updated_at: now() });
+  await event(leadId, u.name, "note", `Reklama ručne: ${status}${url ? ` (${url})` : ""}`);
+  return refreshOpportunity(u, leadId);
+}
+
+/** Vytvorí demo pre lead (iba tlačidlom). Firemné údaje berie iba z evidence. */
+export async function createDemo(u: SessionUser, leadId: string) {
+  assertAdmin(u);
+  const lead = await getLead(u, leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  const opp = (lead.opportunity as unknown as Opportunity | null) ?? (await refreshOpportunity(u, leadId)).opportunity;
+  const payload = buildDemoPayload({ company: lead.company, profile: lead.company.profile, opportunity: opp, nowIso: now() });
+  await (await db()).updateLead(leadId, { demo: payload as unknown as Lead["demo"], updated_at: now() });
+  await event(leadId, u.name, "note", `Demo vytvorené (${payload.template}), platí do ${payload.expires_at.slice(0, 10)}`);
+  return payload;
+}
+
+/** Verejné čítanie dema podľa kódu. Vracia iba payload, nič z leadu. Expirované = null. */
+export async function publicDemo(code: string): Promise<DemoPayload | null> {
+  if (!/^[a-z2-9]{8}$/.test(code)) return null;
+  const leads = await (await db()).listLeads();
+  const hit = leads.find((l) => (l.demo as { code?: string } | null | undefined)?.code === code);
+  const d = hit?.demo as unknown as DemoPayload | undefined;
+  if (!d || new Date(d.expires_at).getTime() < Date.now()) return null;
+  return d;
+}
+
+/** Návrhy prvej správy (e-mail + SMS) na skopírovanie. Nič sa neodosiela. */
+export function leadDrafts(lead: Lead, demoBase: string) {
+  const opp = lead.opportunity as unknown as Opportunity | null;
+  if (!opp) return null;
+  const code = (lead.demo as { code?: string } | null | undefined)?.code;
+  const url = code ? `${demoBase}/d/${code}` : null;
+  return {
+    email: draftFirstMessage({ opportunity: opp, channel: "EMAIL", demoUrl: url }),
+    sms: draftFirstMessage({ opportunity: opp, channel: "SMS", demoUrl: url ? url.replace(/^https:\/\//, "") : null }),
+    demo_url: url,
+  };
 }

@@ -77,6 +77,7 @@ test("autoservis s telefonickým objednávaním bez formulára = TOP a service_b
   assert.equal(o.priority, "TOP");
   assert.equal(o.recommended_system?.id, "service_booking");
   assert.match(o.why_this_lead, /telefonicky/);
+  assert.ok(!/\.\./.test(o.why_this_lead));
 });
 
 test("reklama: tag = TAG PRESENT, nikdy ACTIVE; spend vždy UNKNOWN; ACTIVE iba z ručnej kontroly", () => {
@@ -207,4 +208,38 @@ test("Demo bez služieb nevymýšľa služby; segment bez šablóny = chyba", ()
   assert.equal(d.code.length, 8);
   const none: Opportunity = { ...o, recommended_system: null };
   assert.throws(() => buildDemoPayload({ company: { name: "X", city: null }, profile: null, opportunity: none, nowIso: NOW }), DemoError);
+});
+
+/* ─────────── Dominik Style Engine ─────────── */
+
+import { draftFirstMessage, smsSegments, styleGuard } from "../lib/style";
+
+test("e-mail draft: konkrétny problém, bez diakritiky, bez .sk, podpis Jankovič, guard čistý", () => {
+  const o = buildOpportunity(lead, "autoservis", profile());
+  const d = draftFirstMessage({ opportunity: o, channel: "EMAIL", demoUrl: "https://djweby.sk/d/abc23456" });
+  assert.match(d.text, /terminy riesite hlavne telefonicky/);
+  const body = d.text.split("Jankovič")[0];
+  assert.ok(!/[áäčďéíľĺňóôŕšťúýž]/i.test(body));
+  assert.ok(!/djweby\.sk/.test(body));
+  assert.match(d.text, /\n\nJankovič\n\n--\n/);
+  assert.deepEqual(d.issues, []);
+  assert.equal(d.pain_code, "phone_ordering");
+});
+
+test("SMS draft má STOP a počíta segmenty v UCS-2", () => {
+  const o = buildOpportunity(lead, "autoservis", profile());
+  const d = draftFirstMessage({ opportunity: o, channel: "SMS", demoUrl: "djweby.sk/d/abc23456" });
+  assert.match(d.text, /STOP/);
+  assert.equal(d.sms_segments, smsSegments(d.text));
+  assert.equal(smsSegments("a".repeat(160)), 1);
+  assert.equal(smsSegments("č".repeat(70)), 1);
+  assert.equal(smsSegments("č".repeat(71)), 2);
+});
+
+test("guard chytí agentúrny tón, pomlčky, pochvalu bez evidence aj „nemáte“", () => {
+  const bad = "Dobrý deň — robím moderné weby, máte skvelý servis a nemáte web! Posunieme vás na ďalšiu úroveň!";
+  const issues = styleGuard(bad, { channel: "EMAIL", hasObservation: false, praiseEvidence: false });
+  for (const re of [/pomlčka/, /moderné weby/, /pochvala/, /nemáte/, /výkričník/, /konkrétnom probléme/, /ďalšiu úroveň/]) {
+    assert.ok(issues.some((i) => re.test(i)), String(re));
+  }
 });

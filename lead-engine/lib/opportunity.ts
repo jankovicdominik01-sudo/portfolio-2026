@@ -183,7 +183,7 @@ export function whyThisLead(dims: Opportunity["dimensions"], system: Recommended
   const parts = order
     .filter((d) => atLeast(dims[d].level, "MEDIUM"))
     .slice(0, 3)
-    .map((d) => dims[d].reasons[0])
+    .map((d) => (dims[d].reasons[0] ?? "").replace(/[.\s]+$/, ""))
     .filter(Boolean);
   if (!parts.length) return "Silný dôvod sme nenašli.";
   return `${parts.join(". ")}.${system ? ` Návrh: ${system.label}.` : ""}`;
