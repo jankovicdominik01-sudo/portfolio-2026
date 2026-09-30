@@ -48,6 +48,27 @@ export type Change =
 export type Plan = { changes: Change[]; summary: Record<string, number>; roman_cases: string[] };
 
 export const isLegacyUser = (u: string | null | undefined) => !!u && LEGACY_USERNAMES.has(u.toLowerCase());
+/** Username v technickom texte radaru („GOLD · … · jozo · skóre 72“, „Podlahy → sona“). Nie mená v URL ani v názvoch firiem. */
+const TRACE_USER = /(?<=[·→:] )(sona|jozo)(?=[\s,;)·]|$)/gu;
+const hasTraceUser = (t: string | null | undefined) => !!t && new RegExp(TRACE_USER.source, "u").test(t);
+
+/** Hlboká úprava JSON hodnoty: reťazce aj kľúče; pri zlúčení kľúčov sa čísla sčítajú. */
+function deepMap(v: unknown, str: (s: string) => string, key: (k: string) => string): unknown {
+  if (typeof v === "string") return str(v);
+  if (Array.isArray(v)) return v.map((x) => deepMap(x, str, key));
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) {
+      const nk = key(k);
+      const nx = deepMap(x, str, key);
+      out[nk] = nk in out && typeof out[nk] === "number" && typeof nx === "number" ? (out[nk] as number) + nx : nx;
+    }
+    return out;
+  }
+  return v;
+}
+const hasLegacyDeep = (v: unknown): boolean =>
+  JSON.stringify(v ?? null).split(/"/).some((part) => isLegacyUser(part) || hasLegacyName(part));
 export const hasLegacyName = (t: string | null | undefined) => !!t && new RegExp(LEGACY_NAME.source, "u").test(t);
 
 export function planMigration(s: Snapshot, opts: { reassignUnworkedTo?: string | null } = {}): Plan {
@@ -85,6 +106,17 @@ export function planMigration(s: Snapshot, opts: { reassignUnworkedTo?: string |
     if (l.priority_reasons.some((r) => hasLegacyName(r))) patch.priority_reasons = l.priority_reasons.map((r) => text(r, l.id));
     const notes = textOrNull(l.notes, l.id);
     if (notes !== null) patch.notes = notes;
+    // Call brief je scenár na ďalší hovor, nie história: meno pôvodného volajúceho → aktívny operátor.
+    if (l.call_brief && hasLegacyDeep(l.call_brief)) {
+      // Skutočné mená z firmy (napr. majiteľka s rovnakým krstným menom) sa nikdy nemenia.
+      const co = companyById.get(l.company_id);
+      const keep = [co?.contact_person, co?.name].filter((x): x is string => !!x && x.length > 2);
+      const swap = (t: string) => {
+        const masked = keep.reduce((acc, k, i) => acc.split(k).join(`\u0000${i}\u0000`), t);
+        return keep.reduce((acc, k, i) => acc.split(`\u0000${i}\u0000`).join(k), masked.replace(new RegExp(LEGACY_NAME.source, "gu"), ROMAN.name));
+      };
+      patch.call_brief = deepMap(l.call_brief, swap, (k) => k) as Lead["call_brief"];
+    }
     if (Object.keys(patch).length) {
       changes.push({ kind: "lead", id: l.id, patch });
       bump("leads");
@@ -97,7 +129,9 @@ export function planMigration(s: Snapshot, opts: { reassignUnworkedTo?: string |
     if (!p) continue;
     const rec = isLegacyUser(p.recommended_caller);
     const reasons = p.caller_fit?.reasons.some((r) => hasLegacyName(r));
-    if (rec || reasons) {
+    const trace = (p.trace ?? []).some((t) => hasTraceUser(t.detail));
+    if (rec || reasons || trace) {
+      const traceName = s.leads.some((l) => l.company_id === c.id && romanLeads.has(l.id)) ? ROMAN.id : LEGACY_OPERATOR_LABEL;
       changes.push({
         kind: "company",
         id: c.id,
@@ -106,6 +140,7 @@ export function planMigration(s: Snapshot, opts: { reassignUnworkedTo?: string |
             ...p,
             recommended_caller: rec ? null : p.recommended_caller,
             caller_fit: p.caller_fit ? { ...p.caller_fit, reasons: p.caller_fit.reasons.map((r) => text(r)) } : p.caller_fit,
+            trace: (p.trace ?? []).map((t) => ({ ...t, detail: t.detail.replace(new RegExp(TRACE_USER.source, "gu"), traceName) })),
           },
         },
       });
@@ -151,12 +186,22 @@ export function planMigration(s: Snapshot, opts: { reassignUnworkedTo?: string |
     bump("notifications");
   }
 
-  /* ── routing v nastaveniach ── */
+  /* ── nastavenia: routing + história behov radaru ── */
   const routing = s.settings.routing ?? {};
-  if (Object.values(routing).some((v) => isLegacyUser(v))) {
+  const legacyRouting = Object.values(routing).some((v) => isLegacyUser(v));
+  const legacyRadar = hasLegacyDeep(s.settings.radar);
+  if (legacyRouting || legacyRadar) {
     const clean = Object.fromEntries(Object.entries(routing).filter(([, v]) => !isLegacyUser(v)));
-    changes.push({ kind: "settings", settings: { ...s.settings, routing: clean } });
-    bump("settings_routing");
+    const radar = legacyRadar
+      ? (deepMap(
+          s.settings.radar,
+          (t) => (isLegacyUser(t) ? LEGACY_OPERATOR_LABEL : t.replace(new RegExp(LEGACY_NAME.source, "gu"), LEGACY_OPERATOR_LABEL)),
+          (k) => (isLegacyUser(k) ? LEGACY_OPERATOR_LABEL : k),
+        ) as Settings["radar"])
+      : s.settings.radar;
+    changes.push({ kind: "settings", settings: { ...s.settings, routing: clean, radar } });
+    if (legacyRouting) bump("settings_routing");
+    if (legacyRadar) bump("settings_radar_history");
   }
 
   return { changes, summary, roman_cases: [...romanLeads] };

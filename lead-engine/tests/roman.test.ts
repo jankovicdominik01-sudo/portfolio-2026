@@ -371,3 +371,26 @@ test("manifest: Lead Engine sa dá pridať na plochu ako aplikácia", () => {
   assert.ok(m.icons?.some((i) => i.sizes === "192x192") && m.icons?.some((i) => i.sizes === "512x512"));
   assert.ok(m.icons?.some((i) => i.purpose === "maskable"));
 });
+
+test("migrácia 2: trace radaru, call brief a história behov radaru bez pôvodných mien, skutočné mená firiem ostávajú", () => {
+  const s = snapshot();
+  const heuchera = company({ id: "co_h", name: "Heuchera.sk – Soňa Dobiašová", contact_person: "Soňa Dobiašová" });
+  s.companies.push(heuchera);
+  s.companies[0] = { ...s.companies[0], profile: { version: 1, country: "CZ", trace: [{ step: "gate", detail: "GOLD · všetko overené · jozo · skóre 72" }] } as RadarProfile };
+  s.leads.push(lead({ id: "l_h", company_id: "co_h", status: "archived", call_brief: { call_opening: "Dobrý deň, volám sa Jozo. Hovorím so Soňa Dobiašová?" } as unknown as Lead["call_brief"] }));
+  s.settings = { ...s.settings, routing: {}, radar: { runs: [{ selected: { sona: 4, jozo: 8 }, need: { sona: 10 }, note: "Soňa mala málo" }], query_log: [{ caller: "jozo", query: "stolár Senica" }] } };
+  const plan = planMigration(s, { reassignUnworkedTo: "roman" });
+  const co = plan.changes.find((c) => c.kind === "company" && c.id === "co_p");
+  assert.ok(co && co.kind === "company");
+  assert.equal(co.patch.profile?.trace?.[0].detail, "GOLD · všetko overené · roman · skóre 72");
+  const lh = plan.changes.find((c) => c.kind === "lead" && c.id === "l_h");
+  assert.ok(lh && lh.kind === "lead");
+  assert.equal((lh.patch.call_brief as unknown as { call_opening: string }).call_opening, "Dobrý deň, volám sa Roman. Hovorím so Soňa Dobiašová?");
+  const st = plan.changes.find((c) => c.kind === "settings");
+  assert.ok(st && st.kind === "settings");
+  const run = st.settings.radar.runs[0] as Record<string, unknown>;
+  assert.deepEqual(run.selected, { "pôvodný operátor": 12 });
+  assert.equal(run.note, "pôvodný operátor mala málo");
+  assert.equal((st.settings.radar.query_log[0] as Record<string, unknown>).caller, "pôvodný operátor");
+  assert.ok(!plan.changes.some((c) => c.kind === "company" && c.id === "co_h"));
+});
