@@ -42,7 +42,7 @@ export const STATUS_LABEL: Record<LeadStatus, string> = {
   analyzed: "Analyzovaný",
   ready_to_call: "Na volanie",
   called: "Volané",
-  dominik_call: "Súhlas s kontaktom",
+  dominik_call: "Dominik follow-up",
   contacted: "Kontaktovaný",
   interested: "Skutočný záujem",
   demo: "Ukážka",
@@ -67,17 +67,19 @@ export type TrustLevel = (typeof TRUST_LEVELS)[number];
 
 /**
  * Výsledky hovoru volajúceho. Prvých 8 je aktuálna sada (obrazovka po hovore),
- * zvyšok ostáva kvôli histórii (Jozove hovory).
+ * zvyšok ostáva kvôli starším záznamom.
  */
 export const CALLER_OUTCOMES = [
   "no_answer",
-  "wrong_number",
-  "not_interested",
-  "has_web",
   "call_later",
-  "wants_info",
+  "not_interested",
+  "interested",
   "consent",
+  "wrong_number",
   "do_not_call",
+  /* staršie výsledky, v UI sa už neponúkajú */
+  "has_web",
+  "wants_info",
 ] as const;
 export type CallerOutcome = (typeof CALLER_OUTCOMES)[number];
 
@@ -98,18 +100,19 @@ export const CALL_OUTCOMES = [
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
 
 export const OUTCOME_LABEL: Record<CallOutcome, string> = {
-  consent: "Súhlasí s kontaktom od Dominika",
+  consent: "Dominik follow-up",
+  interested: "Má záujem",
   wants_info: "Chce informácie",
-  do_not_call: "Nevolať znova",
+  do_not_call: "Nekontaktovať",
   dominik_may_call: "Dominik môže zavolať",
-  call_later: "Ozvať sa neskôr",
+  call_later: "Zavolať neskôr",
   not_interested: "Nemá záujem",
   wants_email: "Chce e-mail",
   no_answer: "Nezdvihol",
   wants_demo: "Chce ukážku",
   wants_price: "Chce cenu",
   has_web: "Má nový / iný web",
-  wrong_number: "Nesprávne číslo",
+  wrong_number: "Zlý kontakt",
   not_exists: "Firma neexistuje",
   other: "Iné",
 };
@@ -187,42 +190,42 @@ export type LeadSource = (typeof LEAD_SOURCES)[number];
 /* ─────────────────────────── Vertikály ─────────────────────────── */
 
 export const CATEGORIES = [
-  /* ── Jozo (remeslá, stavba, auto) — pôvodné id ostávajú kvôli dátam ── */
-  { id: "zahradnictvo", label: "Záhrady / záhradníctvo", emoji: "🌱", gallery: true, code: "GARDEN", caller: "jozo" },
-  { id: "stolarstvo", label: "Stolárstvo / nábytok na mieru", emoji: "🪵", gallery: true, code: "CUSTOM_FURNITURE", caller: "jozo" },
-  { id: "kuchyne", label: "Kuchyne na mieru", emoji: "🍽️", gallery: true, code: "KITCHENS", caller: "jozo" },
-  { id: "kovovyroba", label: "Kovovýroba / zváranie", emoji: "⚙️", gallery: true, code: "OTHER_LOCAL_SERVICE", caller: "jozo" },
-  { id: "brany-ploty", label: "Brány, ploty, pergoly", emoji: "🚧", gallery: true, code: "GATES_FENCES", caller: "jozo" },
-  { id: "stavebnictvo", label: "Stavebníctvo / rekonštrukcie", emoji: "🏗️", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
-  { id: "murari", label: "Murári", emoji: "🧱", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
-  { id: "tesari", label: "Tesári", emoji: "🪚", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
-  { id: "strechy", label: "Strechy / pokrývači / klampiari", emoji: "🏠", gallery: true, code: "ROOFING", caller: "jozo" },
-  { id: "fasady", label: "Fasády / zatepľovanie", emoji: "🧱", gallery: true, code: "FACADE", caller: "jozo" },
-  { id: "maliar", label: "Maliar / natierač", emoji: "🎨", gallery: true, code: "PAINTER", caller: "jozo" },
-  { id: "podlahy", label: "Podlahy", emoji: "🪟", gallery: true, code: "FLOORING", caller: "jozo" },
-  { id: "obklady", label: "Obklady a dlažby", emoji: "🔲", gallery: true, code: "CONSTRUCTION", caller: "jozo" },
-  { id: "vodoinstalater", label: "Vodoinštalatér", emoji: "🚰", gallery: false, code: "PLUMBER", caller: "jozo" },
-  { id: "kurenie", label: "Kúrenie / tepelné čerpadlá", emoji: "🔥", gallery: false, code: "HEATING", caller: "jozo" },
-  { id: "elektrikar", label: "Elektrikár", emoji: "⚡", gallery: false, code: "ELECTRICIAN", caller: "jozo" },
-  { id: "kominarstvo", label: "Kominárstvo", emoji: "🔥", gallery: false, code: "OTHER_LOCAL_SERVICE", caller: "jozo" },
-  { id: "autoservis", label: "Autoservis", emoji: "🔧", gallery: false, code: "CAR_SERVICE", caller: "jozo" },
-  { id: "pneuservis", label: "Pneuservis", emoji: "🛞", gallery: false, code: "TIRE_SERVICE", caller: "jozo" },
-  { id: "detailing", label: "Auto detailing", emoji: "✨", gallery: true, code: "DETAILING", caller: "jozo" },
-  /* ── Soňa (vizuálne a osobné služby, reality, interiér) ── */
-  { id: "kadernictvo", label: "Kaderníctvo", emoji: "💇", gallery: true, code: "HAIR", caller: "sona" },
-  { id: "barber", label: "Barber", emoji: "💈", gallery: true, code: "BARBER", caller: "sona" },
-  { id: "makeup", label: "Make-up / vizáž", emoji: "💄", gallery: true, code: "MAKEUP", caller: "sona" },
-  { id: "nechty", label: "Nechty / manikúra", emoji: "💅", gallery: true, code: "NAILS", caller: "sona" },
-  { id: "mihalnice", label: "Mihalnice / obočie", emoji: "👁️", gallery: true, code: "LASHES", caller: "sona" },
-  { id: "kozmetika", label: "Kozmetika / beauty", emoji: "🧴", gallery: false, code: "BEAUTY", caller: "sona" },
-  { id: "fotograf", label: "Fotograf", emoji: "📷", gallery: true, code: "PHOTOGRAPHY", caller: "sona" },
-  { id: "video", label: "Video / kameraman", emoji: "🎬", gallery: true, code: "VIDEO", caller: "sona" },
-  { id: "svadby", label: "Svadobné služby", emoji: "💍", gallery: true, code: "WEDDING", caller: "sona" },
-  { id: "reality", label: "Reality / makléri", emoji: "🏡", gallery: true, code: "REAL_ESTATE", caller: "sona" },
-  { id: "developer", label: "Developer", emoji: "🏢", gallery: true, code: "DEVELOPER", caller: "sona" },
-  { id: "interier", label: "Interiérový dizajn", emoji: "🛋️", gallery: true, code: "INTERIOR_DESIGN", caller: "sona" },
-  { id: "architekt", label: "Architekt", emoji: "📐", gallery: true, code: "ARCHITECTURE", caller: "sona" },
-  { id: "ine", label: "Iná lokálna služba", emoji: "🛠️", gallery: false, code: "OTHER_LOCAL_SERVICE", caller: null },
+  /* ── remeslá, stavba, auto (id sú stabilné, sú v dátach) ── */
+  { id: "zahradnictvo", label: "Záhrady / záhradníctvo", emoji: "🌱", gallery: true, code: "GARDEN" },
+  { id: "stolarstvo", label: "Stolárstvo / nábytok na mieru", emoji: "🪵", gallery: true, code: "CUSTOM_FURNITURE" },
+  { id: "kuchyne", label: "Kuchyne na mieru", emoji: "🍽️", gallery: true, code: "KITCHENS" },
+  { id: "kovovyroba", label: "Kovovýroba / zváranie", emoji: "⚙️", gallery: true, code: "OTHER_LOCAL_SERVICE" },
+  { id: "brany-ploty", label: "Brány, ploty, pergoly", emoji: "🚧", gallery: true, code: "GATES_FENCES" },
+  { id: "stavebnictvo", label: "Stavebníctvo / rekonštrukcie", emoji: "🏗️", gallery: true, code: "CONSTRUCTION" },
+  { id: "murari", label: "Murári", emoji: "🧱", gallery: true, code: "CONSTRUCTION" },
+  { id: "tesari", label: "Tesári", emoji: "🪚", gallery: true, code: "CONSTRUCTION" },
+  { id: "strechy", label: "Strechy / pokrývači / klampiari", emoji: "🏠", gallery: true, code: "ROOFING" },
+  { id: "fasady", label: "Fasády / zatepľovanie", emoji: "🧱", gallery: true, code: "FACADE" },
+  { id: "maliar", label: "Maliar / natierač", emoji: "🎨", gallery: true, code: "PAINTER" },
+  { id: "podlahy", label: "Podlahy", emoji: "🪟", gallery: true, code: "FLOORING" },
+  { id: "obklady", label: "Obklady a dlažby", emoji: "🔲", gallery: true, code: "CONSTRUCTION" },
+  { id: "vodoinstalater", label: "Vodoinštalatér", emoji: "🚰", gallery: false, code: "PLUMBER" },
+  { id: "kurenie", label: "Kúrenie / tepelné čerpadlá", emoji: "🔥", gallery: false, code: "HEATING" },
+  { id: "elektrikar", label: "Elektrikár", emoji: "⚡", gallery: false, code: "ELECTRICIAN" },
+  { id: "kominarstvo", label: "Kominárstvo", emoji: "🔥", gallery: false, code: "OTHER_LOCAL_SERVICE" },
+  { id: "autoservis", label: "Autoservis", emoji: "🔧", gallery: false, code: "CAR_SERVICE" },
+  { id: "pneuservis", label: "Pneuservis", emoji: "🛞", gallery: false, code: "TIRE_SERVICE" },
+  { id: "detailing", label: "Auto detailing", emoji: "✨", gallery: true, code: "DETAILING" },
+  /* ── vizuálne a osobné služby, reality, interiér ── */
+  { id: "kadernictvo", label: "Kaderníctvo", emoji: "💇", gallery: true, code: "HAIR" },
+  { id: "barber", label: "Barber", emoji: "💈", gallery: true, code: "BARBER" },
+  { id: "makeup", label: "Make-up / vizáž", emoji: "💄", gallery: true, code: "MAKEUP" },
+  { id: "nechty", label: "Nechty / manikúra", emoji: "💅", gallery: true, code: "NAILS" },
+  { id: "mihalnice", label: "Mihalnice / obočie", emoji: "👁️", gallery: true, code: "LASHES" },
+  { id: "kozmetika", label: "Kozmetika / beauty", emoji: "🧴", gallery: false, code: "BEAUTY" },
+  { id: "fotograf", label: "Fotograf", emoji: "📷", gallery: true, code: "PHOTOGRAPHY" },
+  { id: "video", label: "Video / kameraman", emoji: "🎬", gallery: true, code: "VIDEO" },
+  { id: "svadby", label: "Svadobné služby", emoji: "💍", gallery: true, code: "WEDDING" },
+  { id: "reality", label: "Reality / makléri", emoji: "🏡", gallery: true, code: "REAL_ESTATE" },
+  { id: "developer", label: "Developer", emoji: "🏢", gallery: true, code: "DEVELOPER" },
+  { id: "interier", label: "Interiérový dizajn", emoji: "🛋️", gallery: true, code: "INTERIOR_DESIGN" },
+  { id: "architekt", label: "Architekt", emoji: "📐", gallery: true, code: "ARCHITECTURE" },
+  { id: "ine", label: "Iná lokálna služba", emoji: "🛠️", gallery: false, code: "OTHER_LOCAL_SERVICE" },
 ] as const;
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as [CategoryId, ...CategoryId[]];
@@ -367,6 +370,22 @@ export const RadarProfileSchema = z
     trace: z.array(z.object({ step: z.string(), detail: z.string(), at: z.string().optional() })).optional().default([]),
     exploration: z.boolean().optional().default(false),
     web_search_queries: z.array(z.string()).optional().default([]),
+    /* ── Opportunity Engine: procesné signály a tagy z webu (routine/radar/signals.py) ── */
+    process_signals: z
+      .array(z.object({ key: z.string(), level: z.string(), text: z.string(), excerpt: z.string(), source: z.string() }))
+      .optional()
+      .default([]),
+    tags: z
+      .object({
+        ads_status: z.enum(["TAG_PRESENT", "NOT_FOUND", "UNKNOWN"]),
+        spend: z.literal("UNKNOWN"),
+        google_ads: z.string().nullable(),
+        ga4: z.string().nullable(),
+        gtm: z.string().nullable(),
+        meta_pixel: z.string().nullable(),
+      })
+      .nullable()
+      .optional(),
   })
   .passthrough();
 export type RadarProfile = z.infer<typeof RadarProfileSchema>;
@@ -469,7 +488,7 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 
 export const ObjectionSchema = z.object({ objection: z.string(), answer: z.string() });
 
-/** Reálny produkt/služba z ich webu — Jozo si ho pred hovorom otvorí. */
+/** Reálny produkt/služba z ich webu, operátor si ho pred hovorom otvorí. */
 export const ProductRefSchema = z.object({
   name: z.string().min(2).max(160),
   url: z.string().url().max(500),
@@ -574,6 +593,28 @@ export const LeadSchema = z.object({
   feedback: z.array(FeedbackSchema).optional(),
   /** Volajúci nahlásil chybu v dátach → preveriť (rutina / Dominik). */
   needs_reverify: z.boolean().optional(),
+  /** Záujem zistený operátorom (bez súhlasu s kontaktom od Dominika). Nie je to handoff. */
+  interest: z
+    .object({
+      at: z.string(),
+      by_user: z.string(),
+      company_said: z.string().nullable(),
+      caught_attention: z.string().nullable(),
+      heard_price: z.boolean(),
+      note: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
+  /* ── Opportunity Engine (lib/opportunity.ts) a routing kanála (lib/channel.ts) ── */
+  opportunity: z.record(z.string(), z.unknown()).nullable().optional(),
+  channel_decision: z.record(z.string(), z.unknown()).nullable().optional(),
+  /** Demo (Demo Engine). Vytvára ho iba Dominik tlačidlom, nikdy automaticky. */
+  demo: z.record(z.string(), z.unknown()).nullable().optional(),
+  /** Ručne overená reklama (Transparency Center / Ad Library). Jediný spôsob, ako vznikne ACTIVE. */
+  ads_check: z
+    .object({ status: z.enum(["ACTIVE", "NOT_FOUND"]), url: z.string().nullable(), checked_at: z.string(), by: z.string() })
+    .nullable()
+    .optional(),
 });
 export type Lead = z.infer<typeof LeadSchema>;
 
@@ -598,7 +639,7 @@ export const ScoreSchema = z.object({
 export type Score = z.infer<typeof ScoreSchema>;
 
 /**
- * SÚHLAS S KONTAKTOM (Sonin hlavný výsledok). Firma dovolila, aby sa Dominik ozval.
+ * SÚHLAS S KONTAKTOM (hlavný výsledok operátora). Firma dovolila, aby sa Dominik ozval.
  * Nie je to záujem o web — ten zapisuje až Dominik.
  */
 export const ConsentSchema = z.object({
@@ -682,7 +723,7 @@ export const SettingsSchema = z.object({
     maintenance: z.string().nullable(),
     delivery: z.string().nullable(),
   }),
-  /** Routing kategória → volajúci (username). Chýbajúca kategória = predvolený volajúci z CATEGORIES. */
+  /** Routing kategória → operátor (username). Chýbajúca kategória = prvý aktívny operátor. */
   routing: z.record(z.string(), z.string().nullable()).optional().default({}),
   /** Posledné behy Lead Radaru (zdravie zdrojov, dopyty, kvalita) — pre admin a rotáciu lokalít. */
   radar: z
@@ -866,7 +907,7 @@ export function normalizeCategory(v: string | null | undefined): CategoryId {
 
 export type Role = "admin" | "caller";
 export type SessionUser = { username: string; name: string; role: Role };
-/** Účet v systéme. Neaktívny volajúci (napr. Jozo) ostáva kvôli histórii, nedostáva nové leady. */
+/** Účet v systéme. Neaktívny účet sa neprihlási a nedostáva nové leady. */
 export type UserInfo = SessionUser & { active: boolean; /** tvary slovies v scenári: „všimla/všimol som si“ */ speech?: "f" | "m" };
 
 /* ─────────────────────────── Next actions ─────────────────────────── */
@@ -883,5 +924,6 @@ export const NEXT_ACTIONS = {
   send_demo: { label: "Poslať ukážku", who: "admin", icon: "🖼️" },
   send_email: { label: "Poslať e-mail", who: "admin", icon: "📩" },
   follow_up: { label: "Follow-up", who: "admin", icon: "🗓️" },
+  async_message: { label: "Pripraviť demo + správu na schválenie", who: "admin", icon: "✉️" },
 } as const;
 export type NextAction = keyof typeof NEXT_ACTIONS;

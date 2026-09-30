@@ -24,7 +24,7 @@ export type Speech = "f" | "m";
 /** Tvar slovesa podľa nastavenia volajúceho; bez nastavenia neutrálne „pozeral(a)“. */
 const v = (s: Speech | undefined, f: string, m: string) => (s === "f" ? f : s === "m" ? m : `${m}(a)`);
 
-/** Úprimné otázky k podnikaniu — Soňa sa pýta, lebo ju to zaujíma, netvári sa ako zákazníčka. */
+/** Úprimné otázky k podnikaniu. Operátor sa pýta, lebo ho to zaujíma, netvári sa ako zákazník. */
 export const SEGMENT_QUESTIONS: Partial<Record<CategoryId, string[]>> = {
   kadernictvo: ["Robíte skôr dámske strihy a farbenie, alebo aj pánske?", "Objednávajú sa k vám ľudia skôr cez telefón, alebo cez Instagram?"],
   barber: ["Robíte aj úpravu brady, alebo skôr strihy?", "Objednávajú sa k vám ľudia skôr cez telefón, alebo online?"],

@@ -8,7 +8,10 @@ import { dominikOpening2 } from "@/lib/script";
 import { ISSUE_LABEL } from "@/lib/score";
 import { leadSource } from "@/lib/analytics";
 import { SalesPanel } from "@/components/sales-panel";
-import { getLead } from "@/lib/leads";
+import { getLead, leadDrafts } from "@/lib/leads";
+import { OpportunityPanel } from "@/components/opportunity-panel";
+import type { Opportunity } from "@/lib/opportunity";
+import type { ChannelDecision } from "@/lib/channel";
 import { displayUrl, fmtDate, fmtDateTime, telHref } from "@/lib/format";
 import {
   ARCHIVE_LABEL,
@@ -104,6 +107,13 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-5">
+          <OpportunityPanel
+            leadId={lead.id}
+            opportunity={(lead.opportunity as unknown as Opportunity | null) ?? null}
+            channel={(lead.channel_decision as unknown as ChannelDecision | null) ?? null}
+            drafts={leadDrafts(lead, process.env.DJWEBY_DEMO_BASE ?? "https://djweby.sk")}
+            demo={(lead.demo as unknown as { code: string; expires_at: string; template: string } | null) ?? null}
+          />
           <RadarPanel lead={lead} />
           {a ? (
             <>
@@ -344,19 +354,24 @@ async function HandoffCard({ lead }: { lead: LeadDetail }) {
       <div className="relative">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[12px] font-semibold tracking-[0.16em] text-green-300 uppercase">
-            🟢 {c?.kind === "info" ? "Chce informácie" : "Súhlas s kontaktom"}
+            {lead.status === "dominik_call" ? "🔥 Ready for Dominik" : c?.kind === "info" ? "🟢 Chce informácie" : "🟢 Po follow-upe"}
           </span>
           <StatusPill status={lead.status} />
         </div>
         <p className="mt-3 text-[16px] text-white/80">
-          {c ? `${c.by_name} · ${fmtDateTime(c.at)}` : q ? `${q.caller} · ${fmtDateTime(q.called_at)}` : "—"}
-          {" — "}
-          <span className="text-white/55">súhlas s kontaktom nie je záujem o web; ten zisťuješ ty.</span>
+          {c ? `${c.by_name} · ${fmtDateTime(c.at)}` : q ? `${q.caller} · ${fmtDateTime(q.called_at)}` : "neznámy hovor"}
+          {". "}
+          <span className="text-white/55">Firma súhlasí, aby si sa ozval. Záujem o web zisťuješ až ty.</span>
         </p>
 
         <dl className="mt-5 grid gap-x-8 gap-y-2.5 text-[14px] sm:grid-cols-2">
           <HRow label="Kontaktná osoba" value={c?.contact_person ?? lead.company.contact_person} />
           <HRow label="Telefón" value={lead.company.phone} />
+          <HRow label="Web" value={lead.company.website ?? "nenašli sme"} />
+          <HRow
+            label="Čo vieme vyriešiť"
+            value={(lead.opportunity as { recommended_system?: { label?: string } | null } | null | undefined)?.recommended_system?.label ?? null}
+          />
           <HRow label="Mesto / segment" value={`${lead.company.city ?? "—"} · ${categoryOf(lead.company.category).label}`} />
           <HRow label="Pôvodný zdroj" value={src} />
           <HRow
@@ -371,12 +386,15 @@ async function HandoffCard({ lead }: { lead: LeadDetail }) {
           <HRow label="E-mail" value={c?.email ?? q?.email ?? null} />
           <HRow label="Poznámka" value={c?.note ?? null} />
         </dl>
-        {lead.analysis?.why_this_lead ? (
-          <p className="mt-4 text-[14px] text-white/55">
-            <span className="text-white/35">Prečo vybraný: </span>
-            {lead.analysis.why_this_lead}
-          </p>
-        ) : null}
+        {(() => {
+          const why = (lead.opportunity as { why_this_lead?: string } | null | undefined)?.why_this_lead ?? lead.analysis?.why_this_lead;
+          return why ? (
+            <p className="mt-4 text-[14px] text-white/55">
+              <span className="text-white/35">Prečo vybraný: </span>
+              {why}
+            </p>
+          ) : null;
+        })()}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_1fr]">
           <div>
@@ -390,7 +408,7 @@ async function HandoffCard({ lead }: { lead: LeadDetail }) {
               ))}
             </ol>
             <p className="mt-4 text-[13px] text-white/40">
-              Nehovor „počul som, že máte záujem“ — firma iba dovolila, aby si sa ozval.
+              Nehovor „počul som, že máte záujem“. Firma iba dovolila, aby si sa ozval.
             </p>
             {lead.sale ? (
               <p className="mt-4 text-[14px] text-white/70">

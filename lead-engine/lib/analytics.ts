@@ -92,7 +92,7 @@ export function countLeads(leads: LC[], calls: CallLog[], users: Users, caller: 
     k.calls += cs.length;
     if (cs.some((c) => !NO_PICKUP.has(c.outcome))) k.contact++;
     if (cs.some((c) => !NO_CONVERSATION.has(c.outcome))) k.conversation++;
-    // Kto získal súhlas: nový záznam consent, alebo starší hovor (Jozo) s výsledkom handoffu.
+    // Kto získal súhlas: nový záznam consent, alebo starší hovor s výsledkom handoffu.
     const legacy = cs.find((c) => LEGACY_CONSENT.has(c.outcome));
     const consentBy = l.consent?.by_user ?? (legacy ? callUser(legacy, users) : null);
     if (!consentBy || (caller && consentBy !== caller)) continue;

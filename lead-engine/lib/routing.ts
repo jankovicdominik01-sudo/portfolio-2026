@@ -1,16 +1,17 @@
 /**
- * Routing leadov medzi volajúcich (Soňa / Jozo). Čisté funkcie — testovateľné.
+ * Routing leadov medzi operátorov. Čisté funkcie, testovateľné.
  *
- * Predvolený volajúci je v CATEGORIES (segment → call flow), NIE podľa pohlavia volajúceho.
- * Dominik ho mení v Nastaveniach (Settings.routing). Automaticky sa routing NEPREPISUJE —
- * štatistiky caller × kategória × krajina sa iba zbierajú (Analytika).
+ * Segment nemá natvrdo priradeného človeka. Dominik môže segment priradiť konkrétnemu
+ * operátorovi v Nastaveniach (Settings.routing); inak lead dostane prvý aktívny operátor.
+ * Automaticky sa routing NEPREPISUJE, štatistiky sa iba zbierajú (Analytika).
  */
 import { CATEGORIES, categoryOf, type CategoryId, type Settings } from "./types";
 
 export type Route = { caller: string | null; reasons: string[] };
 
+/** Bez nastavenia nemá žiadny segment vlastného operátora. */
 export function defaultRouting(): Record<CategoryId, string | null> {
-  return Object.fromEntries(CATEGORIES.map((c) => [c.id, c.caller])) as Record<CategoryId, string | null>;
+  return Object.fromEntries(CATEGORIES.map((c) => [c.id, null])) as Record<CategoryId, string | null>;
 }
 
 /** Aktuálny routing = predvolený + zmeny z nastavení. */
@@ -19,7 +20,8 @@ export function effectiveRouting(settings: Pick<Settings, "routing"> | null | un
 }
 
 /**
- * Komu lead patrí. Poradie: odporúčanie radaru (ak je volajúci aktívny) → routing kategórie → iný aktívny volajúci.
+ * Komu lead patrí. Poradie: odporúčanie radaru (ak je aktívny operátor) → routing segmentu
+ * → prvý aktívny operátor. `active` sú iba aktívni CALL operátori; nikto iný lead nedostane.
  */
 export function routeLead(
   category: string,
@@ -39,11 +41,12 @@ export function routeLead(
     return { caller: byRouting, reasons };
   }
   const fallback = active[0] ?? null;
-  if (fallback) reasons.push(`${byRouting ?? "nikto"} nie je aktívny → ${fallback}`);
+  if (fallback) reasons.push(`${cat.label} → ${fallback} (aktívny operátor)`);
+  else reasons.push("Nie je aktívny operátor");
   return { caller: fallback, reasons };
 }
 
-/** Kategórie, ktoré má volajúci podľa routingu (pre ranný plán discovery). */
+/** Segmenty operátora pre ranný plán: výslovne jeho + nepriradené. */
 export function categoriesFor(caller: string, routing: Record<string, string | null>): CategoryId[] {
-  return CATEGORIES.filter((c) => c.id !== "ine" && routing[c.id] === caller).map((c) => c.id);
+  return CATEGORIES.filter((c) => c.id !== "ine" && (!routing[c.id] || routing[c.id] === caller)).map((c) => c.id);
 }

@@ -2,7 +2,8 @@
 
 Interný obchodný systém: **RESEARCH → CALL → HANDOFF → DEAL**.
 
-Ranná rutina nájde a overí firmy → volajúci (Soňa) zavolá a získa súhlas s kontaktom (nie predaj) → Dominik zavolá, zistí záujem, predá, eviduje platbu →
+Ranná rutina nájde a overí firmy → Opportunity Engine rozhodne CALL / ASYNC / HOLD → operátor (dnes Roman) zavolá a získa
+súhlas, aby sa ozval Dominik (nie predaj) → 🔥 Ready for Dominik → Dominik zavolá, zistí záujem, predá, eviduje platbu →
 Dominik dostane kvalifikovaný lead aj s tým, čo firma povedala, a s odporúčaným začiatkom hovoru.
 
 Samostatná Next.js appka v priečinku `lead-engine/` — **nie je súčasťou webu djweby.sk**.
@@ -79,7 +80,7 @@ Autorizácia: session cookie alebo `Authorization: Bearer $LE_API_KEY`.
 DISCOVERY (katalógy SK/CZ, registre RPO/ARES, výsledky vyhľadávania: web / Instagram / Facebook)
 → ENTITY RESOLUTION (IČO, telefón, e-mail, doména, odkaz web↔social; negatívne signály: iné IČO, iná krajina)
 → WEBSITE HUNTING (katalóg, e-mail, bio, vyhľadávanie telefónu/názvu) → FINGERPRINT → OWNERSHIP
-→ KLASIFIKÁCIA + POPIS (iba z evidencie) → COMMERCIAL SIGNALS → GOLD/SILVER/RESEARCH → ROUTING Soňa/Jozo
+→ KLASIFIKÁCIA + POPIS (iba z evidencie) → COMMERCIAL SIGNALS → GOLD/SILVER/RESEARCH → PROCESS SIGNALS + TAGY → OPPORTUNITY → KANÁL (CALL / ASYNC / HOLD) → AKTÍVNY OPERÁTOR
 ```
 
 - „Web sme nenašli“ ≠ „nemá web“: stav webu je `confirmed / probable / no_website_found / uncertain`.
@@ -109,7 +110,7 @@ tvrdenia bez platného evidence id sa zahodia, ponuka a cena sa berú výhradne 
 ```bash
 cd lead-engine
 npm install
-npm run dev          # http://localhost:3000/leady · dominik/dominik, sona/sona (jozo = neaktívny, história)
+npm run dev          # http://localhost:3000/leady · DEV účty dev-admin/dev-admin, roman/dev-roman (iba lokálne)
 npm test             # TS logika (node:test) + Python regresné testy zberného skriptu
 ```
 
@@ -120,7 +121,36 @@ npm test             # TS logika (node:test) + Python regresné testy zberného 
    Bez toho beží v testovacom režime s upozornením.
 3. Settings → Domains: vlastná doména (napr. `leady.djweby.sk`, DNS CNAME na Vercel).
 
-Podpisový kľúč session vzniká pri builde (`next.config.ts`), v repozitári nie je. Účty bez `LE_USERS`
-sú predvolené `dominik` (admin), `sona` (aktívna volajúca) a `jozo` (neaktívny — história ostáva) — v kóde sú iba scrypt hashe. Nový volajúci = nový riadok v `LE_USERS`, bez zmeny kódu.
-Voliteľné env: `LE_USERS`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `LE_API_KEY`,
+Podpisový kľúč session vzniká pri builde (`next.config.ts`), v repozitári nie je. Produkčné účty a ich hashe sú
+**iba** vo Vercel env `LE_USERS`, v kóde nie je žiadny. Produkcia je fail-safe: bez `LE_USERS`, s heslom v čistom texte
+alebo bez aktívneho admina sa neprihlási nikto.
+
+### Operátori (volajúci)
+
+Operátor = účet v `LE_USERS` s rolou `caller` **a** záznam v `LE_OPERATORS` (predvolene iba Roman, ACTIVE, CALL).
+Účet s rolou caller bez záznamu operátora sa neprihlási a nedostane lead. Nový operátor = nový riadok v oboch env,
+bez zmeny kódu. Do záznamu operátora patria iba pracovné údaje.
+
+```bash
+npm run hash-password   # vypíše scrypt$… hash, heslo sa nikde neukladá
+```
+
+```
+LE_USERS=dominik|Dominik Jankovič|admin|<hash Dominika>;roman|Roman|caller|<hash Romana>|m
+LE_OPERATORS=[{"operator_id":"roman","name":"Roman","status":"ACTIVE","channels":["CALL"],"phone_number":null}]
+```
+
+`LE_OPERATORS` je voliteľné, kým je Roman jediný operátor (je predvolený).
+
+### Migrácia histórie (jednorazovo po nasadení)
+
+Pôvodní volajúci sa z histórie nahradia neutrálnym „pôvodný operátor“, prvý reálny prípad (Panenka) sa pripíše
+Romanovi. Nič sa nemaže, beh je idempotentný. Najprv na sucho, potom `apply`:
+
+```bash
+curl -X POST https://<lead-engine>/leady/api/v1/admin/retire-legacy-callers -H "Authorization: Bearer $LE_API_KEY" -d '{}'
+curl -X POST https://<lead-engine>/leady/api/v1/admin/retire-legacy-callers -H "Authorization: Bearer $LE_API_KEY" \
+  -H "Content-Type: application/json" -d '{"apply":true,"reassign_unworked_to":"roman"}'
+```
+Voliteľné env: `LE_USERS`, `LE_OPERATORS`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `LE_API_KEY`,
 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (pozri `.env.example`).

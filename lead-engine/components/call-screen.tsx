@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Phone } from "lucide-react";
 import { callerCallAction } from "@/app/leady/actions";
 import type { CallCard } from "@/lib/script";
+import type { OpportunityCallCard } from "@/lib/call-card";
 import { OUTCOME_LABEL, type CallerOutcome } from "@/lib/types";
 import { telHref } from "@/lib/format";
 import { Button, ButtonLink, Eyebrow, inputClass, cn } from "./ui";
@@ -19,13 +20,12 @@ const screen = {
   exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
 };
 
-const OUTCOMES: { o: CallerOutcome; icon: string; tone?: "ok" | "bad" }[] = [
-  { o: "consent", icon: "✅", tone: "ok" },
+const OUTCOMES: { o: CallerOutcome; icon: string; hint?: string; tone?: "ok" | "bad" }[] = [
+  { o: "consent", icon: "🔥", hint: "Dominik sa im môže ozvať", tone: "ok" },
   { o: "no_answer", icon: "📵" },
   { o: "call_later", icon: "📅" },
-  { o: "wants_info", icon: "ℹ️" },
+  { o: "interested", icon: "👍", hint: "zavoláš znova ty" },
   { o: "not_interested", icon: "✋" },
-  { o: "has_web", icon: "🌐" },
   { o: "wrong_number", icon: "❓" },
   { o: "do_not_call", icon: "⛔", tone: "bad" },
 ];
@@ -40,6 +40,8 @@ export type CallScreenProps = {
   attempts: number;
   callbackNote: string | null;
   card: CallCard;
+  /** Call Card v2 (Opportunity Engine). Keď je, nahrádza pôvodný scenár. */
+  opportunityCard?: OpportunityCallCard | null;
   details: { label: string; points: number }[];
   risks: { label: string; points: number }[];
   websiteLabel: string | null;
@@ -59,6 +61,7 @@ export function CallScreen(p: CallScreenProps) {
   const [outcome, setOutcome] = useState<CallerOutcome | null>(null);
   const [note, setNote] = useState("");
   const [date, setDate] = useState<string | null>(null);
+  const [time, setTime] = useState("");
   const [person, setPerson] = useState("");
   const [said, setSaid] = useState("");
   const [caught, setCaught] = useState("");
@@ -71,11 +74,13 @@ export function CallScreen(p: CallScreenProps) {
   const [pending, start] = useTransition();
 
   const isHandoff = outcome === "consent" || outcome === "wants_info";
+  const needsTalk = isHandoff || outcome === "interested";
 
   const pick = (o: CallerOutcome) => {
     setOutcome(o);
     setError(null);
     setDate(null);
+    setTime("");
     if (o === "no_answer") return save(o);
     setStep("form");
   };
@@ -83,14 +88,16 @@ export function CallScreen(p: CallScreenProps) {
   const save = (o: CallerOutcome | null = outcome) => {
     if (!o) return;
     if (o === "call_later" && !date) return setError("Vyber deň, kedy zavolať.");
-    if ((o === "consent" || o === "wants_info") && heardPrice === null) return setError("Označ, či zaznela cena.");
+    if ((o === "consent" || o === "wants_info" || o === "interested") && heardPrice === null) return setError("Označ, či zaznela cena.");
+    if (o === "interested" && !caught && !said) return setError("Napíš, čo ich zaujalo alebo čo povedali.");
     start(async () => {
       const r = await callerCallAction(p.leadId, {
         outcome: o,
         note: note || null,
-        callback_on: o === "call_later" ? date : null,
+        callback_on: o === "call_later" || o === "interested" ? date : null,
+        callback_time: time || null,
         consent:
-          o === "consent" || o === "wants_info"
+          o === "consent" || o === "wants_info" || o === "interested"
             ? {
                 contact_person: person || null,
                 company_said: said || null,
@@ -158,6 +165,10 @@ export function CallScreen(p: CallScreenProps) {
               <p className="mt-4 text-red-300">Telefón chýba — napíš Dominikovi.</p>
             )}
 
+            {p.opportunityCard ? (
+              <OpportunityPanel c={p.opportunityCard} />
+            ) : (
+              <>
             {p.card.truth ? (
               <TruthPanel t={p.card.truth} />
             ) : (
@@ -194,17 +205,22 @@ export function CallScreen(p: CallScreenProps) {
               </div>
             </div>
 
+              </>
+            )}
+
             <Box label="Ak sa spýtajú „odkiaľ máte moje číslo?“" className="mt-6">
               <p className="text-[15px] text-white/80">„{p.card.source_answer}“</p>
             </Box>
 
+            {p.opportunityCard ? null : (
             <Box label="Na čo si dať pozor" className="mt-4">
-              <ul className="space-y-1.5 text-[14px] leading-relaxed text-white/65">
-                {p.card.cautions.map((c) => (
-                  <li key={c}>• {c}</li>
-                ))}
-              </ul>
-            </Box>
+                <ul className="space-y-1.5 text-[14px] leading-relaxed text-white/65">
+                  {p.card.cautions.map((c) => (
+                    <li key={c}>• {c}</li>
+                  ))}
+                </ul>
+              </Box>
+            )}
 
             <details className="group mt-4 rounded-2xl bg-white/[0.02] ring-1 ring-inset ring-line">
               <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-[14px] text-white/55">
@@ -246,7 +262,7 @@ export function CallScreen(p: CallScreenProps) {
             <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/90 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-xl">
               <div className="mx-auto max-w-[560px]">
                 <Button variant="primary" size="xl" className="w-full" onClick={() => setStep("outcome")}>
-                  Hovor skončil — zapísať
+                  Hovor skončil, zapísať výsledok
                 </Button>
               </div>
             </div>
@@ -277,6 +293,9 @@ export function CallScreen(p: CallScreenProps) {
                   <span className="text-xl">{icon}</span>
                   <span>
                     {OUTCOME_LABEL[o]}
+                    {OUTCOMES.find((x) => x.o === o)?.hint ? (
+                      <span className="block text-[12px] font-normal opacity-70">{OUTCOMES.find((x) => x.o === o)?.hint}</span>
+                    ) : null}
                     {pending && outcome === o ? <Loader2 className="ml-2 inline size-4 animate-spin" /> : null}
                   </span>
                 </button>
@@ -293,13 +312,15 @@ export function CallScreen(p: CallScreenProps) {
             </button>
             <h2 className="mt-6 text-[24px] font-semibold tracking-[-0.03em]">{OUTCOME_LABEL[outcome]}</h2>
             {outcome === "consent" ? (
-              <p className="mt-1 text-[14px] text-white/50">Zapíš iba to, čo naozaj zaznelo. Súhlas s kontaktom nie je záujem o web.</p>
+              <p className="mt-1 text-[14px] text-white/50">Firma súhlasí, aby sa jej Dominik ozval. Zapíš iba to, čo naozaj zaznelo.</p>
+            ) : outcome === "interested" ? (
+              <p className="mt-1 text-[14px] text-white/50">Zaujalo ich to, ale ešte nechcú, aby volal Dominik. Lead ostáva tebe.</p>
             ) : null}
 
             <div className="mt-6 space-y-5">
-              {isHandoff ? (
+              {needsTalk ? (
                 <>
-                  <Input label="S kým si hovoril(a)? (meno / funkcia)" value={person} onChange={setPerson} placeholder="napr. p. Novák, majiteľ" />
+                  <Input label="S kým si hovoril? (meno / funkcia)" value={person} onChange={setPerson} placeholder="napr. p. Novák, majiteľ" />
                   <Area label="Čo povedal? (jedna veta)" value={said} onChange={setSaid} placeholder="napr. Nech sa ozve, pozrieme sa na to." />
                   <Area label="Čo ho zaujalo? (ak niečo)" value={caught} onChange={setCaught} placeholder="voliteľné" />
                   <div>
@@ -312,14 +333,29 @@ export function CallScreen(p: CallScreenProps) {
                       ))}
                     </div>
                   </div>
-                  <DatePick label="Kedy môže Dominik zavolať?" value={date} onChange={setDate} optional />
-                  <Input label="Čas / poznámka k volaniu" value={callNote} onChange={setCallNote} placeholder="napr. poobede po 15:00" />
+                  {isHandoff ? (
+                    <>
+                      <DatePick label="Kedy môže Dominik zavolať?" value={date} onChange={setDate} optional />
+                      <Input label="Čas (HH:MM)" value={time} onChange={setTime} placeholder="napr. 15:30" />
+                      <Input label="Poznámka k volaniu" value={callNote} onChange={setCallNote} placeholder="napr. volať až po 15:00" />
+                    </>
+                  ) : (
+                    <>
+                      <DatePick label="Kedy im zavoláš znova? (voliteľné)" value={date} onChange={setDate} optional />
+                      <Input label="Čas (HH:MM)" value={time} onChange={setTime} placeholder="napr. 10:00" />
+                    </>
+                  )}
                   {outcome === "wants_info" ? (
                     <Input label="E-mail (ak chce info mailom)" value={email} onChange={setEmail} placeholder="meno@firma.sk" type="email" />
                   ) : null}
                 </>
               ) : null}
-              {outcome === "call_later" ? <DatePick label="Kedy zavolať znova?" value={date} onChange={setDate} /> : null}
+              {outcome === "call_later" ? (
+                <>
+                  <DatePick label="Kedy zavolať znova?" value={date} onChange={setDate} />
+                  <Input label="Čas (HH:MM, voliteľné)" value={time} onChange={setTime} placeholder="napr. 14:00" />
+                </>
+              ) : null}
               {outcome === "do_not_call" ? (
                 <p className="rounded-2xl bg-red-500/10 p-4 text-[14px] text-red-100 ring-1 ring-red-400/20">
                   Firma sa už nikdy automaticky nevráti do tvojej fronty.
@@ -471,5 +507,75 @@ function Area(props: { label: string; value: string; onChange: (v: string) => vo
         className={cn(inputClass, "resize-none text-[16px]")}
       />
     </label>
+  );
+}
+
+const LEVEL_TONE = { VERIFIED: "text-green-300/85", OBSERVED: "text-sky-200/85", ESTIMATE: "text-yellow-200/85" } as const;
+
+/** Call Card v2: fakty s úrovňou dôkazu + pár viet na začiatok. Rozhovor vedie operátor sám. */
+function OpportunityPanel({ c }: { c: OpportunityCallCard }) {
+  return (
+    <div className="mt-6 space-y-5">
+      <Box label="Prečo ju voláme">
+        <p className="text-[17px] leading-snug font-medium">{c.why_this_lead}</p>
+        {c.main_pain ? <p className="mt-2 text-[14px] text-sky-200/85">Hlavný problém: {c.main_pain}</p> : null}
+        {c.opportunity ? <p className="mt-1 text-[14px] text-white/60">Čo vieme vyriešiť: {c.opportunity}</p> : null}
+        {c.website ? (
+          <a href={c.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/70 underline underline-offset-2">
+            Otvoriť ich web
+          </a>
+        ) : null}
+        <p className={cn("mt-2 text-[13px]", c.demo === "READY" ? "text-green-300/80" : "text-white/45")}>
+          Demo: {c.demo === "READY" ? "šablóna pre segment existuje" : "pre segment zatiaľ nie je"}
+        </p>
+      </Box>
+
+      {c.verified.length ? (
+        <Box label="Overené">
+          {c.verified.map((v) => (
+            <p key={v.text} className={cn("text-[15px]", LEVEL_TONE.VERIFIED)}>✓ {v.text}</p>
+          ))}
+        </Box>
+      ) : null}
+
+      {c.observed.length ? (
+        <Box label="Videli sme na webe">
+          {c.observed.map((o) => (
+            <div key={o.key + o.excerpt} className="mb-2 last:mb-0">
+              <p className={cn("text-[15px]", LEVEL_TONE.OBSERVED)}>{o.text}</p>
+              <p className="text-[13px] text-white/45">„{o.excerpt}“</p>
+            </div>
+          ))}
+        </Box>
+      ) : null}
+
+      {c.estimate.length ? (
+        <Box label="Odhad (iba s predpokladmi)">
+          {c.estimate.map((e) => (
+            <p key={e.text} className={cn("text-[15px]", LEVEL_TONE.ESTIMATE)}>
+              {e.text} <span className="text-white/45">({e.assumptions.join(", ")})</span>
+            </p>
+          ))}
+        </Box>
+      ) : null}
+
+      <Line n={1} label="Začiatok">„{c.opening}“</Line>
+      <Line n={2} label="Čo sme si všimli">„{c.context_pain}“</Line>
+      <Line n={3} label="Nápad">„{c.idea}“</Line>
+      <Line n={4} label="Môžeš sa opýtať">
+        {c.questions.map((q) => (
+          <span key={q} className="block">„{q}“</span>
+        ))}
+      </Line>
+      <div className="rounded-3xl bg-ok/[0.07] p-5 ring-1 ring-ok/25">
+        <Eyebrow className="text-green-300/80">Ďalší krok</Eyebrow>
+        <p className="mt-1.5 text-[19px] font-semibold">„{c.next_step}“</p>
+      </div>
+      <Box label="Pozor">
+        {c.cautions.map((x) => (
+          <p key={x} className="text-[14px] text-white/70">{x}</p>
+        ))}
+      </Box>
+    </div>
   );
 }

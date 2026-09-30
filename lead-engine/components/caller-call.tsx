@@ -12,7 +12,7 @@ export async function CallerCall({ user, leadId, backHref }: { user: SessionUser
     if (user.role === "caller") redirect("/leady");
     notFound();
   }
-  const { lead, card, next } = v;
+  const { lead, card, opportunityCard, next } = v;
   const c = lead.company;
   const cat = categoryOf(c.category);
   const ws = lead.website_status;
@@ -27,6 +27,7 @@ export async function CallerCall({ user, leadId, backHref }: { user: SessionUser
       attempts={lead.call_attempts ?? 0}
       callbackNote={lead.next_action === "callback" ? `Dohodnutý callback na ${fmtDate(lead.next_action_at, false)}` : null}
       card={card}
+      opportunityCard={opportunityCard}
       details={lead.score?.factors ?? []}
       risks={lead.score?.risks ?? []}
       websiteLabel={

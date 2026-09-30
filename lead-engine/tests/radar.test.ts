@@ -5,10 +5,10 @@ import { applyFeedback } from "../lib/feedback";
 import { buildCallCard, truthCard, webClaimAllowed } from "../lib/script";
 import { identityMatch } from "../lib/identity";
 import { dataQuality } from "../lib/quality";
-import { normalizeCategory, type RadarProfile } from "../lib/types";
+import { categoryOf, normalizeCategory, type RadarProfile } from "../lib/types";
 import { NOW, OFFER, company, lead } from "./fixtures";
 
-const ACTIVE = ["sona", "jozo"];
+const ACTIVE = ["roman", "peter"];
 
 function profile(p: Partial<RadarProfile> = {}): RadarProfile {
   return {
@@ -35,7 +35,7 @@ function profile(p: Partial<RadarProfile> = {}): RadarProfile {
     identity: { confidence: "high", evidence: ["register: X"] },
     data_quality: "gold",
     data_quality_why: [],
-    recommended_caller: "jozo",
+    recommended_caller: "peter",
     caller_fit: null,
     score: { points: 60, reasons: [] },
     sources: [],
@@ -52,26 +52,29 @@ function profile(p: Partial<RadarProfile> = {}): RadarProfile {
 
 /* ─────────── Routing (spec 44) ─────────── */
 
-test("default routing: beauty/makeup/reality → Soňa; stavba/elektrikár/záhrady → Jozo", () => {
+test("segmenty nemajú natvrdo priradeného človeka, bez nastavenia ide lead aktívnemu operátorovi", () => {
   const r = effectiveRouting(null);
-  for (const c of ["kadernictvo", "makeup", "reality", "kozmetika", "nechty", "fotograf", "interier"]) assert.equal(r[c], "sona", c);
-  for (const c of ["stavebnictvo", "elektrikar", "zahradnictvo", "stolarstvo", "autoservis", "detailing"]) assert.equal(r[c], "jozo", c);
+  for (const c of ["kadernictvo", "makeup", "stavebnictvo", "elektrikar", "autoservis"]) assert.equal(r[c], null, c);
+  assert.ok(!("caller" in categoryOf("autoservis")));
+  assert.equal(routeLead("elektrikar", null, r, ["roman"]).caller, "roman");
+  assert.equal(routeLead("elektrikar", null, r, []).caller, null);
 });
 
-test("routing je konfigurovateľný a neaktívny volajúci má fallback", () => {
-  const r = effectiveRouting({ routing: { kadernictvo: "jozo" } });
-  assert.equal(routeLead("kadernictvo", "sona", r, ACTIVE).caller, "jozo");
-  assert.equal(routeLead("elektrikar", null, effectiveRouting(null), ["sona"]).caller, "sona");
-  assert.equal(routeLead("elektrikar", "jozo", effectiveRouting(null), ACTIVE).caller, "jozo");
+test("neaktívny operátor z nastavení alebo odporúčania radaru lead nedostane", () => {
+  const r = effectiveRouting({ routing: { kadernictvo: "peter" } });
+  assert.equal(routeLead("kadernictvo", "peter", r, ["roman"]).caller, "roman");
+  assert.equal(routeLead("kadernictvo", null, r, ["roman", "peter"]).caller, "peter");
+  assert.equal(routeLead("kadernictvo", null, r, ACTIVE).caller, "peter");
+  const romans = categoriesFor("roman", r);
+  assert.ok(romans.includes("autoservis") && !romans.includes("kadernictvo"));
+  assert.equal(Object.values(defaultRouting()).filter(Boolean).length, 0);
 });
 
-test("každý má vlastné segmenty — nie všetci dostanú záhradníctvo", () => {
-  const r = defaultRouting();
-  const sona = categoriesFor("sona", r);
-  const jozo = categoriesFor("jozo", r);
-  assert.ok(!sona.includes("zahradnictvo"));
-  assert.ok(sona.length >= 8 && jozo.length >= 12);
-  assert.equal(sona.filter((c) => jozo.includes(c)).length, 0);
+test("routing na aktívneho operátora podľa nastavení funguje", () => {
+  const r = effectiveRouting({ routing: { autoservis: "roman" } });
+  const route = routeLead("autoservis", null, r, ["roman", "peter"]);
+  assert.equal(route.caller, "roman");
+  assert.match(route.reasons.join(" "), /routing/);
 });
 
 test("nové kategórie sa rozpoznajú z textu", () => {
@@ -124,7 +127,7 @@ test("neistý web → karta iba pýta; bez overeného popisu to karta prizná", 
 
 test("buildCallCard s profilom: uhol hovoru z reality + zákaz sľubov mimo balíka", () => {
   const c = company({ profile: profile({ website: { url: "https://novak.sk", domain: "novak.sk", status: "confirmed", confidence: "high", evidence: [], health: { state: "working", issues: [] } } }) });
-  const card = buildCallCard({ lead: lead({ website_resolution: "confirmed" }), company: c, callerName: "Jozo", speech: "m", offers: [OFFER], nowIso: NOW });
+  const card = buildCallCard({ lead: lead({ website_resolution: "confirmed" }), company: c, callerName: "Peter", speech: "m", offers: [OFFER], nowIso: NOW });
   assert.ok(card.truth);
   assert.ok(card.cautions.some((x) => /Nehovor, že nemajú web/.test(x)));
   assert.ok(card.cautions.some((x) => /SEO, hosting, e-shop/.test(x)));
@@ -139,7 +142,7 @@ test("tvrdenie o webe iba pri POTVRDENOM webe", () => {
 
 test("„Má web, systém ho nenašiel“ → URL sa uloží, web NEISTÝ, lead na preverenie", () => {
   const c = company({ profile: profile() });
-  const r = applyFeedback(lead(), c, { kind: "has_other_web", url: "https://novy-web.sk", note: null }, "sona", NOW, "fb_1");
+  const r = applyFeedback(lead(), c, { kind: "has_other_web", url: "https://novy-web.sk", note: null }, "roman", NOW, "fb_1");
   assert.equal(r.lead.website_resolution, "uncertain");
   assert.equal(r.lead.needs_reverify, true);
   assert.ok((r.company.profile?.websites ?? []).some((w) => w.domain === "novy-web.sk"));
@@ -147,13 +150,13 @@ test("„Má web, systém ho nenašiel“ → URL sa uloží, web NEISTÝ, lead 
 
 test("„Zlý web“ → doména sa odmietne a už sa nepriradí", () => {
   const c = company({ website: "https://cudzi.sk", profile: profile({ website: { url: "https://cudzi.sk", domain: "cudzi.sk", status: "confirmed", confidence: "high", evidence: [], health: null } }) });
-  const r = applyFeedback(lead(), c, { kind: "wrong_web", url: null, note: null }, "jozo", NOW, "fb_2");
+  const r = applyFeedback(lead(), c, { kind: "wrong_web", url: null, note: null }, "peter", NOW, "fb_2");
   assert.ok((r.company.profile?.rejected_websites ?? []).some((w) => w.domain === "cudzi.sk"));
   assert.equal(r.company.website, null);
 });
 
 test("„Firma už neexistuje“ → z fronty volajúceho na kontrolu", () => {
-  const r = applyFeedback(lead(), company(), { kind: "business_gone", url: null, note: null }, "sona", NOW, "fb_3");
+  const r = applyFeedback(lead(), company(), { kind: "business_gone", url: null, note: null }, "roman", NOW, "fb_3");
   assert.equal(r.lead.status, "analyzed");
   assert.equal(r.lead.next_action, "review");
 });
@@ -168,8 +171,8 @@ test("rovnaký názov v SK a CZ nie je jedna firma", () => {
 test("caller trust rate = volané leady bez opravy dát / volané leady", () => {
   const base = { company: company({ profile: profile() }) };
   const a = { ...lead({ id: "a" }), ...base };
-  const b = { ...lead({ id: "b", feedback: [{ id: "f", kind: "wrong_web", note: null, url: null, by: "sona", at: NOW, resolved_at: null }] }), ...base };
-  const calls = ["a", "b"].map((id) => ({ id: `c_${id}`, lead_id: id, role: "caller" as const, by: "Soňa", by_user: "sona", outcome: "not_interested", note: null, created_at: NOW }));
+  const b = { ...lead({ id: "b", feedback: [{ id: "f", kind: "wrong_web", note: null, url: null, by: "roman", at: NOW, resolved_at: null }] }), ...base };
+  const calls = ["a", "b"].map((id) => ({ id: `c_${id}`, lead_id: id, role: "caller" as const, by: "Roman", by_user: "roman", outcome: "not_interested", note: null, created_at: NOW }));
   const q = dataQuality([a, b], calls as never);
   assert.equal(q.callerTrust.den, 2);
   assert.equal(q.callerTrust.num, 1);

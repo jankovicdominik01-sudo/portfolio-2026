@@ -22,6 +22,8 @@ export interface Repository {
   /** Všetky hovory (analytika, zárobky). */
   listAllCalls(): Promise<CallLog[]>;
   insertCall(c: CallLog): Promise<void>;
+  /** Oprava historického záznamu (migrácie). Bežná prevádzka hovory nemení. */
+  updateCall(id: string, patch: Partial<CallLog>): Promise<void>;
 
   listCommissions(): Promise<Commission[]>;
   upsertCommission(c: Commission): Promise<void>;
@@ -31,6 +33,9 @@ export interface Repository {
 
   listEvents(leadId: string): Promise<LeadEvent[]>;
   insertEvent(e: LeadEvent): Promise<void>;
+  /** Všetky eventy (migrácie). */
+  listAllEvents(): Promise<LeadEvent[]>;
+  updateEvent(id: string, patch: Partial<LeadEvent>): Promise<void>;
 
   listOffers(): Promise<Offer[]>;
   upsertOffer(o: Offer): Promise<void>;
@@ -39,6 +44,7 @@ export interface Repository {
   listNotifications(): Promise<Notification[]>;
   insertNotification(n: Notification): Promise<void>;
   markNotificationsRead(ids: string[] | "all"): Promise<void>;
+  updateNotification(id: string, patch: Partial<Notification>): Promise<void>;
 }
 
 /** Celý stav v jednom dokumente — pre file/blob adaptér. */

@@ -3,7 +3,7 @@ import { ArrowRight, Phone, Plus } from "lucide-react";
 import { requireUser, adminName, setupStatus } from "@/lib/auth";
 import { callerQueue, listLeads, myToday } from "@/lib/leads";
 import { db } from "@/lib/db";
-import { fmtDateTime, greeting, isDue } from "@/lib/format";
+import { fmtDate, fmtDateTime, greeting, isDue } from "@/lib/format";
 import { categoryOf, type LeadWithCompany } from "@/lib/types";
 import { ButtonLink, Card, EmptyState, Eyebrow, PriorityTag } from "@/components/ui";
 import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
@@ -98,7 +98,7 @@ export default async function TodayPage() {
         <div className="mt-10 grid gap-5 lg:grid-cols-2">
           <Group
             icon="🔥"
-            title="Súhlasy s kontaktom"
+            title="Ready for Dominik"
             summary={
               qualified.length
                 ? `${qualified.length} ${plural(qualified.length, "firma čaká", "firmy čakajú", "firiem čaká")} na tvoj hovor`
@@ -207,7 +207,7 @@ function NextActionHero({ lead, fresh }: { lead: LeadWithCompany; fresh: boolean
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold tracking-[0.16em] text-green-300 uppercase">
-              {isCall ? "🟢 Súhlas s kontaktom" : "🗓️ Ďalší krok"}
+              {isCall ? "🔥 Ready for Dominik" : "🗓️ Ďalší krok"}
             </span>
             {fresh ? (
               <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-semibold text-green-300">NOVÉ</span>
@@ -224,13 +224,21 @@ function NextActionHero({ lead, fresh }: { lead: LeadWithCompany; fresh: boolean
               {q.caller} · {fmtDateTime(q.called_at)}
               {q.company_said ? (
                 <>
-                  {" "}
-                  — <span className="text-white">„{q.company_said}“</span>
+                  {": "}
+                  <span className="text-white">„{q.company_said}“</span>
                 </>
               ) : (
-                " — firma súhlasila, aby si sa ozval."
+                ": firma súhlasila, aby si sa ozval."
               )}
             </p>
+          ) : null}
+          {lead.consent ? (
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-white/55">
+              <span>Volať: {[lead.consent.call_on ? fmtDate(lead.consent.call_on) : null, lead.consent.call_note].filter(Boolean).join(", ") || "kedykoľvek"}</span>
+              <span>Cena zaznela: {lead.consent.heard_price ? "áno" : "nie"}</span>
+              {lead.consent.caught_attention ? <span>Zaujalo: {lead.consent.caught_attention}</span> : null}
+              {lead.consent.contact_person ? <span>Kontakt: {lead.consent.contact_person}</span> : null}
+            </div>
           ) : null}
         </div>
         <div className="flex shrink-0 gap-2">

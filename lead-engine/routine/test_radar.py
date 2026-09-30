@@ -221,25 +221,25 @@ class Classification(unittest.TestCase):
         e = from_record(rec(name=name, description=text, source=source))
         return e
 
-    def check(self, name, text, cat, caller):
+    def check(self, name, text, cat):
         e = self.ent(name, text)
         c = C.classify(e)
         self.assertEqual(c["id"], cat, name)
         self.assertIn(c["confidence"], ("medium", "high"))
         e["category"] = c
-        rec_, _, _ = Q.caller_fit(e)
-        self.assertEqual(rec_, caller, name)
+        rec_, _, _ = Q.caller_fit(e, active=("roman",))
+        self.assertEqual(rec_, "roman", name)
 
     def test_fixtures(self):
-        self.check("Salón Anna", "dámske a pánske kaderníctvo, farbenie vlasov, balayage", "kadernictvo", "sona")
-        self.check("Lucia", "svadobné líčenie, vizážistka, make-up artist", "makeup", "sona")
-        self.check("Byty Senica", "realitná kancelária, predaj a prenájom nehnuteľností", "reality", "sona")
-        self.check("Drevo Mráz", "stolárstvo, nábytok na mieru, vstavané skrine", "stolarstvo", "jozo")
-        self.check("Zeleň", "realizácia záhrad, závlahy, trávniky", "zahradnictvo", "jozo")
-        self.check("Volt", "elektrikár, elektroinštalácie a revízie", "elektrikar", "jozo")
-        self.check("Garáž Peter", "autoservis, oprava áut, diagnostika", "autoservis", "jozo")
-        self.check("Krása", "kozmetický salón, ošetrenie pleti", "kozmetika", "sona")
-        self.check("Stav", "rekonštrukcie bytov a domov, stavebná firma", "stavebnictvo", "jozo")
+        self.check("Salón Anna", "dámske a pánske kaderníctvo, farbenie vlasov, balayage", "kadernictvo")
+        self.check("Lucia", "svadobné líčenie, vizážistka, make-up artist", "makeup")
+        self.check("Byty Senica", "realitná kancelária, predaj a prenájom nehnuteľností", "reality")
+        self.check("Drevo Mráz", "stolárstvo, nábytok na mieru, vstavané skrine", "stolarstvo")
+        self.check("Zeleň", "realizácia záhrad, závlahy, trávniky", "zahradnictvo")
+        self.check("Volt", "elektrikár, elektroinštalácie a revízie", "elektrikar")
+        self.check("Garáž Peter", "autoservis, oprava áut, diagnostika", "autoservis")
+        self.check("Krása", "kozmetický salón, ošetrenie pleti", "kozmetika")
+        self.check("Stav", "rekonštrukcie bytov a domov, stavebná firma", "stavebnictvo")
 
     def test_name_only_is_not_evidence(self):
         e = from_record(rec(name="Stolárstvo Mráz", description=""))
@@ -263,35 +263,44 @@ class Classification(unittest.TestCase):
     def test_routing_is_configurable(self):
         e = self.ent("Salón Anna", "kaderníctvo")
         e["category"] = C.classify(e)
-        self.assertEqual(Q.caller_fit(e, routing={"kadernictvo": "jozo"})[0], "jozo")
+        self.assertEqual(Q.caller_fit(e, routing={"kadernictvo": "peter"}, active=("roman", "peter"))[0], "peter")
 
-    def test_inactive_caller_falls_back(self):
+    def test_routing_to_inactive_operator_falls_back_to_active(self):
         e = self.ent("Salón Anna", "kaderníctvo")
         e["category"] = C.classify(e)
-        self.assertEqual(Q.caller_fit(e, active=("jozo",))[0], "jozo")
+        self.assertEqual(Q.caller_fit(e, routing={"kadernictvo": "peter"}, active=("roman",))[0], "roman")
+
+    def test_no_active_operator_means_nobody(self):
+        e = self.ent("Salón Anna", "kaderníctvo")
+        e["category"] = C.classify(e)
+        self.assertIsNone(Q.caller_fit(e)[0])
+
+    def test_taxonomy_has_no_people(self):
+        from radar.taxonomy import CATS
+        self.assertTrue(all("caller" not in v for v in CATS.values()))
 
 
 class SocialAndOpportunity(unittest.TestCase):
     """Spec 69, 70, 71."""
 
-    def test_69_craftsman_social_only_goes_to_jozo(self):
+    def test_69_craftsman_social_only_goes_to_active_operator(self):
         results = {'site:facebook.com "Mráz stolár" Senica': [{"title": "Mráz stolár | Senica | Facebook", "url": "https://www.facebook.com/mrazstolar/",
                                                                "snippet": "Stolárstvo – kuchyne a skrine na mieru. 0905 111 222"}],
                    '"0905 111 222"': [], '"Mráz stolár" Senica': []}
-        e = run([rec(source="google_business", name="Mráz stolár", description="stolárstvo, nábytok na mieru")], {}, results)[0]
+        e = run([rec(source="google_business", name="Mráz stolár", description="stolárstvo, nábytok na mieru")], {}, results, active=("roman",))[0]
         self.assertEqual(e["website_resolution"], "no_website_found")
         self.assertTrue(e["social_first"])
-        self.assertEqual(e["recommended_caller"], "jozo")
+        self.assertEqual(e["recommended_caller"], "roman")
         self.assertIn(e["data_quality"], ("gold", "silver"))
 
-    def test_70_beauty_social_first_goes_to_sona(self):
+    def test_70_beauty_social_first_goes_to_active_operator(self):
         results = {'site:instagram.com "Beauty Lucia"': [{"title": "Beauty Lucia (@beauty.lucia.senica) · Senica",
                                                           "url": "https://www.instagram.com/beauty.lucia.senica/",
                                                           "snippet": "Kozmetický salón Senica · ošetrenie pleti · 0905 111 222"}],
                    '"0905 111 222"': [], '"Beauty Lucia" Senica': []}
-        e = run([rec(source="google_business", name="Beauty Lucia", description="kozmetický salón, ošetrenie pleti")], {}, results)[0]
+        e = run([rec(source="google_business", name="Beauty Lucia", description="kozmetický salón, ošetrenie pleti")], {}, results, active=("roman",))[0]
         self.assertTrue(e["social_first"])
-        self.assertEqual(e["recommended_caller"], "sona")
+        self.assertEqual(e["recommended_caller"], "roman")
 
     def test_71_social_web_gap(self):
         pages = {"https://drevomraz.sk": site("Drevo Mráz", phone="0905 111 222", extra="nábytok na mieru", socials=["drevomraz"], portfolio=False)}

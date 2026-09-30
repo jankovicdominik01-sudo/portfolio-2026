@@ -2,6 +2,9 @@ import "server-only";
 import { z } from "zod";
 import { db } from "./db";
 import { callers } from "./auth";
+import { buildOpportunity } from "./opportunity";
+import { chooseChannel } from "./channel";
+import { configuredOperators } from "./operators";
 import { findBannedPhrases } from "./ai/guard";
 import { CALL_GOAL, DOMINIK_INTRO, KEY_QUESTION, defaultObjections, matchOffer, offerLine, whatNotToSay } from "./ai/brief";
 import { dedupeKeys } from "./scoring";
@@ -31,7 +34,7 @@ import {
 
 /**
  * Ranná rutina posiela firmy už preskúmané: agent overil katalóg, register aj web,
- * našiel reálny produkt a napísal scenár pre Joza. Tu sa to iba overí a uloží.
+ * našiel reálny produkt a napísal podklady pre operátora. Tu sa to iba overí a uloží.
  * Firmu, ktorá už v systéme je, NIKDY neprepíše ani nevráti do volania.
  */
 
@@ -495,6 +498,21 @@ export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof Resear
   const settings = await r.getSettings();
   const active = callers().map((u) => u.username);
   const route = routeLead(company.category, profile.recommended_caller, effectiveRouting(settings), active);
+  const opportunity = buildOpportunity({ ...base, website_status: websiteStatusFromProfile(profile) }, company.category, profile);
+  const channel = chooseChannel({
+    category: company.category,
+    score_band: score.band,
+    opportunity,
+    has_phone: !!company.phone,
+    phone_verified: profile.primary_phone?.confidence === "high",
+    category_verified: ["high", "medium"].includes(profile.category?.confidence ?? ""),
+    has_email: !!company.email,
+    do_not_contact: false,
+    // operátor z routingu segmentu má prednosť, ostatní aktívni sú záloha
+    operators: configuredOperators()
+      .filter((o) => active.includes(o.operator_id))
+      .sort((a, b) => Number(b.operator_id === route.caller) - Number(a.operator_id === route.caller)),
+  });
   const common: Lead = {
     ...base,
     priority: priorityFromScore(score),
@@ -508,10 +526,24 @@ export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof Resear
     business_check: ["high", "medium"].includes(profile.category?.confidence ?? "") ? "confirmed" : "uncertain",
     score,
     caller_fit: { score: profile.caller_fit?.score ?? 50, reasons: [...(profile.caller_fit?.reasons ?? []), ...route.reasons] },
+    opportunity: opportunity as unknown as Lead["opportunity"],
+    channel_decision: channel as unknown as Lead["channel_decision"],
   };
   void offer;
-  if (base.data_quality === "research" || !route.caller) {
-    const why = base.data_quality === "research" ? `Dáta treba doplniť: ${(profile.data_quality_why ?? []).join(", ")}` : "Nie je aktívny volajúci";
+  if (base.data_quality !== "research" && channel.channel === "ASYNC") {
+    const why = `Async: ${channel.reasons.join("; ")}`;
+    await r.insertLead({ ...common, status: "analyzed", next_action: "async_message", notes: why });
+    await ev("created", "Lead pridaný (Lead Radar)");
+    await ev("analysis", `Opportunity ${opportunity.priority} · kanál ASYNC · ${opportunity.why_this_lead}`);
+    return { status: "review", leadId: base.id, name: input.name, why };
+  }
+  // Do fronty operátora ide IBA lead s rozhodnutím CALL. Nikdy fallback na iného človeka.
+  const caller = channel.channel === "CALL" ? channel.operator_id : null;
+  if (base.data_quality === "research" || !caller) {
+    const why =
+      base.data_quality === "research"
+        ? `Dáta treba doplniť: ${(profile.data_quality_why ?? []).join(", ")}`
+        : `${channel.channel}: ${channel.reasons.join("; ")}`;
     await r.insertLead({ ...common, status: "analyzed", next_action: "review", notes: why });
     await ev("created", "Lead pridaný (Lead Radar)");
     await ev("analysis", `Na overenie: ${why}`);
@@ -520,11 +552,11 @@ export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof Resear
   await r.insertLead({
     ...common,
     status: "ready_to_call",
-    assigned_to: route.caller,
-    assigned_history: [{ user: route.caller, at, by: "Lead Radar" }],
+    assigned_to: caller,
+    assigned_history: [{ user: caller, at, by: "Lead Radar" }],
     next_action: "caller_call",
   });
   await ev("created", "Lead pridaný (Lead Radar)");
-  await ev("analysis", `Lead Radar · ${(base.data_quality ?? "").toUpperCase()} · skóre ${score.points} · ${route.reasons.join("; ")}`);
+  await ev("analysis", `Lead Radar · ${(base.data_quality ?? "").toUpperCase()} · skóre ${score.points} · CALL → ${caller} · ${channel.reasons.join("; ")}`);
   return { status: "ready", leadId: base.id, name: input.name };
 }

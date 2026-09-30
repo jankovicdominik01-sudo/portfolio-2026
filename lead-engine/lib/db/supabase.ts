@@ -63,6 +63,9 @@ export function supabaseRepository(url: string, serviceKey: string): Repository 
     async insertCall(c) {
       must(await sb.from("calls").insert(c));
     },
+    async updateCall(id, patch) {
+      must(await sb.from("calls").update(patch).eq("id", id));
+    },
 
     async listCommissions() {
       return must(await sb.from("commissions").select("*").order("created_at", { ascending: false })) as Commission[];
@@ -87,6 +90,12 @@ export function supabaseRepository(url: string, serviceKey: string): Repository 
     async insertEvent(e) {
       must(await sb.from("lead_events").insert(e));
     },
+    async listAllEvents() {
+      return must(await sb.from("lead_events").select("*").order("at", { ascending: true })) as LeadEvent[];
+    },
+    async updateEvent(id, patch) {
+      must(await sb.from("lead_events").update(patch).eq("id", id));
+    },
 
     async listOffers() {
       return must(await sb.from("offers").select("*").order("created_at")) as Offer[];
@@ -109,6 +118,9 @@ export function supabaseRepository(url: string, serviceKey: string): Repository 
     async markNotificationsRead(ids) {
       const q = sb.from("notifications").update({ read: true });
       must(ids === "all" ? await q.eq("read", false) : await q.in("id", ids));
+    },
+    async updateNotification(id, patch) {
+      must(await sb.from("notifications").update(patch).eq("id", id));
     },
   };
 }

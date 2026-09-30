@@ -8,16 +8,19 @@ import { countryOf, discoverySource } from "@/lib/quality";
 import { ISSUE_LABEL, WEIGHTS } from "@/lib/score";
 import { Card, Eyebrow, Section, cn } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
+import { configuredOperators } from "@/lib/operators";
+import { channelComparison, FUNNEL_LABEL, FUNNEL_STEPS, operatorFunnel, stepRates } from "@/lib/funnel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Analytika" };
 
-const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
+const pct = (v: number | null) => (v === null ? "nevieme" : `${Math.round(v * 100)} %`);
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ caller?: string }> }) {
   const user = await requireUser("admin");
   const users = allUsers();
-  const callersAll = users.filter((u) => u.role === "caller");
+  const opIds = new Set(configuredOperators().map((o) => o.operator_id));
+  const callersAll = users.filter((u) => u.role === "caller" && opIds.has(u.username));
   const sel = (await searchParams).caller;
   const caller = callersAll.some((c) => c.username === sel) ? sel! : null;
   const [leads, calls] = await Promise.all([listLeads(user), (await db()).listAllCalls()]);
@@ -53,10 +56,52 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           {callersAll.map((c) => (
             <Tab key={c.username} href={`/leady/analytics?caller=${c.username}`} on={caller === c.username}>
               {c.name}
-              {c.active ? "" : " (história)"}
             </Tab>
           ))}
         </div>
+      </FadeIn>
+
+      <FadeIn delay={0.04} className="mt-8">
+        <Section icon="📞" title="Akvizičný kanál">
+          <p className="mb-5 max-w-2xl text-[14px] text-white/50">
+            Unikátne leady. Slúži na porovnanie kanálov (hovor vs. async), nie na sledovanie človeka.
+          </p>
+          {callersAll.map((c) => {
+            const f = operatorFunnel(leads, calls, c.username);
+            const r = stepRates(f);
+            return (
+              <div key={c.username} className="mb-6">
+                <Eyebrow>{c.name} · CALL</Eyebrow>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                  {FUNNEL_STEPS.map((st, i) => (
+                    <div key={st} className="rounded-2xl bg-white/[0.03] p-3 ring-1 ring-inset ring-line">
+                      <div className="text-[12px] text-white/45">{FUNNEL_LABEL[st]}</div>
+                      <div className="mt-1 text-[22px] font-semibold">{f[st]}</div>
+                      {i > 0 ? <div className="text-[11px] text-white/35">{pct(r[i - 1].rate)} z predošlého</div> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {(() => {
+            const cc = channelComparison(leads, calls);
+            return (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["CALL", "ASYNC"] as const).map((ch) => (
+                  <div key={ch} className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-inset ring-line text-[14px]">
+                    <Eyebrow>{ch}</Eyebrow>
+                    <p className="mt-2 text-white/75">
+                      {cc[ch].leads} leadov · {cc[ch].contact} kontakt s Dominikom · {cc[ch].offer} ponúk · {cc[ch].won} výhier
+                    </p>
+                    <p className="text-white/40">Výhra / lead: {pct(cc[ch].leads ? cc[ch].won / cc[ch].leads : null)}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          {leads.length < MIN_SAMPLE ? <p className="mt-4 text-[13px] text-white/40">Zatiaľ málo dát na závery.</p> : null}
+        </Section>
       </FadeIn>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">

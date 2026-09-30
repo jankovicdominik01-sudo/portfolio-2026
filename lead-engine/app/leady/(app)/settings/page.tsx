@@ -1,4 +1,5 @@
-import { requireUser, configuredUsers } from "@/lib/auth";
+import { requireUser, configuredUsers, callers } from "@/lib/auth";
+import { configuredOperators } from "@/lib/operators";
 import { db } from "@/lib/db";
 import { claudeAvailable } from "@/lib/ai/claude";
 import { Card, Eyebrow, Section } from "@/components/ui";
@@ -16,6 +17,7 @@ export default async function SettingsPage() {
   const repo = await db();
   const [offers, settings] = await Promise.all([repo.listOffers(), repo.getSettings()]);
   const { users, demo } = configuredUsers();
+  const ops = configuredOperators();
   const storage = {
     supabase: "Supabase (Postgres)",
     blob: "Vercel Blob — testovacie úložisko",
@@ -42,13 +44,13 @@ export default async function SettingsPage() {
         <FadeIn delay={0.08}>
           <Section icon="🧭" title="Routing — kto volá ktorý segment">
             <p className="mb-5 max-w-2xl text-[14px] text-white/50">
-              Nové leady dostane volajúci podľa segmentu. Predvolené rozdelenie (Soňa: beauty, reality, interiér, foto; Jozo: remeslá, stavba,
-              auto) je iba štart — systém ho sám nemení, len zbiera výsledky caller × segment × krajina v Kvalite dát.
+              Nový CALL lead dostane aktívny operátor. Segment môžeš priradiť konkrétnemu operátorovi; bez priradenia ide prvému
+              aktívnemu. Systém routing sám nemení, iba zbiera výsledky operátor × segment × krajina v Kvalite dát.
             </p>
             <RoutingEditor
               routing={settings.routing ?? {}}
               defaults={defaultRouting()}
-              callers={users.filter((u) => u.role === "caller" && u.active).map((u) => ({ username: u.username, name: u.name }))}
+              callers={callers().map((u) => ({ username: u.username, name: u.name }))}
             />
           </Section>
         </FadeIn>
@@ -57,14 +59,14 @@ export default async function SettingsPage() {
           <FadeIn delay={0.1}>
             <Section icon="👥" title="Používatelia">
               <ul className="space-y-2.5">
-                {users.map((u) => (
+                {users.filter((u) => u.role === "admin" || ops.some((o) => o.operator_id === u.username)).map((u) => (
                   <li key={u.username} className="flex justify-between text-[14px]">
                     <span>
                       {u.name} <span className="text-white/35">· {u.username}</span>
                     </span>
                     <span className="text-white/45">
-                      {u.role === "admin" ? "Admin" : "Volajúci"}
-                      {u.active ? "" : " · neaktívny (história)"}
+                      {u.role === "admin" ? "Admin" : `Operátor · ${ops.find((o) => o.operator_id === u.username)?.status ?? ""}`}
+                      {u.active ? "" : " · účet vypnutý"}
                     </span>
                   </li>
                 ))}
@@ -72,7 +74,7 @@ export default async function SettingsPage() {
               <p className="mt-4 text-[12px] text-white/35">
                 {demo
                   ? "Lokálne demo účty. Na serveri nastav LE_USERS."
-                  : "Účty sa nastavujú v premennej LE_USERS (meno|Meno|rola|heslo|f/m|inactive; …). Nový volajúci = nový riadok, bez zmeny kódu."}
+                  : "Účty sú v LE_USERS (meno|Meno|rola|scrypt hash|m), operátori v LE_OPERATORS. Volajúci bez záznamu operátora sa neprihlási."}
               </p>
               <div className="mt-4">
                 <ReassignButton />

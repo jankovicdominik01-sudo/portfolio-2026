@@ -219,7 +219,7 @@ def collect(verts, pages_per_day):
 # ─────────────── 1b. Bazoš (živnostníci, často bez webu) ───────────────
 
 JOB = re.compile(r"h[lľ]ad[aá]m|prijm|k[uú]pim|brig[aá]d|zamestn|pr[aá]cu", re.I)
-# Predaj tovaru (nie služba firmy) a „hodinový manžel“ so všetkým možným — pre Joza nemajú zmysel.
+# Predaj tovaru (nie služba firmy) a „hodinový manžel“ so všetkým možným — pre operátora nemajú zmysel.
 SALE = re.compile(r"pred[aá]m|na predaj|\bral\s?\d{4}|\d+\s?[x×]\s?\d+\s?m\b|\bdom[cč]ek\b|\bbazar\b", re.I)
 MIXED = re.compile(r"\bbyt\b|s[tť]ahov|upratov|maliar|hodinov[yý] man|v[sš]etko", re.I)
 

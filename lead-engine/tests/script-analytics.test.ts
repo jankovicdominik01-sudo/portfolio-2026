@@ -9,7 +9,7 @@ test("neistý web: scenár sa iba pýta, nikdy netvrdí, že web nefunguje", () 
   const card = buildCallCard({
     lead: lead({ website_status: "uncertain", website_checked_at: NOW }),
     company: company(),
-    callerName: "Soňa",
+    callerName: "Roman",
     speech: "f",
     offers: [OFFER],
     nowIso: NOW,
@@ -22,8 +22,8 @@ test("neistý web: scenár sa iba pýta, nikdy netvrdí, že web nefunguje", () 
 
 test("overený nefunkčný web: prechod povie problém; starý údaj (>14 dní) sa netvrdí", () => {
   const fresh = lead({ website_status: "broken", website_issue: "db_error", website_checked_at: NOW });
-  const card = buildCallCard({ lead: fresh, company: company(), callerName: "Soňa", speech: "f", offers: [OFFER], nowIso: NOW });
-  assert.match(card.transition, /všimla som si, že vám stránka momentálne nefunguje/);
+  const card = buildCallCard({ lead: fresh, company: company(), callerName: "Roman", speech: "m", offers: [OFFER], nowIso: NOW });
+  assert.match(card.transition, /všimol som si, že vám stránka momentálne nefunguje/);
   assert.match(card.dominik, /pôvodný klient ho nakoniec neprevzal/);
   assert.equal(card.verified, "Kontrolované dnes");
   assert.equal(webClaimAllowed({ website_status: "broken", website_checked_at: "2026-09-01T00:00:00Z" }, NOW), false);
@@ -33,7 +33,7 @@ test("hotový web sa nespomína, ak nesedí segment", () => {
   const card = buildCallCard({
     lead: lead({ website_status: "broken", website_issue: "parked", website_checked_at: NOW }),
     company: company({ category: "strechy" }),
-    callerName: "Soňa",
+    callerName: "Roman",
     speech: "f",
     offers: [OFFER],
     nowIso: NOW,
@@ -53,8 +53,8 @@ test("Dominikov opening nepovyšuje súhlas na záujem", () => {
   const l = lead({
     consent: {
       at: NOW,
-      by_user: "sona",
-      by_name: "Soňa",
+      by_user: "roman",
+      by_name: "Roman",
       kind: "consent",
       contact_person: null,
       company_said: null,
@@ -66,8 +66,8 @@ test("Dominikov opening nepovyšuje súhlas na záujem", () => {
       note: null,
     },
   });
-  const lines = dominikOpening2({ adminName: "Dominik Jankovič", lead: l, callerSpeech: "f" }).join(" ");
-  assert.match(lines, /Soňa mi na vás posunula kontakt/);
+  const lines = dominikOpening2({ adminName: "Dominik Jankovič", lead: l, callerSpeech: "m" }).join(" ");
+  assert.match(lines, /Roman mi na vás posunul kontakt/);
   assert.match(lines, /súhlasili ste, že sa vám môžem ozvať/);
   assert.doesNotMatch(lines, /záujem/);
 });
@@ -78,8 +78,8 @@ const call = (p: Partial<CallLog>): CallLog => ({
   id: Math.random().toString(36),
   lead_id: "ld_1",
   created_at: NOW,
-  by: "Soňa",
-  by_user: "sona",
+  by: "Roman",
+  by_user: "roman",
   role: "caller",
   outcome: "no_answer",
   note: null,
@@ -112,11 +112,11 @@ test("metriky rátajú unikátne leady, nie počet hovorov", () => {
   assert.deepEqual([r.num, r.den], [2, 2]);
 });
 
-test("Jozova história: starší handoff (bez by_user) sa pripíše Jozovi, nie Soni", () => {
-  const leads = [{ ...lead({ id: "j", assigned_to: "jozo", status: "dominik_call" }), company: company() }];
-  const calls = [call({ lead_id: "j", by: "Jozo", by_user: undefined, outcome: "dominik_may_call", dominik_may_call: true })];
-  assert.equal(countLeads(leads, calls, USERS, "jozo").consent, 1);
-  assert.equal(countLeads(leads, calls, USERS, "sona").consent, 0);
+test("história: starší handoff (bez by_user) sa pripíše podľa mena, nie inému operátorovi", () => {
+  const leads = [{ ...lead({ id: "j", assigned_to: "peter", status: "dominik_call" }), company: company() }];
+  const calls = [call({ lead_id: "j", by: "Peter", by_user: undefined, outcome: "dominik_may_call", dominik_may_call: true })];
+  assert.equal(countLeads(leads, calls, USERS, "peter").consent, 1);
+  assert.equal(countLeads(leads, calls, USERS, "roman").consent, 0);
 });
 
 test("rozpad podľa zdroja z metadát firmy aj zo starej URL", () => {
