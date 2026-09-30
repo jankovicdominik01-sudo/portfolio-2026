@@ -2,10 +2,10 @@ import type { Company, Lead, Offer, SessionUser, Settings } from "../lib/types";
 import { defaultSettings } from "../lib/types";
 
 export const NOW = "2026-09-27T09:00:00.000Z";
-export const SONA: SessionUser = { username: "sona", name: "Soňa", role: "caller" };
-export const JOZO: SessionUser = { username: "jozo", name: "Jozo", role: "caller" };
+export const ROMAN: SessionUser = { username: "roman", name: "Roman", role: "caller" };
+export const PETER: SessionUser = { username: "peter", name: "Peter", role: "caller" };
 export const ADMIN: SessionUser = { username: "dominik", name: "Dominik Jankovič", role: "admin" };
-export const USERS = [SONA, JOZO, ADMIN];
+export const USERS = [ROMAN, PETER, ADMIN];
 
 export function company(p: Partial<Company> = {}): Company {
   return {
@@ -36,7 +36,7 @@ export function lead(p: Partial<Lead> = {}): Lead {
     priority_reasons: [],
     source: "routine",
     source_url: null,
-    assigned_to: "sona",
+    assigned_to: "roman",
     analysis: null,
     call_brief: null,
     trust: { web: "verified", phone: "partial", company: "verified", hook: "verified" },

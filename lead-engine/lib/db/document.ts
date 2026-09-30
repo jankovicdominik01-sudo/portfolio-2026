@@ -66,6 +66,11 @@ export function documentRepository(raw: DocumentBackend): Repository {
       return [...(await b.read()).calls].sort(byDateDesc);
     },
     insertCall: (c) => b.mutate((s) => void s.calls.push(c)),
+    updateCall: (id, patch) =>
+      b.mutate((s) => {
+        const c = s.calls.find((x) => x.id === id);
+        if (c) Object.assign(c, patch);
+      }),
 
     async listCommissions() {
       return [...(await b.read()).commissions].sort(byDateDesc);
@@ -91,6 +96,14 @@ export function documentRepository(raw: DocumentBackend): Repository {
         .sort((a, z) => a.at.localeCompare(z.at));
     },
     insertEvent: (e) => b.mutate((s) => void s.events.push(e)),
+    async listAllEvents() {
+      return [...(await b.read()).events];
+    },
+    updateEvent: (id, patch) =>
+      b.mutate((s) => {
+        const e = s.events.find((x) => x.id === id);
+        if (e) Object.assign(e, patch);
+      }),
 
     async listOffers() {
       return (await b.read()).offers;
@@ -113,6 +126,11 @@ export function documentRepository(raw: DocumentBackend): Repository {
     markNotificationsRead: (ids) =>
       b.mutate((s) => {
         for (const n of s.notifications) if (ids === "all" || ids.includes(n.id)) n.read = true;
+      }),
+    updateNotification: (id, patch) =>
+      b.mutate((s) => {
+        const n = s.notifications.find((x) => x.id === id);
+        if (n) Object.assign(n, patch);
       }),
   };
 }

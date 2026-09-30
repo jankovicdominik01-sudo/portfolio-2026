@@ -13,8 +13,8 @@ const consented = (p: Partial<Lead> = {}) =>
     status: "dominik_call",
     consent: {
       at: NOW,
-      by_user: "sona",
-      by_name: "Soňa",
+      by_user: "roman",
+      by_name: "Roman",
       kind: "consent",
       contact_person: null,
       company_said: null,
@@ -81,7 +81,7 @@ test("recompute: po nastavení pravidla dopočíta sumu a podmienku spätne", ()
 test("zárobok: potvrdené a vyplatené sa rátajú, pending zvlášť, potenciál nikdy", () => {
   const base: Commission = {
     id: "x",
-    user: "sona",
+    user: "roman",
     lead_id: "l",
     kind: "handoff",
     amount: 10,
@@ -93,8 +93,8 @@ test("zárobok: potvrdené a vyplatené sa rátajú, pending zvlášť, potenci�
     paid_at: null,
   };
   const e = earnings(
-    [base, { ...base, id: "y", state: "pending", confirmed_at: null }, { ...base, id: "z", state: "paid", paid_at: NOW }, { ...base, id: "w", user: "jozo" }],
-    "sona",
+    [base, { ...base, id: "y", state: "pending", confirmed_at: null }, { ...base, id: "z", state: "paid", paid_at: NOW }, { ...base, id: "w", user: "peter" }],
+    "roman",
     NOW,
   );
   assert.equal(e.today, 20);
@@ -112,22 +112,22 @@ test("dnes: callbacky → ďalšie pokusy → nové; budúci callback sa objaví
     lead({ id: "cb", status: "called", call_attempts: 1, next_action: "callback", next_action_at: "2026-09-27T08:00:00.000Z" }),
     lead({ id: "cbLater", status: "called", call_attempts: 1, next_action: "callback", next_action_at: "2026-10-04T08:00:00.000Z" }),
     lead({ id: "retry", status: "called", call_attempts: 1, next_action: "caller_call", next_action_at: "2026-09-27T08:00:00.000Z" }),
-    lead({ id: "jozo", assigned_to: "jozo" }),
+    lead({ id: "peter", assigned_to: "peter" }),
     lead({ id: "dnc", status: "do_not_call" }),
   ];
-  const t = buildToday(leads, "sona", NOW);
+  const t = buildToday(leads, "roman", NOW);
   assert.deepEqual(t.callbacks.map((l) => l.id), ["cb"]);
   assert.deepEqual(t.retries.map((l) => l.id), ["retry"]);
   assert.deepEqual(t.fresh.map((l) => l.id), ["new2", "new1"]);
   assert.deepEqual(t.later.map((l) => l.id), ["cbLater"]);
-  const t2 = buildToday(leads, "sona", "2026-10-04T07:00:00.000Z");
+  const t2 = buildToday(leads, "roman", "2026-10-04T07:00:00.000Z");
   assert.ok(t2.callbacks.some((l) => l.id === "cbLater"));
-  assert.equal(freshCount(leads, "sona"), 2);
+  assert.equal(freshCount(leads, "roman"), 2);
 });
 
 test("firma „nevolať“ sa nevráti do fronty ani ako nový lead", () => {
   const co = company({ do_not_call: true });
-  const t = buildToday([{ ...lead(), company: co }], "sona", NOW);
+  const t = buildToday([{ ...lead(), company: co }], "roman", NOW);
   assert.equal(t.fresh.length, 0);
   assert.ok(inCooldown(co, [], NOW));
 });

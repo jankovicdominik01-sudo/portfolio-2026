@@ -1,92 +1,15 @@
 import "server-only";
-import { scrypt, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, sessionSecret, timingSafeStringEqual, verifySession } from "./session";
+import { accountAllowed, passwordMatches, usersFor, type UserRecord } from "./users";
 import type { Role, SessionUser, UserInfo } from "./types";
 import { blobConfigured } from "./db/blob-token";
-import { configuredOperators, isLegacy } from "./operators";
+import { configuredOperators } from "./operators";
 
-type UserRecord = UserInfo & { password: string };
-
-/**
- * Predvolené účty Lead Engine. Repozitár je verejný, preto tu sú iba
- * scrypt hashe (heslá má Dominik). Prepíše ich env LE_USERS.
- *
- * Žiadna logika nie je viazaná na konkrétne meno: volajúci = rola "caller".
- * Nové leady rozdeľuje routing (segment → volajúci, Nastavenia → Routing) medzi AKTÍVNYCH volajúcich.
- * Aktívni sú Soňa aj Jozo; história Joza z 1.0 ostáva nedotknutá.
- */
-const DEFAULT_USERS: UserRecord[] = [
-  {
-    username: "dominik",
-    name: "Dominik Jankovič",
-    role: "admin",
-    active: true,
-    password: "scrypt$xkYE-gY_9dUibtGstpqi1Q$7dOACQLDdF-ViIlnG2lTz8BkZaHZqXW0_TDfw5uMqq0",
-  },
-  {
-    username: "sona",
-    name: "Soňa",
-    role: "caller",
-    active: true,
-    speech: "f",
-    password: "scrypt$KQFspmMlTon9wgYg8J3R2g$Dbt4UsEyhbwWR3JY1HFRiBNpsFmE1KvlmFCLhN0QPPI",
-  },
-  {
-    username: "jozo",
-    name: "Jozo",
-    role: "caller",
-    active: true,
-    speech: "m",
-    password: "scrypt$OM_JJ5aWWF8JoyQlPhu4pQ$TKc6Uc8l3gG6KxOE-t_7yZzM8vNZOHLvoOHnSNXjRJo",
-  },
-];
-
-/**
- * Používatelia z env LE_USERS (heslo môže byť aj scrypt$salt$hash), voliteľne na konci „inactive“ a „f“/„m“:
- *   "dominik|Dominik|admin|heslo;sona|Soňa|caller|heslo2|f;jozo|Jozo|caller|heslo3|m|inactive"
- * Bez LE_USERS: lokálne demo účty (heslo = meno), na serveri DEFAULT_USERS.
- */
+/** Účty: LE_USERS, inak predvolený admin (server) alebo demo účty (lokálne). */
 export function configuredUsers(): { users: UserRecord[]; demo: boolean } {
-  const raw = process.env.LE_USERS;
-  if (!raw) {
-    if (process.env.NODE_ENV === "production") return { users: DEFAULT_USERS, demo: false };
-    return {
-      demo: true,
-      users: [
-        { username: "dominik", name: "Dominik Jankovič", role: "admin", active: true, password: "dominik" },
-        { username: "roman", name: "Roman", role: "caller", active: true, speech: "m", password: "roman" },
-        // Legacy: účty ostávajú kvôli histórii, nové leady nedostávajú (lib/operators.ts).
-        { username: "sona", name: "Soňa", role: "caller", active: false, speech: "f", password: "sona" },
-        { username: "jozo", name: "Jozo", role: "caller", active: false, speech: "m", password: "jozo" },
-      ],
-    };
-  }
-  const users = raw
-    .split(";")
-    .map((row) => row.trim())
-    .filter(Boolean)
-    .map((row) => {
-      const parts = row.split("|");
-      // Voliteľné príznaky na konci: active|inactive a f|m (tvar slovies v scenári).
-      const flags: string[] = [];
-      while (parts.length > 4 && /^(active|inactive|f|m)$/i.test(parts[parts.length - 1].trim())) {
-        flags.push(parts.pop()!.trim().toLowerCase());
-      }
-      const [username, name, role, ...pw] = parts;
-      return {
-        username: username.trim().toLowerCase(),
-        name: name.trim(),
-        role: (role.trim() === "admin" ? "admin" : "caller") as Role,
-        active: !flags.includes("inactive"),
-        speech: flags.includes("f") ? ("f" as const) : flags.includes("m") ? ("m" as const) : undefined,
-        password: pw.join("|"),
-      };
-    })
-    .filter((u) => u.username && u.password.length >= 6);
-  return { users, demo: false };
+  return usersFor(process.env.LE_USERS, process.env.NODE_ENV);
 }
 
 /** Všetci používatelia bez hesiel (aj neaktívni — kvôli histórii a filtrom). */
@@ -94,36 +17,24 @@ export function allUsers(): UserInfo[] {
   return configuredUsers().users.map(({ username, name, role, active, speech }) => ({ username, name, role, active, speech }));
 }
 
-const scryptAsync = promisify(scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
-
-async function passwordMatches(stored: string, given: string): Promise<boolean> {
-  if (stored.startsWith("scrypt$")) {
-    const [, salt, hash] = stored.split("$");
-    const expected = Buffer.from(hash, "base64url");
-    const actual = await scryptAsync(given, salt, expected.length);
-    return actual.length === expected.length && timingSafeEqual(actual, expected);
-  }
-  return timingSafeStringEqual(stored, given);
-}
-
 export async function authenticate(username: string, password: string): Promise<SessionUser | null> {
   const { users } = configuredUsers();
   const u = users.find((x) => x.username === username.trim().toLowerCase());
   // Porovnávame aj pri neexistujúcom mene, aby čas odpovede neprezrádzal účty.
   const ok = await passwordMatches(u?.password ?? "__none__", password);
-  if (!u || !ok || !u.active) return null;
+  if (!u || !ok || !u.active || !accountAllowed(u)) return null;
   return { username: u.username, name: u.name, role: u.role };
 }
 
 /**
- * Aktívni volajúci = aktívny účet + operátor ACTIVE s kanálom CALL. Dostávajú nové leady.
- * Legacy operátori (Soňa, Jozo) sem nepatria nikdy, aj keby mali aktívny účet.
+ * Aktívni volajúci = aktívny účet s rolou caller + záznam operátora ACTIVE s kanálom CALL.
+ * Účet bez záznamu operátora nový lead nedostane nikdy.
  */
 export function callers(): SessionUser[] {
   const all = configuredUsers().users;
-  const ops = configuredOperators(all);
+  const ops = configuredOperators();
   return all
-    .filter((u) => u.role === "caller" && u.active && !isLegacy(u.username))
+    .filter((u) => u.role === "caller" && u.active)
     .filter((u) => {
       const op = ops.find((o) => o.operator_id === u.username);
       return !!op && op.status === "ACTIVE" && op.channels.includes("CALL");
@@ -131,10 +42,10 @@ export function callers(): SessionUser[] {
     .map(({ username, name, role }) => ({ username, name, role }));
 }
 
-/** Meno podľa username (aj neaktívneho) — pre históriu. */
+/** Meno podľa username. Neznámy účet (napr. pôvodný operátor v histórii) sa zobrazí neutrálne. */
 export function userName(username: string | null | undefined): string {
-  if (!username) return "—";
-  return configuredUsers().users.find((u) => u.username === username)?.name ?? username;
+  if (!username) return "nikto";
+  return configuredUsers().users.find((u) => u.username === username)?.name ?? "Pôvodný operátor";
 }
 
 export function adminName(): string {
@@ -159,7 +70,7 @@ export async function currentUser(): Promise<SessionUser | null> {
   if (!s) return null;
   // Deaktivovaný alebo odstránený účet stratí prístup hneď, nie až po vypršaní cookie.
   const u = configuredUsers().users.find((x) => x.username === s.username);
-  if (!u || !u.active || u.role !== s.role) return null;
+  if (!u || !u.active || u.role !== s.role || !accountAllowed(u)) return null;
   return { username: u.username, name: u.name, role: u.role };
 }
 

@@ -1,4 +1,4 @@
--- Lead Engine 3.0 / Lead Radar — overená entita, stav webu, kvalita dát, routing Soňa/Jozo, feedback.
+-- Lead Engine 3.0 / Lead Radar — overená entita, stav webu, kvalita dát, routing na operátora, feedback.
 -- Produkcia beží na Vercel Blob; tento súbor drží Supabase adaptér v zhode s modelom.
 
 alter table companies add column if not exists country text;

@@ -12,6 +12,12 @@ import { forbiddenClaims } from "./script";
 
 export type OpportunityCallCard = {
   firm: string;
+  category: string;
+  city: string | null;
+  phone: string | null;
+  website: string | null;
+  /** Hlavný ručný proces, ktorý sme videli (OBSERVED), alebo null. */
+  main_pain: string | null;
   why_this_lead: string;
   opportunity: string | null;
   verified: { text: string; source: string | null }[];
@@ -27,13 +33,13 @@ export type OpportunityCallCard = {
   cautions: string[];
 };
 
-/** Jedna veta k tomu, čo sme videli. Hovorí „na webe píšete“, nikdy „nemáte“. */
+/** Pokračovanie vety „Pozerali sme vašu stránku a všimli sme si, že …“. Nikdy „nemáte“. */
 const PAIN_SENTENCE: Record<string, string> = {
-  phone_ordering: "Na webe píšete, že termíny a objednávky riešite telefonicky.",
-  messenger_cta: "Na webe posielate ľudí písať cez Messenger alebo WhatsApp.",
-  photos_by_message: "Na webe prosíte zákazníkov, aby vám fotky poslali správou.",
-  no_booking_found: "Online objednanie sme u vás na webe nenašli.",
-  no_form_found: "Formulár na dopyt sme u vás na webe nenašli.",
+  phone_ordering: "termíny a objednávky riešite hlavne telefonicky",
+  messenger_cta: "zákazníkov posielate písať cez Messenger alebo WhatsApp",
+  photos_by_message: "fotky od zákazníkov chcete dostávať správou",
+  no_booking_found: "online objednanie sme na nej nenašli",
+  no_form_found: "formulár na dopyt sme na nej nenašli",
 };
 
 const IDEA: Record<string, string> = {
@@ -51,7 +57,8 @@ const QUESTIONS: Record<string, string[]> = {
 };
 
 export function opportunityCallCard(opts: {
-  company: Pick<Company, "name" | "city">;
+  company: Pick<Company, "name" | "city" | "phone" | "website" | "category">;
+  categoryLabel?: string;
   profile: RadarProfile | null | undefined;
   opportunity: Opportunity;
   operatorName: string;
@@ -67,19 +74,30 @@ export function opportunityCallCard(opts: {
   if (profile?.primary_phone?.confidence === "high") verified.push({ text: `Telefón ${profile.primary_phone.value}`, source: profile.primary_phone.sources[0] ?? null });
   if (profile?.website_resolution === "confirmed" && profile.website?.url) verified.push({ text: `Web patrí firme: ${profile.website.url}`, source: profile.website.url });
 
-  const pains = o.observed.filter((s) => PAIN_SENTENCE[s.key]);
+  // Tvrdenie o webe iba pri webe, ktorý firme POTVRDENE patrí, a iba s úryvkom (OBSERVED).
+  const webConfirmed = profile?.website_resolution === "confirmed";
+  const pains = webConfirmed ? o.observed.filter((s) => PAIN_SENTENCE[s.key]) : [];
   const lead = pains.find((s) => !s.key.endsWith("_found")) ?? pains[0];
-  const context = lead ? PAIN_SENTENCE[lead.key] : "Pozreli sme si, ako sa k vám dnes zákazník objedná.";
+  const context = lead
+    ? `Pozerali sme vašu stránku a všimli sme si, že ${PAIN_SENTENCE[lead.key]}.`
+    : "Zaujímalo by ma, ako sa k vám dnes zákazníci objednávajú.";
 
   const card: OpportunityCallCard = {
-    firm: [company.name, company.city].filter(Boolean).join(", "),
+    firm: company.name,
+    category: opts.categoryLabel ?? company.category,
+    city: company.city,
+    phone: company.phone,
+    website: webConfirmed ? (profile?.website?.url ?? company.website ?? null) : null,
+    main_pain: lead?.text ?? null,
     why_this_lead: o.why_this_lead,
     opportunity: sys?.label ?? null,
     verified,
     observed: o.observed,
     estimate: [],
     demo: opts.demoReady ? "READY" : "NOT_READY",
-    opening: `Dobrý deň, tu ${operatorName}, volám za Dominika Jankoviča, robí firmám weby, cez ktoré chodia hotové objednávky.`,
+    opening: webConfirmed
+      ? `Dobrý deň, volám sa ${operatorName} a ozývam sa za Dominika ohľadom vašej stránky.`
+      : `Dobrý deň, volám sa ${operatorName} a ozývam sa za Dominika, robí firmám weby, cez ktoré chodia hotové objednávky.`,
     context_pain: context,
     idea: IDEA[sysId] ?? IDEA.inquiry,
     questions: (QUESTIONS[sysId] ?? QUESTIONS.inquiry).slice(0, 3),

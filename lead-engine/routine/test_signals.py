@@ -59,5 +59,30 @@ class Tags(unittest.TestCase):
         self.assertEqual(SIG.tags({"reachable": False})["ads_status"], "UNKNOWN")
 
 
+class QualityFirst(unittest.TestCase):
+    """Operátor dostane radšej 20 dobrých leadov než 200 čísel."""
+
+    def ent(self, id, dq="gold", phone="high", cat="high", pain=False, points=40, status="active"):
+        return {"id": id, "stopped": None, "recommended_caller": "roman", "data_quality": dq, "country": "SK", "city": f"Mesto{id}",
+                "category": {"id": f"k{id}", "confidence": cat}, "primary_phone": {"confidence": phone},
+                "business_status": {"value": status}, "exploration": False, "score": {"points": points},
+                "process_signals": [{"key": "phone_ordering"}] if pain else []}
+
+    def test_call_ready_gates(self):
+        import radar_run as R
+        self.assertTrue(R.call_ready(self.ent("a")))
+        self.assertFalse(R.call_ready(self.ent("b", phone="medium")))
+        self.assertFalse(R.call_ready(self.ent("c", cat="low")))
+        self.assertFalse(R.call_ready(self.ent("d", dq="research")))
+        self.assertFalse(R.call_ready(self.ent("e", status="inactive")))
+
+    def test_select_prefers_gold_with_process_pain(self):
+        import radar_run as R
+        ents = [self.ent("silver", dq="silver", points=90), self.ent("gold", points=30), self.ent("pain", points=10, pain=True),
+                self.ent("weakphone", phone="low", points=99)]
+        out = R.select(ents, [{"caller": "roman", "need": 3}], ("SK",))["roman"]
+        self.assertEqual([e["id"] for e in out], ["pain", "gold", "silver"])
+
+
 if __name__ == "__main__":
     unittest.main()

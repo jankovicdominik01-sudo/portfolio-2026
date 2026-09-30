@@ -26,6 +26,7 @@ const DIM_LABEL: Record<string, string> = {
   AUTOMATION_FIT: "Fit na systém",
   VISUAL_GAP: "Stav webu",
   AD_SPEND_SIGNAL: "Reklama",
+  DEMO_POTENTIAL: "Potenciál dema",
 };
 
 export type OpportunityPanelProps = {
@@ -102,7 +103,11 @@ export function OpportunityPanel(p: OpportunityPanelProps) {
 
       {p.channel ? (
         <>
-          <Eyebrow className="mt-6">Kanál: {p.channel.channel}{p.channel.operator_id ? ` → ${p.channel.operator_id}` : ""}</Eyebrow>
+          <Eyebrow className="mt-6">
+            {p.channel.channel === "CALL" ? "Prečo hovor" : p.channel.channel === "HOLD" ? "Prečo čaká" : "Prečo async"}: {p.channel.channel}
+            {p.channel.operator_id ? ` → ${p.channel.operator_id}` : ""}
+          </Eyebrow>
+          <p className="mt-1 text-[13px] text-white/50">{p.channel.reasons[0]}</p>
           <ul className="mt-2 space-y-1 text-[14px]">
             {p.channel.rules.map((r) => (
               <li key={r.key} className={r.passed ? "text-green-300/85" : "text-white/45"}>

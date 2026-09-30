@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Lead Radar — ranná rutina (SK + CZ, Soňa + Jozo).
+Lead Radar — ranná rutina (SK + CZ, pre aktívnych operátorov z Lead Engine).
 
   python3 lead-engine/routine/radar_run.py --engine https://lead-engine-seven-murex.vercel.app --key "$KEY" \
       --exclude /tmp/vylucene.json --work /tmp/radar
@@ -33,7 +33,7 @@ from radar.normalize import bez, host, phone_e164  # noqa: E402
 from radar.pipeline import Radar  # noqa: E402
 from radar.search import AgentProvider, BraveProvider, GoogleCSEProvider, Search, yield_report  # noqa: E402
 from radar.social import parse_result  # noqa: E402
-from radar.taxonomy import CATS, CITIES, JOZO_DEFAULT, SONA_DEFAULT, neighbors, terms  # noqa: E402
+from radar.taxonomy import CATS, CITIES, neighbors, terms  # noqa: E402
 
 MAX_ROUNDS = 3
 PER_CITY, PER_CATEGORY, EXPLORATION = 2, 4, 2
@@ -58,9 +58,10 @@ def plan(callers, routing, recent, day, countries=("SK", "CZ"), cities_per=1, se
     for c in callers:
         if c.get("need", 0) <= 0:
             continue
-        mine = [k for k, v in CATS.items() if k != "ine" and (routing.get(k) or v["caller"]) == c["caller"]]
+        # segmenty operátora = výslovne jemu priradené + nepriradené (jediný operátor dostane všetky)
+        mine = [k for k in CATS if k != "ine" and routing.get(k) in (None, "", c["caller"])]
         rnd.shuffle(mine)
-        others = [k for k in CATS if k != "ine" and k not in mine and CATS[k]["caller"] == c["caller"]]
+        others = [k for k in CATS if k != "ine" and k not in mine]
         n_cat = min(len(mine), 2 + c["need"] // 4)
         explore = [x for x in mine[n_cat:n_cat + 1]] or rnd.sample(others, min(1, len(others)))
         for cat in mine[:n_cat] + explore:
@@ -220,14 +221,30 @@ def company_out(e):
             "sources": [{"source": s["source"], "url": s.get("url")} for s in e["sources"]][:8]}
 
 
+PAIN_SIGNALS = {"phone_ordering", "messenger_cta", "photos_by_message"}
+
+
+def call_ready(e):
+    """Quality-first: operátor dostane iba lead, ktorý sa oplatí volať. Radšej 20 dobrých než 200 čísel."""
+    ph = e.get("primary_phone") or {}
+    cat = e.get("category") or {}
+    return (e.get("data_quality") in ("gold", "silver") and ph.get("confidence") == "high"
+            and cat.get("confidence") in ("high", "medium") and (e.get("business_status") or {}).get("value") != "inactive")
+
+
+def quality_key(e):
+    pain = any(s.get("key") in PAIN_SIGNALS for s in e.get("process_signals") or [])
+    return (e["data_quality"] != "gold", not pain, -e["score"]["points"])
+
+
 def select(ents, callers, countries=("SK", "CZ")):
     """Per volajúci: GOLD pred SILVER, podľa skóre; max 2 z mesta, 4 z kategórie, 2 exploration, krajiny vyvážene
     (každá krajina najviac polovicu, zvyšok doplní druhá). Radšej menej ako odpad."""
     out = {}
     for c in callers:
         need = c.get("need", 0)
-        pool = [e for e in ents if not e.get("stopped") and e.get("recommended_caller") == c["caller"] and e.get("data_quality") in ("gold", "silver")]
-        pool.sort(key=lambda e: (e["data_quality"] != "gold", -e["score"]["points"]))
+        pool = [e for e in ents if not e.get("stopped") and e.get("recommended_caller") == c["caller"] and call_ready(e)]
+        pool.sort(key=quality_key)
         cap = {k: -(-need // len(countries)) for k in countries}
         picked, city_n, cat_n, expl, cn = [], {}, {}, 0, {}
         for rnd in (0, 1):  # 1. kolo s kvótou krajín, 2. kolo doplní zvyšok
@@ -261,7 +278,7 @@ def main():
     ap.add_argument("--deep", type=int, default=60, help="koľko firiem hĺbkovo analyzovať")
     ap.add_argument("--max-queries", type=int, default=70, help="max. nových dopytov na vyhľadávanie v jednom kole")
     ap.add_argument("--recheck", action="store_true")
-    ap.add_argument("--callers", help="prepíše potrebu z Lead Engine, napr. sona:5,jozo:5 (QA / ručný beh)")
+    ap.add_argument("--callers", help="prepíše potrebu z Lead Engine, napr. roman:10 (QA / ručný beh)")
     ap.add_argument("--search-limit", type=int, default=25, help="koľko firiem smie ísť do vyhľadávania")
     ap.add_argument("--no-upload-plan", action="store_true", help="nepýtať sa Lead Engine (offline QA)")
     a = ap.parse_args()

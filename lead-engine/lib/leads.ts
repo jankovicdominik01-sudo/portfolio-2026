@@ -52,8 +52,7 @@ import {
   type LeadWithCompany,
   type NextAction,
   type RadarProfile,
-  type SessionUser,
-} from "./types";
+  type SessionUser, categoryOf } from "./types";
 
 /**
  * Obchodná logika (use-cases). UI, API aj ranná rutina volajú iba tieto funkcie.
@@ -423,7 +422,7 @@ export async function myHandoffs(u: SessionUser) {
     }));
 }
 
-/** Soňina štatistika za dnes (unikátne leady a hovory). */
+/** Štatistika operátora za dnes (unikátne leady a hovory). */
 export async function myToday(u: SessionUser) {
   const r = await db();
   const calls = (await r.listAllCalls()).filter((c) => c.role === "caller" && callUser(c, allUsers()) === u.username);
@@ -552,11 +551,13 @@ export async function callerLeadView(u: SessionUser, leadId: string) {
     offers,
     nowIso: now(),
   });
-  // Call Card v2: iba leady, ktoré prešli Opportunity Engine. Staršie ostávajú na pôvodnej karte.
-  const opp = lead.opportunity as unknown as Opportunity | null | undefined;
-  const opportunityCard = opp?.version === 1
+  // Call Card v2: každý lead s profilom z Lead Radaru. Bez profilu ostáva pôvodná karta.
+  const stored = lead.opportunity as unknown as Opportunity | null | undefined;
+  const opp = stored?.version === 1 ? stored : lead.company.profile ? buildOpportunity(lead, lead.company.category, lead.company.profile) : null;
+  const opportunityCard = opp
     ? opportunityCallCard({
         company: lead.company,
+        categoryLabel: categoryOf(lead.company.category).label,
         profile: lead.company.profile,
         opportunity: opp,
         operatorName: u.name,
@@ -748,9 +749,11 @@ export async function refreshOpportunity(u: SessionUser, leadId: string) {
     score_band: lead.score?.band,
     opportunity,
     has_phone: !!lead.company.phone,
+    phone_verified: lead.company.profile ? lead.company.profile.primary_phone?.confidence === "high" : undefined,
+    category_verified: lead.company.profile ? ["high", "medium"].includes(lead.company.profile.category?.confidence ?? "") : undefined,
     has_email: !!lead.company.email,
     do_not_contact: lead.status === "do_not_call",
-    operators: configuredOperators(allUsers()).filter((o) => active.includes(o.operator_id)),
+    operators: configuredOperators().filter((o) => active.includes(o.operator_id)),
   });
   await (await db()).updateLead(leadId, {
     opportunity: opportunity as unknown as Lead["opportunity"],

@@ -1,3 +1,4 @@
+import { configuredOperators } from "@/lib/operators";
 import Link from "next/link";
 import { requireUser, allUsers, userName } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -22,7 +23,8 @@ export default async function MoneyPage() {
   ]);
   const nameOf = new Map(leads.map((l) => [l.id, companies.find((c) => c.id === l.company_id)?.name ?? "?"]));
   const now = new Date().toISOString();
-  const callersAll = allUsers().filter((u) => u.role === "caller");
+  const opIds = new Set(configuredOperators().map((o) => o.operator_id));
+  const callersAll = allUsers().filter((u) => u.role === "caller" && opIds.has(u.username));
   const eur = (n: number) => `${n} €`;
 
   return (

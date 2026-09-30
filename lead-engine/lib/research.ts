@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { db } from "./db";
-import { allUsers, callers } from "./auth";
+import { callers } from "./auth";
 import { buildOpportunity } from "./opportunity";
 import { chooseChannel } from "./channel";
 import { configuredOperators } from "./operators";
@@ -34,7 +34,7 @@ import {
 
 /**
  * Ranná rutina posiela firmy už preskúmané: agent overil katalóg, register aj web,
- * našiel reálny produkt a napísal scenár pre Joza. Tu sa to iba overí a uloží.
+ * našiel reálny produkt a napísal podklady pre operátora. Tu sa to iba overí a uloží.
  * Firmu, ktorá už v systéme je, NIKDY neprepíše ani nevráti do volania.
  */
 
@@ -504,9 +504,14 @@ export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof Resear
     score_band: score.band,
     opportunity,
     has_phone: !!company.phone,
+    phone_verified: profile.primary_phone?.confidence === "high",
+    category_verified: ["high", "medium"].includes(profile.category?.confidence ?? ""),
     has_email: !!company.email,
     do_not_contact: false,
-    operators: configuredOperators(allUsers()).filter((o) => active.includes(o.operator_id)),
+    // operátor z routingu segmentu má prednosť, ostatní aktívni sú záloha
+    operators: configuredOperators()
+      .filter((o) => active.includes(o.operator_id))
+      .sort((a, b) => Number(b.operator_id === route.caller) - Number(a.operator_id === route.caller)),
   });
   const common: Lead = {
     ...base,
@@ -532,9 +537,13 @@ export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof Resear
     await ev("analysis", `Opportunity ${opportunity.priority} · kanál ASYNC · ${opportunity.why_this_lead}`);
     return { status: "review", leadId: base.id, name: input.name, why };
   }
-  const caller = channel.operator_id ?? route.caller;
+  // Do fronty operátora ide IBA lead s rozhodnutím CALL. Nikdy fallback na iného človeka.
+  const caller = channel.channel === "CALL" ? channel.operator_id : null;
   if (base.data_quality === "research" || !caller) {
-    const why = base.data_quality === "research" ? `Dáta treba doplniť: ${(profile.data_quality_why ?? []).join(", ")}` : "Nie je aktívny volajúci";
+    const why =
+      base.data_quality === "research"
+        ? `Dáta treba doplniť: ${(profile.data_quality_why ?? []).join(", ")}`
+        : `${channel.channel}: ${channel.reasons.join("; ")}`;
     await r.insertLead({ ...common, status: "analyzed", next_action: "review", notes: why });
     await ev("created", "Lead pridaný (Lead Radar)");
     await ev("analysis", `Na overenie: ${why}`);

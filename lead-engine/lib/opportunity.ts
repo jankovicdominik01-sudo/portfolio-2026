@@ -16,7 +16,7 @@ import { categoryOf, type CategoryId, type Lead, type RadarProfile } from "./typ
 export const EVIDENCE_LEVELS = ["VERIFIED", "OBSERVED", "ESTIMATE", "UNKNOWN"] as const;
 export type EvidenceLevel = (typeof EVIDENCE_LEVELS)[number];
 
-export const DIMENSIONS = ["PROCESS_PAIN", "BUSINESS_ACTIVITY", "EVIDENCE_QUALITY", "AUTOMATION_FIT", "VISUAL_GAP", "AD_SPEND_SIGNAL"] as const;
+export const DIMENSIONS = ["PROCESS_PAIN", "BUSINESS_ACTIVITY", "EVIDENCE_QUALITY", "AUTOMATION_FIT", "VISUAL_GAP", "AD_SPEND_SIGNAL", "DEMO_POTENTIAL"] as const;
 export type Dimension = (typeof DIMENSIONS)[number];
 export type Strength = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 const RANK: Record<Strength, number> = { UNKNOWN: 0, LOW: 1, MEDIUM: 2, HIGH: 3 };
@@ -123,8 +123,8 @@ export function buildOpportunity(lead: Pick<Lead, "website_status" | "data_quali
   const bs = profile?.business_status?.value;
   const bsEv = profile?.business_status?.evidence ?? [];
   dims.BUSINESS_ACTIVITY =
-    bs === "active" ? { level: "HIGH", reasons: bsEv } :
-    bs === "likely_active" ? { level: "MEDIUM", reasons: bsEv } :
+    bs === "active" ? { level: "HIGH", reasons: [`Firma je aktívna (${bsEv.length} ${bsEv.length === 1 ? "zdroj" : "zdroje"})`, ...bsEv] } :
+    bs === "likely_active" ? { level: "MEDIUM", reasons: ["Firma je pravdepodobne aktívna", ...bsEv] } :
     bs === "inactive" ? { level: "LOW", reasons: ["Firma podľa registra zanikla alebo je v likvidácii", ...bsEv] } :
     { level: "UNKNOWN", reasons: bsEv.length ? bsEv : ["Aktivitu firmy sme nevedeli overiť"] };
 
@@ -160,6 +160,15 @@ export function buildOpportunity(lead: Pick<Lead, "website_status" | "data_quali
       ? { level: "HIGH", reasons: [`${system.label} rieši presne tento ručný krok`] }
       : { level: "MEDIUM", reasons: [`Segment sedí na ${system.label}, ručný proces zatiaľ nevidno`] };
 
+  // DEMO POTENTIAL: máme šablónu dema pre odporúčaný systém a vieme ju naplniť ich údajmi
+  const demoTemplate = !!system && ["service_booking", "project_pipeline", "appointment"].includes(system.id);
+  const hasServices = (profile?.services ?? []).length > 0;
+  dims.DEMO_POTENTIAL = !demoTemplate
+    ? { level: "LOW", reasons: ["Pre tento segment zatiaľ nemáme demo"] }
+    : hasServices
+      ? { level: "HIGH", reasons: ["Demo sa dá naplniť ich skutočnými službami"] }
+      : { level: "MEDIUM", reasons: ["Demo máme, ich služby sme zatiaľ nenašli"] };
+
   const priority: Opportunity["priority"] =
     atLeast(dims.PROCESS_PAIN.level, "HIGH") && atLeast(dims.BUSINESS_ACTIVITY.level, "HIGH") && atLeast(dims.EVIDENCE_QUALITY.level, "MEDIUM")
       ? "TOP"
@@ -186,7 +195,7 @@ export function whyThisLead(dims: Opportunity["dimensions"], system: Recommended
     .map((d) => (dims[d].reasons[0] ?? "").replace(/[.\s]+$/, ""))
     .filter(Boolean);
   if (!parts.length) return "Silný dôvod sme nenašli.";
-  return `${parts.join(". ")}.${system ? ` Návrh: ${system.label}.` : ""}`;
+  return `${parts.join(". ")}.`;
 }
 
 function moneyLeak(ads: Opportunity["ads"], signals: NonNullable<RadarProfile["process_signals"]>, ws: Lead["website_status"], profile: RadarProfile | null | undefined): LeakLine[] {

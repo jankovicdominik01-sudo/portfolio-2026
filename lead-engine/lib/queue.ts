@@ -14,8 +14,14 @@ const endOfToday = (nowIso: string) => {
 const due = (l: Lead, nowIso: string) => !l.next_action_at || new Date(l.next_action_at).getTime() <= endOfToday(nowIso);
 
 const PRIO = { hot: 0, ready: 1, check: 2, low: 3 } as const;
-const byScore = (a: Lead, b: Lead) =>
-  (b.score?.points ?? -999) - (a.score?.points ?? -999) || PRIO[a.priority] - PRIO[b.priority] || a.created_at.localeCompare(b.created_at);
+/** Quality-first: príležitosť TOP pred ostatnými, potom skóre. */
+const OPP = { TOP: 0, NORMAL: 1, LOW: 2 } as const;
+const oppRank = (l: Lead) => OPP[((l.opportunity as { priority?: keyof typeof OPP } | null | undefined)?.priority ?? "NORMAL")] ?? 1;
+export const byScore = (a: Lead, b: Lead) =>
+  oppRank(a) - oppRank(b) ||
+  (b.score?.points ?? -999) - (a.score?.points ?? -999) ||
+  PRIO[a.priority] - PRIO[b.priority] ||
+  a.created_at.localeCompare(b.created_at);
 
 export type Today<T extends L = L> = { callbacks: T[]; retries: T[]; fresh: T[]; later: T[] };
 

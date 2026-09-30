@@ -101,7 +101,7 @@ class BusinessCheck(unittest.TestCase):
         self.assertEqual(st, "confirmed")
 
     def test_person_name_only_is_uncertain(self):
-        st, _ = leady.business_check(row(name="Soňa Dobiašová", source="bazos"), {"name": "Soňa Dobiašová"})
+        st, _ = leady.business_check(row(name="Mária Kováčiková", source="bazos"), {"name": "Mária Kováčiková"})
         self.assertEqual(st, "uncertain")
 
 

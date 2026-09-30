@@ -30,7 +30,7 @@ BUDGET = {"ordinary": 5, "promising": 10, "high_value": 15}
 
 
 class Radar:
-    def __init__(self, net, search, routing=None, active=("sona", "jozo"), exclusions=None, today=None, log=print):
+    def __init__(self, net, search, routing=None, active=(), exclusions=None, today=None, log=print):
         self.net, self.search = net, search
         self.routing = routing or {}
         self.active = active

@@ -138,6 +138,12 @@ const CallerCall = z.object({
   outcome: z.enum(CALLER_OUTCOMES),
   note: text(1000),
   callback_on: ymdOpt,
+  callback_time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Čas zadaj ako HH:MM")
+    .nullable()
+    .optional()
+    .transform((v) => v ?? null),
   consent: z
     .object({
       contact_person: text(120),

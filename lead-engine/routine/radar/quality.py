@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Commercial opportunity, data quality gate (GOLD / SILVER / RESEARCH), vysvetliteľné skóre, routing Soňa / Jozo.
+Commercial opportunity, data quality gate (GOLD / SILVER / RESEARCH), vysvetliteľné skóre, routing na aktívneho operátora.
 
 GOLD / SILVER / RESEARCH hodnotí KVALITU DÁT, nie firmu:
   GOLD      identita + telefón + kategória + stav webu + obchodný dôvod — všetko overené
@@ -125,19 +125,18 @@ def gate(e, res):
     return "research", soft
 
 
-def caller_fit(e, routing=None, active=("sona", "jozo")):
+def caller_fit(e, routing=None, active=()):
+    """Operátor pre lead: routing segmentu z Lead Engine, inak prvý aktívny operátor. Bez aktívneho nikto."""
     cat = e.get("category") or {}
     cid = cat.get("id") or "ine"
     rec = default_caller(cid, routing)
     reasons = []
-    if rec:
-        src = "nastavenie routingu" if routing and routing.get(cid) else "predvolený segment"
-        reasons.append(f"{CATS.get(cid, CATS['ine'])['label']} → {rec} ({src})")
-    if rec not in active:
-        alt = next((a for a in active if a != rec), None)
-        if alt:
-            reasons.append(f"{rec or 'nikto'} nie je aktívny → {alt}")
-            rec = alt
+    if rec and rec in active:
+        reasons.append(f"{CATS.get(cid, CATS['ine'])['label']} → {rec} (nastavenie routingu)")
+    else:
+        rec = active[0] if active else None
+        if rec:
+            reasons.append(f"{CATS.get(cid, CATS['ine'])['label']} → {rec} (aktívny operátor)")
     score = 50
     if cat.get("confidence") == "high":
         score += 20

@@ -44,23 +44,23 @@ const ROMAN: Operator = DEFAULT_OPERATORS[0];
 /* ─────────── Operátori ─────────── */
 
 test("Roman je predvolený ACTIVE operátor s kanálom CALL a neznámym číslom", () => {
-  const ops = configuredOperators([], undefined);
+  const ops = configuredOperators(undefined);
   const r = ops.find((o) => o.operator_id === "roman")!;
   assert.equal(r.status, "ACTIVE");
   assert.deepEqual(r.channels, ["CALL"]);
   assert.equal(r.phone_number, null);
 });
 
-test("Soňa a Jozo sú vždy INACTIVE, aj keď ich env alebo účet zapne", () => {
-  const env = JSON.stringify([{ operator_id: "sona", name: "Soňa", status: "ACTIVE" }, { operator_id: "roman", name: "Roman", status: "ACTIVE" }]);
-  const ops = configuredOperators([{ username: "jozo", name: "Jozo", role: "caller", active: true }], env);
-  assert.equal(ops.find((o) => o.operator_id === "sona")!.status, "INACTIVE");
-  assert.equal(ops.find((o) => o.operator_id === "jozo")!.status, "INACTIVE");
-  assert.ok(!canTakeCall(ops.find((o) => o.operator_id === "sona")!, "autoservis"));
+test("operátori sú iba z konfigurácie; účet bez záznamu operátora neexistuje ako operátor", () => {
+  const env = JSON.stringify([{ operator_id: "roman", name: "Roman", status: "ACTIVE" }, { operator_id: "peter", name: "Peter", status: "INACTIVE" }]);
+  const ops = configuredOperators(env);
+  assert.deepEqual(ops.map((o) => o.operator_id), ["roman", "peter"]);
+  assert.ok(!canTakeCall(ops[1], "autoservis"));
+  assert.deepEqual(configuredOperators(undefined).map((o) => o.operator_id), ["roman"]);
 });
 
 test("neplatný LE_OPERATORS sa ignoruje, kapacita a segmenty sa rešpektujú", () => {
-  assert.equal(configuredOperators([], "{nie json")[0].operator_id, "roman");
+  assert.equal(configuredOperators("{nie json")[0].operator_id, "roman");
   const op: Operator = { ...ROMAN, daily_capacity: 2, assigned_segments: ["autoservis"] };
   assert.ok(canTakeCall(op, "autoservis", 1));
   assert.ok(!canTakeCall(op, "autoservis", 2));
@@ -134,17 +134,23 @@ test("všetky podmienky splnené → CALL na Romana, každé pravidlo je vysvetl
   assert.ok(d.rules.every((r) => r.passed && r.label.length > 5));
 });
 
-test("stačí jedna nesplnená podmienka → ASYNC s dôvodom", () => {
-  const d = chooseChannel({ ...base(), score_band: "medium" });
+test("stačí jedna nesplnená kvalitná brána → ASYNC s dôvodom", () => {
+  const d = chooseChannel({ ...base(), phone_verified: false });
   assert.equal(d.channel, "ASYNC");
   assert.equal(d.message_via, "EMAIL");
-  assert.ok(d.reasons.some((r) => /nesplnené: Vysoká hodnota/.test(r)));
+  assert.ok(d.reasons.some((r) => /nesplnené: Telefón overený/.test(r)));
+  const weak = chooseChannel({ ...base(), score_band: "medium", opportunity: { ...base().opportunity, priority: "NORMAL" } });
+  assert.equal(weak.channel, "ASYNC");
+  assert.ok(weak.reasons.some((r) => /nesplnené: Silný lead/.test(r)));
+  assert.equal(chooseChannel({ ...base(), category_verified: false }).channel, "ASYNC");
 });
 
-test("bez aktívneho operátora ide lead async; legacy operátor sa nepoužije", () => {
-  const legacy: Operator = { ...ROMAN, operator_id: "sona", name: "Soňa" };
-  assert.equal(chooseChannel({ ...base(), operators: [] }).channel, "ASYNC");
-  assert.equal(chooseChannel({ ...base(), operators: [legacy] }).channel, "ASYNC");
+test("dobrý lead bez voľného operátora čaká (HOLD), nikdy nejde inému človeku", () => {
+  const inactive: Operator = { ...ROMAN, operator_id: "peter", name: "Peter", status: "INACTIVE" };
+  assert.equal(chooseChannel({ ...base(), operators: [] }).channel, "HOLD");
+  const d = chooseChannel({ ...base(), operators: [inactive] });
+  assert.equal(d.channel, "HOLD");
+  assert.equal(d.operator_id, null);
 });
 
 test("Nekontaktovať alebo žiadny kontakt → HOLD", () => {
@@ -177,7 +183,7 @@ test("ROI: rozsahy a zdroje sa prepíšu do predpokladov, záporné vstupy sú c
 
 test("Call Card v2: konkrétny kontext, žiadne „robíme webstránky“, žiadne zakázané tvrdenia", () => {
   const o = buildOpportunity(lead, "autoservis", profile());
-  const c = opportunityCallCard({ company: { name: "Autoservis Novák", city: "Skalica" }, profile: profile(), opportunity: o, operatorName: "Roman", demoReady: true });
+  const c = opportunityCallCard({ company: { name: "Autoservis Novák", city: "Skalica", category: "autoservis", phone: "+421905123456", website: "https://autoservis-novak.sk" }, profile: profile(), opportunity: o, operatorName: "Roman", demoReady: true });
   assert.match(c.context_pain, /telefonicky/);
   assert.equal(c.demo, "READY");
   assert.ok(c.questions.length >= 2 && c.questions.length <= 3);

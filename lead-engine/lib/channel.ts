@@ -6,6 +6,10 @@
  *
  * DJWeby je async-first: CALL je výnimka, keď platí všetko naraz. Inak ASYNC
  * (demo + správa, ktorú schvaľuje Dominik). Nič sa tu neodosiela, výsledok je iba odporúčanie.
+ *
+ *   HOLD   nekontaktovať, žiadny kontakt, alebo lead je dobrý na hovor, ale nie je voľný operátor
+ *   CALL   všetky kvalitné brány + voľný aktívny operátor (dnes Roman)
+ *   ASYNC  všetko ostatné
  */
 import { canTakeCall, type Operator } from "./operators";
 import { atLeast, PHONE_FIRST_SEGMENTS, type Opportunity } from "./opportunity";
@@ -30,6 +34,10 @@ export type ChannelInput = {
   score_band: "high" | "medium" | "low" | null | undefined;
   opportunity: Opportunity;
   has_phone: boolean;
+  /** Telefón overený z viacerých zdrojov (radar: primary_phone.confidence = high). */
+  phone_verified?: boolean;
+  /** Odbor overený (radar: category.confidence high alebo medium). */
+  category_verified?: boolean;
   has_email: boolean;
   do_not_contact: boolean;
   operators: Operator[];
@@ -46,21 +54,32 @@ export function chooseChannel(i: ChannelInput): ChannelDecision {
   const phoneSegment = PHONE_FIRST_SEGMENTS.includes(categoryOf(i.category).id);
   const operator = i.operators.find((o) => canTakeCall(o, categoryOf(i.category).id, i.assigned_today?.[o.operator_id] ?? 0)) ?? null;
 
-  const rules: Rule[] = [
-    { key: "value", label: "Vysoká hodnota leadu (skóre v pásme high)", passed: i.score_band === "high" },
+  const quality: Rule[] = [
+    {
+      key: "value",
+      label: "Silný lead (príležitosť TOP alebo skóre v pásme high)",
+      passed: i.opportunity.priority === "TOP" || i.score_band === "high",
+    },
     { key: "evidence", label: "Dôkazy aspoň MEDIUM (GOLD alebo SILVER)", passed: atLeast(d.EVIDENCE_QUALITY.level, "MEDIUM") },
+    { key: "active", label: "Firma je aktívna (register, web alebo profil)", passed: atLeast(d.BUSINESS_ACTIVITY.level, "MEDIUM") },
     { key: "fit", label: "Automation fit HIGH", passed: d.AUTOMATION_FIT.level === "HIGH" },
     {
       key: "phone_natural",
       label: phoneSignal ? "Telefón je ich kanál (píšu to na webe)" : "Telefón je v segmente bežný kanál",
       passed: phoneSignal || phoneSegment,
     },
-    { key: "has_phone", label: "Máme telefón", passed: i.has_phone },
-    { key: "operator", label: operator ? `Voľný operátor: ${operator.name}` : "Voľný aktívny operátor pre CALL", passed: !!operator },
+    { key: "phone", label: "Telefón overený (vysoká istota)", passed: i.has_phone && (i.phone_verified ?? true) },
+    { key: "category", label: "Odbor overený", passed: i.category_verified ?? true },
   ];
+  const opRule: Rule = { key: "operator", label: operator ? `Voľný operátor: ${operator.name}` : "Voľný aktívny operátor pre CALL", passed: !!operator };
+  const rules = [...quality, opRule];
 
   if (rules.every((r) => r.passed)) {
     return decision("CALL", null, operator!.operator_id, rules, [`Všetky podmienky hovoru splnené → ${operator!.name}`]);
+  }
+  if (quality.every((r) => r.passed)) {
+    // Dobrý na hovor, ale nikto nemôže volať: nečakáme ho do async, počká na operátora.
+    return decision("HOLD", null, null, rules, ["Lead je dobrý na hovor, ale nie je voľný aktívny operátor"]);
   }
   const via = i.has_email ? "EMAIL" : "SMS";
   const failed = rules.filter((r) => !r.passed).map((r) => `nesplnené: ${r.label}`);

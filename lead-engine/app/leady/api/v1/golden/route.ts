@@ -4,7 +4,7 @@ import { apiAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 /**
- * Golden dataset Lead Radaru — ručne overené reálne firmy (SK/CZ, Soňa/Jozo, web/bez webu, social-first…).
+ * Golden dataset Lead Radaru — ručne overené reálne firmy (SK/CZ, rôzne segmenty, web/bez webu, social-first…).
  * Obsahuje firemné kontakty, preto NIE JE v (verejnom) repozitári, ale v súkromnom úložisku Lead Engine.
  * Používa ho routine/radar_golden.py na meranie presnosti resolvera (identita, web, kategória, telefón).
  */

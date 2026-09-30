@@ -1,7 +1,7 @@
 /**
  * Čistá obchodná logika stavov (bez úložiska) — testovateľná, používa ju lib/leads.ts.
  *
- * Volajúci (opener):  ready_to_call → called (pokus / callback) → dominik_call (SÚHLAS S KONTAKTOM)
+ * Operátor (opener):  ready_to_call → called (pokus / callback / záujem) → dominik_call (DOMINIK FOLLOW-UP = súhlas s kontaktom)
  * Dominik (sales):    dominik_call → contacted → interested → demo → offer_sent → won → paid
  *
  * Súhlas s kontaktom ≠ záujem. Záujem (interested) nastaví iba Dominik po vlastnom hovore.
@@ -29,6 +29,25 @@ const DAY = 86_400_000;
 /** Termín ako ISO: daný kalendárny deň dopoludnia (UTC 08:00 = 9–10 h na Slovensku). */
 export function dayAt(ymd: string): string {
   return new Date(`${ymd}T08:00:00.000Z`).toISOString();
+}
+
+/**
+ * Termín s časom v slovenskom čase (Europe/Bratislava, aj letný čas) ako ISO.
+ * Bez času = dayAt (dopoludnie).
+ */
+export function slotAt(ymd: string, hm: string | null | undefined): string {
+  if (!hm) return dayAt(ymd);
+  const [h, m] = hm.split(":").map(Number);
+  const guess = Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10), h, m);
+  const offset = (t: number) => {
+    const p = Object.fromEntries(
+      new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bratislava", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+        .formatToParts(new Date(t))
+        .map((x) => [x.type, x.value]),
+    );
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - t;
+  };
+  return new Date(guess - offset(guess - offset(guess))).toISOString();
 }
 
 export function ymdPlus(nowIso: string, days: number): string {
@@ -65,9 +84,11 @@ export type ConsentInput = {
 export type CallerInput = {
   outcome: CallerOutcome;
   note: string | null;
-  /** YYYY-MM-DD — povinné pri „Zavolať neskôr“ */
+  /** YYYY-MM-DD, povinné pri „Zavolať neskôr“, voliteľné pri „Má záujem“ */
   callback_on: string | null;
-  /** povinné pri súhlase a „chce informácie“ */
+  /** HH:MM (slovenský čas), voliteľné */
+  callback_time?: string | null;
+  /** povinné pri Dominik follow-up a „Má záujem“ (čo povedal, čo zaujalo, cena) */
   consent: ConsentInput | null;
 };
 
@@ -93,6 +114,11 @@ export function applyCallerOutcome(
   const handoff = HANDOFF_OUTCOMES.includes(input.outcome);
 
   if (handoff && !input.consent) throw new WorkflowError("Chýba zápis súhlasu.");
+  if (input.outcome === "interested" && !input.consent) throw new WorkflowError("Zapíš, čo firmu zaujalo.");
+  if (input.callback_time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.callback_time)) throw new WorkflowError("Čas zadaj ako HH:MM.");
+  if (input.outcome === "interested" && input.callback_on && input.callback_on < nowIso.slice(0, 10)) {
+    throw new WorkflowError("Dátum callbacku je v minulosti.");
+  }
   if (input.outcome === "call_later") {
     if (!input.callback_on || !/^\d{4}-\d{2}-\d{2}$/.test(input.callback_on)) {
       throw new WorkflowError("Vyber dátum, kedy zavolať.");
@@ -150,8 +176,22 @@ export function applyCallerOutcome(
       closed = true;
       break;
     case "call_later":
-      set("called", "callback", dayAt(input.callback_on!));
+      set("called", "callback", slotAt(input.callback_on!, input.callback_time));
       break;
+    case "interested": {
+      // Záujem bez súhlasu, aby sa ozval Dominik: ostáva operátorovi na ďalší hovor.
+      const c = input.consent!;
+      leadPatch.interest = {
+        at: nowIso,
+        by_user: user.username,
+        company_said: c.company_said,
+        caught_attention: c.caught_attention,
+        heard_price: c.heard_price,
+        note: input.note,
+      };
+      set("called", "callback", input.callback_on ? slotAt(input.callback_on, input.callback_time) : dayAt(ymdPlus(nowIso, 2)));
+      break;
+    }
     case "do_not_call":
       set("do_not_call", null, null);
       companyPatch = { do_not_call: true, updated_at: nowIso };
@@ -170,12 +210,13 @@ export function applyCallerOutcome(
         caught_attention: c.caught_attention,
         heard_price: c.heard_price,
         call_on: c.call_on,
-        call_note: c.call_note,
+        // čas bez dátumu sa nesmie stratiť: pripíše sa k poznámke
+        call_note: !c.call_on && input.callback_time ? [c.call_note, `o ${input.callback_time}`].filter(Boolean).join(", ") : c.call_note,
         email: c.email,
         note: input.note,
       };
       leadPatch.consent = consent;
-      set("dominik_call", "dominik_call", c.call_on ? dayAt(c.call_on) : nowIso);
+      set("dominik_call", "dominik_call", c.call_on ? slotAt(c.call_on, input.callback_time) : nowIso);
       if (c.contact_person) companyPatch = { contact_person: c.contact_person, updated_at: nowIso };
       break;
     }

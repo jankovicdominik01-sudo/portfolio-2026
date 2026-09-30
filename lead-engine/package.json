@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "test": "node --import tsx --test tests/*.test.ts && python3 -m unittest discover -s routine -p \"test_*.py\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "hash-password": "tsx scripts/hash-password.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

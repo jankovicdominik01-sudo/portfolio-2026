@@ -7,7 +7,7 @@ import { ResearchedItemSchema, ingestResearched, type ResearchedResult } from "@
 import { morningStatus, saveRadarRun } from "@/lib/leads";
 
 /**
- * GET: čo má ranná rutina dnes doplniť — PER VOLAJÚCI (Soňa aj Jozo majú vlastnú frontu a vlastné segmenty),
+ * GET: čo má ranná rutina dnes doplniť, PER OPERÁTOR (každý aktívny CALL operátor má vlastnú frontu),
  * routing kategória → volajúci, nedávne discovery dopyty (aby sa lokality neopakovali) a leady na preverenie.
  * Staré polia (caller / fresh / target / need) ostávajú pre spätnú kompatibilitu = prvý volajúci.
  */
@@ -23,7 +23,7 @@ export const maxDuration = 300;
 
 /**
  * Ranná rutina. Volá ju naplánovaný agent s Bearer kľúčom.
- *  - `researched`: firmy, ktoré agent už preskúmal (fakty so zdrojmi + scenár pre Joza),
+ *  - `researched`: firmy, ktoré agent už preskúmal (fakty so zdrojmi + podklady pre operátora),
  *    alebo preveril a vyradil (`reject`) — tie sa uložia ako vyradené, aby sa zajtra neopakovali.
  *  - `candidates`: surové firmy na analýzu priamo v appke.
  */
