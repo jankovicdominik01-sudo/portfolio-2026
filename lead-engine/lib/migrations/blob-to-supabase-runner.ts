@@ -25,6 +25,13 @@ type Options = {
   supabase?: { url: string; key: string; migrationToken?: string };
 };
 
+export async function blobStorageFingerprint(): Promise<string | null> {
+  const token = blobToken();
+  if (!token) return null;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Buffer.from(digest).toString("hex");
+}
+
 async function readText(pathname: string): Promise<string | null> {
   const res = await get(pathname, { access: "private", useCache: false, token: blobToken() });
   if (!res || res.statusCode !== 200) return null;
