@@ -1,5 +1,5 @@
 import { get, head } from "@vercel/blob";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { blobToken } from "../db/blob-token";
 import { normalizeState, type DbState } from "../db/types";
 import {
@@ -13,7 +13,7 @@ import {
 
 const BATCH = 200;
 const PATH = process.env.LEAD_ENGINE_BLOB_PATH || "lead-engine/db-v2.json";
-const SNAP = PATH.replace(/\\.json$/, "") + "-snap/";
+const SNAP = PATH.replace(/\.json$/, "") + "-snap/";
 
 function snapPath(etag: string) {
   return SNAP + etag.replace(/[^a-zA-Z0-9]/g, "") + ".json";
@@ -49,20 +49,20 @@ function supabaseEnv() {
   return { url, key };
 }
 
-async function tableCount(sb: ReturnType<typeof createClient>, table: MigrationTable): Promise<number> {
+async function tableCount(sb: SupabaseClient, table: MigrationTable): Promise<number> {
   const result = await sb.from(table).select("*", { count: "exact", head: true });
   if (result.error) throw new Error("Supabase " + table + ": " + result.error.message);
   return result.count ?? 0;
 }
 
-async function destinationCounts(sb: ReturnType<typeof createClient>) {
+async function destinationCounts(sb: SupabaseClient) {
   const entries = await Promise.all(
     SUPABASE_TABLE_ORDER.map(async (table) => [table, await tableCount(sb, table)] as const),
   );
   return Object.fromEntries(entries) as Record<MigrationTable, number>;
 }
 
-async function schemaPreflight(sb: ReturnType<typeof createClient>) {
+async function schemaPreflight(sb: SupabaseClient) {
   const result = await sb.from("leads").select("id,interest,opportunity,channel_decision,demo,ads_check").limit(1);
   if (result.error) {
     throw new Error("Supabase schéma nie je aktuálna. Aplikuj migrácie 0001 až 0004. Detail: " + result.error.message);
@@ -70,7 +70,7 @@ async function schemaPreflight(sb: ReturnType<typeof createClient>) {
 }
 
 async function upsertBatches(
-  sb: ReturnType<typeof createClient>,
+  sb: SupabaseClient,
   table: MigrationTable,
   rows: Record<string, unknown>[],
 ) {
@@ -82,7 +82,7 @@ async function upsertBatches(
 }
 
 async function verifyIds(
-  sb: ReturnType<typeof createClient>,
+  sb: SupabaseClient,
   table: MigrationTable,
   ids: string[],
 ): Promise<{ expected: number; found: number; missing: string[] }> {
