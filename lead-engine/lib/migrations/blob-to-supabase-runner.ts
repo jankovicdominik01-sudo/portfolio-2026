@@ -19,7 +19,11 @@ function snapPath(etag: string) {
   return SNAP + etag.replace(/[^a-zA-Z0-9]/g, "") + ".json";
 }
 
-type Options = { apply: boolean; allowNonEmpty?: boolean };
+type Options = {
+  apply: boolean;
+  allowNonEmpty?: boolean;
+  supabase?: { url: string; key: string; migrationToken?: string };
+};
 
 async function readText(pathname: string): Promise<string | null> {
   const res = await get(pathname, { access: "private", useCache: false, token: blobToken() });
@@ -42,11 +46,12 @@ export async function readBlobStateForMigration(): Promise<{ state: DbState; eta
   return { state: normalizeState(parsed), etag: meta.etag };
 }
 
-function supabaseEnv() {
+function supabaseEnv(options: Options) {
+  if (options.supabase?.url && options.supabase?.key) return options.supabase;
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Chýba SUPABASE_URL alebo SUPABASE_SERVICE_ROLE_KEY.");
-  return { url, key };
+  return { url, key, migrationToken: undefined };
 }
 
 async function tableCount(sb: SupabaseClient, table: MigrationTable): Promise<number> {
@@ -103,8 +108,13 @@ export async function runBlobToSupabaseMigration(options: Options) {
   const sourceBlob = await readBlobStateForMigration();
   const rows = stateToSupabaseRows(sourceBlob.state);
   const source = migrationCounts(rows);
-  const env = supabaseEnv();
-  const sb = createClient(env.url, env.key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const env = supabaseEnv(options);
+  const sb = createClient(env.url, env.key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    ...(env.migrationToken
+      ? { global: { headers: { "x-migration-token": env.migrationToken } } }
+      : {}),
+  });
 
   await schemaPreflight(sb);
   const before = await destinationCounts(sb);
