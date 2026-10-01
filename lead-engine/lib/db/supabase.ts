@@ -5,8 +5,8 @@ import { defaultSettings, type CallLog, type Commission, type Company, type Lead
 
 /** Produkčné úložisko. Schéma: supabase/migrations/0001_lead_engine.sql */
 export function supabaseRepository(url: string, serviceKey: string): Repository {
-  const cleanUrl = url.replace(/\\s+/g, "");
-  const cleanServiceKey = serviceKey.replace(/\\s+/g, "");
+  const cleanUrl = url.replace(/\s+/g, "");
+  const cleanServiceKey = serviceKey.replace(/\s+/g, "");
   const sb: SupabaseClient = createClient(cleanUrl, cleanServiceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
