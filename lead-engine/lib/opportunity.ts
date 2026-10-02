@@ -85,6 +85,13 @@ export const PHONE_FIRST_SEGMENTS: readonly string[] = [
   "autoservis", "pneuservis", "vodoinstalater", "elektrikar", "kurenie", "kominarstvo", "strechy", "stavebnictvo", "murari",
 ];
 
+/**
+ * Segmenty, kde je telefonát majiteľovi lokálnej firmy bežný a prijateľný (remeslá, služby, beauty).
+ * Mimo sú segmenty, kde sa rieši skôr písomne alebo cez sprostredkovateľov.
+ */
+const CALL_UNSUITABLE: readonly string[] = ["reality", "developer", "architekt", "ine"];
+export const callSuitable = (category: string) => !CALL_UNSUITABLE.includes(categoryOf(category).id);
+
 const PAIN_KEYS = ["phone_ordering", "messenger_cta", "photos_by_message"];
 
 /* ─────────── Reklama ─────────── */

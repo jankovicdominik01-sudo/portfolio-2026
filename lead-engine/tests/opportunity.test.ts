@@ -249,3 +249,14 @@ test("guard chytí agentúrny tón, pomlčky, pochvalu bez evidence aj „nemát
     assert.ok(issues.some((i) => re.test(i)), String(re));
   }
 });
+
+test("remeselník so slabým webom bez ručného procesu na webe ide na hovor; reality nie", () => {
+  const p = profile({ process_signals: [{ key: "booking_tool", level: "OBSERVED", text: "Na webe je online rezervácia", excerpt: "x", source: "x" }] });
+  const weak = { website_status: "weak" as const, data_quality: "gold" as const, ads_check: null };
+  const o = buildOpportunity(weak, "stolarstvo", p);
+  const d = chooseChannel({ ...base(), category: "stolarstvo", opportunity: o });
+  assert.equal(d.channel, "CALL");
+  const r = chooseChannel({ ...base(), category: "reality", opportunity: buildOpportunity(weak, "reality", p) });
+  assert.notEqual(r.channel, "CALL");
+  assert.ok(r.rules.some((x) => x.key === "phone_natural" && !x.passed));
+});
