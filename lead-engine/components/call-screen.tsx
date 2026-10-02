@@ -548,6 +548,23 @@ function OpportunityPanel({ c }: { c: OpportunityCallCard }) {
         ) : null}
       </Box>
 
+      <Box label={c.call_reason.type === "PROCESS" ? "Dôvod A: videný ručný proces" : c.call_reason.type === "WEB_SYSTEM" ? "Dôvod B: web / systém, proces nepoznáme" : "Dôvod hovoru"}>
+        {c.known.length ? (
+          <ul className="space-y-1 text-[14px] text-white/80">
+            {c.known.map((k) => (
+              <li key={k}>✓ {k}</li>
+            ))}
+          </ul>
+        ) : null}
+        {c.unknown.length ? (
+          <ul className="mt-2 space-y-1 text-[14px] text-yellow-100/85">
+            {c.unknown.map((k) => (
+              <li key={k}>? {k}</li>
+            ))}
+          </ul>
+        ) : null}
+      </Box>
+
       {c.facts.length ? (
         <Box label="Čo sme našli">
           <ul className="space-y-3">

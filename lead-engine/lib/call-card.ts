@@ -19,6 +19,11 @@ export type CallFact = { level: EvidenceLevel; text: string; excerpt: string | n
 export type OpportunityCallCard = {
   version: 3;
   company: { name: string; segment: string; city: string | null; phone: string | null; website: string | null };
+  /** A = PROCESS (videný ručný proces), B = WEB_SYSTEM (medzera webu, proces UNKNOWN). */
+  call_reason: { type: "PROCESS" | "WEB_SYSTEM" | "NONE"; label: string };
+  /** Čo vieme (s úrovňou dôkazu) a čo treba v hovore zistiť. */
+  known: string[];
+  unknown: string[];
   /** 1 až 3 vety. */
   why: string[];
   /** Max. 3 najsilnejšie fakty s úrovňou dôkazu. */
@@ -126,6 +131,9 @@ export function opportunityCallCard(opts: {
       phone: company.phone,
       website: webConfirmed ? (profile?.website?.url ?? company.website ?? null) : null,
     },
+    call_reason: { type: o.call_reason.type, label: o.call_reason.label },
+    known: o.call_reason.known.slice(0, 4),
+    unknown: o.call_reason.unknown,
     why: o.why_lines.length ? o.why_lines.map((l) => l.text) : ["Silný dôvod sme nenašli. Iba sa pýtaj, ako to dnes riešia."],
     facts,
     system_idea: sys?.label || null,
@@ -145,7 +153,7 @@ export function opportunityCallCard(opts: {
       "Keď nechcú, poďakuj a skonči. „Nevolať“ zapíš hneď.",
     ],
   };
-  const bad = forbiddenClaims([card.opening, card.next_step.ask, ...card.questions, ...card.why]);
+  const bad = forbiddenClaims([card.opening, card.next_step.ask, ...card.questions, ...card.why, ...card.known]);
   if (bad.length) throw new Error(`Call Card v3 obsahuje zakázané tvrdenia: ${bad.join(", ")}`);
   return card;
 }

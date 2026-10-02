@@ -134,6 +134,9 @@ export function collectEvidence(
       confidence: "high",
     });
   }
+  if (lead.website_status === "broken" && !ev.some((e) => e.kind === "web")) {
+    add({ kind: "web", code: "web:broken", level: "VERIFIED", text: "Web nefunguje (kontrola radaru)", excerpt: webUrl ?? "", source: webUrl, observed_at: webAt, confidence: "high" });
+  }
   if (lead.website_status === "no_website") {
     add({ kind: "web", code: "web:not_found", level: "OBSERVED", text: "Vlastný web sme nenašli (ani vyhľadávaním)", excerpt: (profile?.web_search_queries ?? []).slice(0, 2).join(" · ") || "vyhľadávanie", source: null, observed_at: webAt, confidence: "medium" });
   }
@@ -205,7 +208,7 @@ export const PAIN_LABEL: Record<PainCode, string> = {
   SOCIAL_WEB_GAP: "Realizácie sú hlavne na sociálnych sieťach, nie na webe",
   MANUAL_MEASUREMENT_COORDINATION: "Zameranie alebo obhliadka sa koordinuje ručne",
   NO_AUTOMATED_REMINDERS: "Termíny sa nepripomínajú automaticky",
-  WEAK_MOBILE_INTAKE: "Na mobile sa zákazník ťažšie ozve",
+  WEAK_MOBILE_INTAKE: "Formulár na dopyt sa na mobile ťažko vypĺňa",
   ADS_TO_WEAK_PAGE: "Riziko: návštevnosť z reklamy končí na stránke bez jasného dopytu",
 };
 
@@ -280,13 +283,51 @@ export function derivePains(evidence: OppEvidence[], template: SegmentTemplate |
   push("SOCIAL_WEB_GAP", [sig("SOCIAL_REALIZATIONS"), by("social:SOCIAL_WEB_GAP"), by("social:SOCIAL_FIRST_BUSINESS"), by("web:no_portfolio") && (by("social:SOCIAL_WEB_GAP") || sig("SOCIAL_REALIZATIONS")) ? by("web:no_portfolio") : null]);
   const booking = pains.find((p) => p.code === "MANUAL_BOOKING" && p.strength === "strong");
   if (booking) push("NO_AUTOMATED_REMINDERS", booking.evidence_ids.map((id) => evidence.find((e) => e.id === id) ?? null), true);
-  push("WEAK_MOBILE_INTAKE", [by("web:no_tel_link"), by("web:no_viewport"), by("web:frames")]);
+  // Slabý príjem dopytu na mobile = formulár na dopyt je na webe, ale web nie je prispôsobený mobilu.
+  // Chýbajúci tel: odkaz alebo https samy nie sú pain procesu, sú to medzery webu (deriveWebGaps).
+  const mobileBroken = [by("web:no_viewport"), by("web:frames")].filter(Boolean);
+  if (mobileBroken.length && sig("GENERIC_CONTACT_FORM")) push("WEAK_MOBILE_INTAKE", [...mobileBroken, sig("GENERIC_CONTACT_FORM")]);
   const ads = by("ads:active") ?? by("ads:tag");
   if (ads && (by("NO_FORM_FOUND") || by("web:no_cta") || webHasVerifiedIssue(evidence))) push("ADS_TO_WEAK_PAGE", [ads, by("NO_FORM_FOUND") ?? by("web:no_cta")]);
   return pains;
 }
 
 const webHasVerifiedIssue = (ev: OppEvidence[]) => ev.some((e) => e.kind === "web" && e.level === "VERIFIED");
+
+/* ─────────── Medzery webu (nie business pain) ─────────── */
+
+/**
+ * Objektívne problémy webu oddelené od painov procesu. Hovoria, čo je zle na webe,
+ * nie ako firma vybavuje zákazníka. Z nich sa nikdy neodvodzuje ručný proces.
+ */
+export const WEB_GAP_CODES = ["MOBILE_CONTACT_FRICTION", "TRUST_SECURITY_GAP", "BROKEN_WEBSITE", "NO_WEBSITE_FOUND", "CONTENT_GAP"] as const;
+export type WebGapCode = (typeof WEB_GAP_CODES)[number];
+export const WEB_GAP_LABEL: Record<WebGapCode, string> = {
+  MOBILE_CONTACT_FRICTION: "Kontakt z mobilu je ťažší (telefón sa nedá ťuknúť alebo web nie je pre mobil)",
+  TRUST_SECURITY_GAP: "Web nie je zabezpečený (prehliadač píše „Nezabezpečené“)",
+  BROKEN_WEBSITE: "Web nefunguje alebo ukazuje chybu",
+  NO_WEBSITE_FOUND: "Vlastný web sme nenašli",
+  CONTENT_GAP: "Na webe chýba obsah (realizácie, telefón alebo text)",
+};
+const WEB_GAP_SOURCES: Record<WebGapCode, string[]> = {
+  MOBILE_CONTACT_FRICTION: ["web:no_tel_link", "web:no_viewport", "web:frames"],
+  TRUST_SECURITY_GAP: ["web:no_https", "web:bad_cert"],
+  BROKEN_WEBSITE: ["web:broken", "web:db_error", "web:php_error", "web:construction"],
+  NO_WEBSITE_FOUND: ["web:not_found"],
+  CONTENT_GAP: ["web:no_portfolio", "web:phone_missing", "web:empty"],
+};
+export type WebGap = { code: WebGapCode; label: string; level: EvidenceLevel; evidence_ids: string[] };
+
+export function deriveWebGaps(evidence: OppEvidence[]): WebGap[] {
+  const out: WebGap[] = [];
+  for (const code of WEB_GAP_CODES) {
+    const ev = evidence.filter((e) => WEB_GAP_SOURCES[code].includes(e.code));
+    if (!ev.length) continue;
+    // jeden dôkaz = jeho presný text (napr. „Telefón sa na mobile nedá ťuknúť“), inak všeobecný popis
+    out.push({ code, label: ev.length === 1 ? ev[0].text : WEB_GAP_LABEL[code], level: ev.every((e) => e.level === "VERIFIED") ? "VERIFIED" : "OBSERVED", evidence_ids: ev.map((e) => e.id) });
+  }
+  return out;
+}
 
 /* ─────────── Process Reconstruction ─────────── */
 

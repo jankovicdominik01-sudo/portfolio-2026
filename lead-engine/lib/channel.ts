@@ -58,6 +58,7 @@ export function chooseChannel(i: ChannelInput): ChannelDecision {
   const phoneSignal = i.opportunity.observed.some((s) => PHONE_CODES.includes(s.key));
   const pains = (i.opportunity.pains ?? []).filter((p) => !p.hypothesis);
   const sys = i.opportunity.recommended_system;
+  const reason = i.opportunity.call_reason;
   const phoneSegment = callSuitable(i.category);
   const operator = i.operators.find((o) => canTakeCall(o, categoryOf(i.category).id, i.assigned_today?.[o.operator_id] ?? 0)) ?? null;
 
@@ -71,8 +72,8 @@ export function chooseChannel(i: ChannelInput): ChannelDecision {
     { key: "active", label: "Firma je aktívna (register, web alebo profil)", passed: atLeast(d.BUSINESS_ACTIVITY.level, "MEDIUM") },
     {
       key: "fit",
-      label: "Je čo riešiť: videný ručný proces alebo overené medzery webu",
-      passed: pains.length > 0 || atLeast(d.VISUAL_GAP.level, "MEDIUM"),
+      label: reason ? `Dôvod hovoru: ${reason.label}` : "Je čo riešiť: videný ručný proces alebo overené medzery webu",
+      passed: reason ? reason.type !== "NONE" : pains.length > 0 || atLeast(d.VISUAL_GAP.level, "MEDIUM"),
     },
     {
       key: "why",

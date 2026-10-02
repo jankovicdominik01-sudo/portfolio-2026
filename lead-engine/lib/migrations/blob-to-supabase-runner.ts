@@ -1,5 +1,6 @@
 import { get, head } from "@vercel/blob";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { assertWritable } from "../db/guard";
 import { blobToken } from "../db/blob-token";
 import { normalizeState, type DbState } from "../db/types";
 import {
@@ -115,6 +116,7 @@ export async function runBlobToSupabaseMigration(options: Options) {
   const sourceBlob = await readBlobStateForMigration();
   const rows = stateToSupabaseRows(sourceBlob.state);
   const source = migrationCounts(rows);
+  assertWritable("migrácia Blob → Supabase");
   const env = supabaseEnv(options);
   const sb = createClient(env.url, env.key, {
     auth: { persistSession: false, autoRefreshToken: false },

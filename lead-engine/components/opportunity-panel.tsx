@@ -124,8 +124,36 @@ export function OpportunityPanel(p: OpportunityPanelProps) {
         )}
       </div>
 
+      <p className={cn("mt-3 inline-flex rounded-full px-3 py-1 text-[12px] ring-1 ring-inset", o.call_reason?.type === "PROCESS" ? "bg-green-400/10 text-green-200 ring-green-400/30" : o.call_reason?.type === "WEB_SYSTEM" ? "bg-sky-400/10 text-sky-100 ring-sky-400/30" : "text-white/50 ring-line")}>
+        {o.call_reason?.label ?? "Dôvod hovoru neurčený"}
+      </p>
+      {o.call_reason?.unknown.length ? (
+        <ul className="mt-2 space-y-0.5 text-[13px] text-yellow-100/80">
+          {o.call_reason.unknown.map((u) => (
+            <li key={u}>? {u}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      {o.web_gaps?.length ? (
+        <>
+          <Eyebrow className="mt-6">Medzery webu (nie ručný proces)</Eyebrow>
+          <ul className="mt-2 space-y-2">
+            {o.web_gaps.map((g) => (
+              <li key={g.code} className="flex items-start gap-2">
+                <Badge level={g.level} />
+                <span className="text-[15px] text-white/85">
+                  {g.label}
+                  <Ref ids={g.evidence_ids} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
       {/* WHAT WE OBSERVED */}
-      <Eyebrow className="mt-6">Čo sme videli</Eyebrow>
+      <Eyebrow className="mt-6">Ručný proces: čo sme videli</Eyebrow>
       {o.pains.length ? (
         <ul className="mt-2 space-y-2">
           {o.pains.map((pain) => (
@@ -140,7 +168,7 @@ export function OpportunityPanel(p: OpportunityPanelProps) {
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-[14px] text-white/50">Konkrétny ručný proces sme na webe nevideli.</p>
+        <p className="mt-2 flex items-center gap-2 text-[14px] text-white/50"><Badge level="UNKNOWN" /> Konkrétny ručný proces sme na webe nevideli.</p>
       )}
 
       {/* LIKELY MANUAL PROCESS */}

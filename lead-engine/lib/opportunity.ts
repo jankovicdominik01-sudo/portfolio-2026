@@ -14,6 +14,7 @@
 import { categoryOf, type Lead, type RadarProfile } from "./types";
 import {
   collectEvidence,
+  deriveWebGaps,
   derivePains,
   PAIN_MODULES,
   PROCESS_PAINS,
@@ -24,6 +25,7 @@ import {
   type Pain,
   type PainCode,
   type ProcessModel,
+  type WebGap,
 } from "./process";
 import { MODULES, relevantServices, SEGMENT_TEMPLATE_VERSION, segmentFor, type ModuleId, type SegmentId, type SegmentTemplate } from "./segments";
 import { buildMoneyLeak, MONEY_LEAK_VERSION, type LeakLine, type MoneyLeakCard } from "./money-leak";
@@ -70,6 +72,27 @@ export type OpportunityRun = {
   errors: string[];
 };
 
+/**
+ * Prečo volať. Dva odlišné dôvody, ktoré sa nesmú zamieňať:
+ *  PROCESS     videli sme ručný proces (pain z textu / štruktúry webu)
+ *  WEB_SYSTEM  objektívna medzera webu + aktívna firma + segment; ručný proces je UNKNOWN
+ *  NONE        dôvod nemáme
+ */
+export type CallReason = {
+  type: "PROCESS" | "WEB_SYSTEM" | "NONE";
+  label: string;
+  /** Čo vieme (s dôkazom). */
+  known: string[];
+  /** Čo ešte nevieme a treba zistiť v hovore. */
+  unknown: string[];
+};
+
+export const CALL_REASON_LABEL: Record<CallReason["type"], string> = {
+  PROCESS: "PROCESS OPPORTUNITY: videný ručný proces",
+  WEB_SYSTEM: "WEB / SYSTEM OPPORTUNITY: overená medzera webu, ručný proces zatiaľ UNKNOWN",
+  NONE: "Dôvod hovoru nemáme",
+};
+
 export type Opportunity = {
   version: 2;
   versions: { opportunity_engine: string; segment_template: string; money_leak: string; process_signals: string };
@@ -79,6 +102,9 @@ export type Opportunity = {
   evidence: OppEvidence[];
   process_model: ProcessModel;
   pains: Pain[];
+  /** Objektívne medzery webu (nie pain procesu). */
+  web_gaps: WebGap[];
+  call_reason: CallReason;
   dimensions: Record<Dimension, DimensionValue>;
   ads: { status: AdsStatus; spend: "UNKNOWN"; source: string | null; note: string };
   recommended_system: RecommendedSystem | null;
@@ -162,6 +188,7 @@ export function buildOpportunity(
   const evidence = collectEvidence(lead, profile);
   const ids = (pred: (e: OppEvidence) => boolean) => evidence.filter(pred).map((e) => e.id);
   const pains = derivePains(evidence, template);
+  const webGaps = deriveWebGaps(evidence);
   const process = reconstructProcess(evidence);
   const signals = evidence.filter((e) => e.kind === "signal");
   const dims = {} as Opportunity["dimensions"];
@@ -250,7 +277,10 @@ export function buildOpportunity(
   const R = (d: Dimension) => RANK[dims[d].level];
   const rank = R("PROCESS_PAIN") * 3 + R("AUTOMATION_FIT") * 2 + R("BUSINESS_ACTIVITY") * 2 + R("EVIDENCE_QUALITY") * 2 + R("VISUAL_GAP") + R("DEMO_POTENTIAL") + Math.min(1, R("AD_SPEND_SIGNAL"));
 
-  const why = whyLines({ template, pains, dims, system, evidence });
+  const reason = callReason({ proc, pains, webGaps, dims, system });
+  // B (web / systém) je v poradí pod A (proces), ak je inak podobne
+  const rankWithReason = rank + (reason.type === "PROCESS" ? 3 : 0);
+  const why = whyLines({ template, pains, dims, system, evidence, webGaps });
   const lines = leakLines(ads, evidence, ws, profile);
   const moneyLeak = buildMoneyLeak({
     template,
@@ -270,6 +300,8 @@ export function buildOpportunity(
     evidence,
     process_model: process,
     pains,
+    web_gaps: webGaps,
+    call_reason: reason,
     dimensions: dims,
     ads,
     recommended_system: system,
@@ -278,7 +310,7 @@ export function buildOpportunity(
     money_leak: moneyLeak,
     hypotheses: pains.map((p) => ({ code: p.code, text: p.label, evidence_ids: p.evidence_ids })),
     priority,
-    rank,
+    rank: rankWithReason,
     observed: signals
       .filter((s) => s.level === "OBSERVED" || s.level === "VERIFIED")
       .map((s) => ({ key: s.code, text: s.text, excerpt: s.excerpt, source: s.source ?? "", level: s.level })),
@@ -294,6 +326,45 @@ export function buildOpportunity(
       errors: [],
     },
   };
+}
+
+/* ─────────── Dôvod hovoru ─────────── */
+
+/** Painy, ktoré nie sú ručný proces (marketing / web), hovoria o dôvode B, nie A. */
+const NON_PROCESS_PAINS: PainCode[] = ["SOCIAL_WEB_GAP", "ADS_TO_WEAK_PAGE", "WEAK_MOBILE_INTAKE"];
+
+export function callReason(o: {
+  proc: Pain[];
+  pains: Pain[];
+  webGaps: WebGap[];
+  dims: Opportunity["dimensions"];
+  system: RecommendedSystem | null;
+}): CallReason {
+  const sys = o.system ? `${o.system.label}${o.system.basis === "segment" ? ", hypotéza segmentu" : ""}` : null;
+  if (o.proc.length) {
+    return {
+      type: "PROCESS",
+      label: CALL_REASON_LABEL.PROCESS,
+      known: o.proc.map((p) => `${p.level}: ${p.label}`),
+      unknown: ["Koľko dopytov týždenne: UNKNOWN", "Či ich ručný proces naozaj zdržiava: potvrdiť v hovore"],
+    };
+  }
+  const gaps = o.webGaps.filter((g) => g.level === "VERIFIED" || g.code === "NO_WEBSITE_FOUND");
+  const other = o.pains.filter((p) => !p.hypothesis && NON_PROCESS_PAINS.includes(p.code));
+  if (gaps.length || other.length || atLeast(o.dims.VISUAL_GAP.level, "MEDIUM")) {
+    return {
+      type: "WEB_SYSTEM",
+      label: CALL_REASON_LABEL.WEB_SYSTEM,
+      known: [
+        ...gaps.map((g) => `${g.level}: ${g.label}`),
+        ...other.map((p) => `${p.level}: ${p.label}`),
+        ...(atLeast(o.dims.BUSINESS_ACTIVITY.level, "MEDIUM") ? [`Aktivita firmy: ${o.dims.BUSINESS_ACTIVITY.level}`] : []),
+        ...(sys ? [`Fit na systém: ${o.dims.AUTOMATION_FIT.level} (${sys})`] : []),
+      ],
+      unknown: ["Ručný proces: UNKNOWN. Zisti, ako k nim dnes chodia dopyty a čo musia od zákazníka zisťovať.", "Koľko dopytov týždenne: UNKNOWN"],
+    };
+  }
+  return { type: "NONE", label: CALL_REASON_LABEL.NONE, known: [], unknown: ["Ručný proces: UNKNOWN", "Overená medzera webu: žiadna"] };
 }
 
 /* ─────────── Recommended System ─────────── */
@@ -359,6 +430,7 @@ export function whyLines(o: {
   dims: Opportunity["dimensions"];
   system: RecommendedSystem | null;
   evidence: OppEvidence[];
+  webGaps?: WebGap[];
 }): { text: string; evidence_ids: string[] }[] {
   const out: { text: string; evidence_ids: string[] }[] = [];
   const seg = o.template ? o.template.label.toLowerCase() : null;
@@ -371,19 +443,26 @@ export function whyLines(o: {
   const top = (strong.length ? strong : seen).slice(0, 2);
   // Dve vety o paine iba vtedy, keď prvá nie je o aktivite (max. 3 vety spolu).
   for (const p of top.slice(0, out.length ? 1 : 2)) out.push({ text: PAIN_SENTENCE[p.code] ?? `${p.label}.`, evidence_ids: p.evidence_ids });
-  if (!top.length && atLeast(o.dims.VISUAL_GAP.level, "MEDIUM")) {
+  const gaps = (o.webGaps ?? []).filter((g) => g.code !== "CONTENT_GAP");
+  if (!top.length && gaps.length) {
+    const list = gaps.slice(0, 2).map((g) => g.label.replace(/ \(.*\)$/, "").toLowerCase());
+    out.push({ text: `Web má overené medzery: ${list.join(", ")}.`, evidence_ids: gaps.flatMap((g) => g.evidence_ids) });
+  } else if (!top.length && atLeast(o.dims.VISUAL_GAP.level, "MEDIUM")) {
     const v = o.dims.VISUAL_GAP;
-    out.push({ text: v.evidence_ids.length ? `Web má overené medzery: ${v.reason.replace(/[.\s]+$/, "")}.` : `${v.reason.replace(/[.\s]+$/, "")}.`, evidence_ids: v.evidence_ids });
+    out.push({ text: `${v.reason.replace(/[.\s]+$/, "")}.`, evidence_ids: v.evidence_ids });
   }
   const s = o.system;
-  if (s && (top.length || atLeast(o.dims.VISUAL_GAP.level, "MEDIUM"))) {
+  if (s && top.length) {
     const text =
       s.primary_modules[0] === "smart_inquiry" && o.template
         ? `Príležitosť nie je iba nový web: Smart Inquiry by zbieral ${o.template.inquiry_phrase} ešte pred telefonátom${s.basis === "segment" ? " (hypotéza, potvrdiť v hovore)" : ""}.`
         : `Príležitosť: ${s.label}${s.basis === "segment" ? " (hypotéza, potvrdiť v hovore)" : ""}.`;
     out.push({ text, evidence_ids: s.evidence_ids });
+  } else if (s && (gaps.length || atLeast(o.dims.VISUAL_GAP.level, "MEDIUM"))) {
+    // Bez videného ručného procesu netvrdíme pain: systém je iba hypotéza segmentu.
+    out.push({ text: `Ručný proces zatiaľ nepoznáme. ${s.label} je hypotéza pre segment, over ju v hovore.`, evidence_ids: s.evidence_ids });
   }
-  if (!top.length && !atLeast(o.dims.VISUAL_GAP.level, "MEDIUM")) return [];
+  if (!top.length && !gaps.length && !atLeast(o.dims.VISUAL_GAP.level, "MEDIUM")) return [];
   return out.slice(0, 3);
 }
 

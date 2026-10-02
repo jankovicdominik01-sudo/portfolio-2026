@@ -6,7 +6,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildOpportunity, opportunityState, readyOpportunity, analyzeOpportunity, type Opportunity } from "../lib/opportunity";
-import { collectEvidence, derivePains, normalizeSignals, PAIN_CODES, PROCESS_SIGNAL_CODES, reconstructProcess } from "../lib/process";
+import { collectEvidence, derivePains, deriveWebGaps, normalizeSignals, PAIN_CODES, PROCESS_SIGNAL_CODES, reconstructProcess } from "../lib/process";
+import { assertWritable, readOnlyRepository, ReadOnlyEnvironmentError, writesAllowed } from "../lib/db/guard";
+import type { Repository } from "../lib/db/types";
 import { MODULES, PIPELINE_STATES, relevantServices, SEGMENT_TEMPLATES, segmentFor } from "../lib/segments";
 import { leakWithVolume } from "../lib/money-leak";
 import { buildDemoPayload, DEMO_NOINDEX_HEADER, DEMO_ROBOTS, DemoError, publicDemoView } from "../lib/demo-templates";
@@ -335,59 +337,108 @@ const PANENKA = JSON.parse(readFileSync(new URL("./fixtures/panenka.json", impor
   profile: RadarProfile;
 };
 
-test("PANENKA: segment podlahy, painy iba z uloženej evidence, nič vymyslené", () => {
+test("PANENKA: medzery webu sú VERIFIED, ručný proces UNKNOWN, žiadny vymyslený pain", () => {
   const o = opp(PANENKA.company.category, PANENKA.profile, PANENKA.lead);
   assert.equal(o.segment, "FLOORING_TRADES");
   // Uložené sú iba overené problémy webu (bez https, bez tel: odkazu). Procesné signály nie sú.
-  assert.deepEqual(o.pains.map((p) => p.code), ["WEAK_MOBILE_INTAKE"]);
-  assert.equal(o.pains[0].level, "VERIFIED");
-  for (const fake of ["GENERIC_INQUIRY", "MANUAL_FIRST_INTAKE", "PHOTOS_VIA_MESSENGER", "SOCIAL_WEB_GAP"]) {
-    assert.ok(!o.pains.some((p) => p.code === fake), `${fake} nemá v dátach oporu`);
-  }
+  assert.deepEqual(o.pains, []);
+  assert.deepEqual(o.web_gaps.map((g) => [g.code, g.level]), [["MOBILE_CONTACT_FRICTION", "VERIFIED"], ["TRUST_SECURITY_GAP", "VERIFIED"]]);
+  assert.equal(o.call_reason.type, "WEB_SYSTEM");
+  assert.ok(o.call_reason.unknown.some((u) => /Ručný proces: UNKNOWN/.test(u)));
   assert.equal(o.dimensions.PROCESS_PAIN.level, "UNKNOWN");
   assert.equal(o.dimensions.VISUAL_GAP.level, "MEDIUM");
   assert.equal(o.dimensions.BUSINESS_ACTIVITY.level, "HIGH");
   assert.equal(o.process_model.level, "UNKNOWN");
   assert.equal(o.money_leak.estimate, null);
+  assert.match(o.why_this_lead, /Ručný proces zatiaľ nepoznáme/);
+  assert.doesNotMatch(o.why_this_lead, /príjem dopyt|intake|zákazník ťažšie ozve|ručne vybavuje/i);
   assertEvidenceLinked(o);
 });
 
-test("PANENKA: odporúčanie Smart Inquiry z overeného dôkazu, fotky a pipeline iba ako voliteľné", () => {
+test("PANENKA: systém je iba hypotéza segmentu (Smart Inquiry + Fotky), fit MEDIUM", () => {
   const o = opp(PANENKA.company.category, PANENKA.profile, PANENKA.lead);
   const s = o.recommended_system!;
-  assert.equal(s.basis, "evidence");
-  assert.deepEqual(s.primary_modules, ["smart_inquiry"]);
-  assert.ok(s.optional_modules.includes("files_photos") && s.optional_modules.includes("pipeline"));
+  assert.equal(s.basis, "segment");
+  assert.deepEqual(s.primary_modules, ["smart_inquiry", "files_photos"]);
+  assert.deepEqual(s.evidence_ids, []);
+  assert.match(s.reasoning.join(" "), /potvrdiť v hovore/);
+  assert.equal(o.dimensions.AUTOMATION_FIT.level, "MEDIUM");
   assert.ok(s.optional_modules.every((m) => SEGMENT_TEMPLATES.FLOORING_TRADES.recommended_modules.includes(m)));
-  assert.match(o.why_this_lead, /Aktívna firma \(podlahy a obklady\)/);
-  assert.match(o.why_this_lead, /Smart Inquiry by zbieral typ podlahy, plochu v m², lokalitu a fotky ešte pred telefonátom/);
 });
 
-test("PANENKA: Call Card v3 a routing na Romana; demo bez cudzích služieb", () => {
+test("PANENKA: Call Card hovorí, čo vieme a čo treba zistiť; routing na Romana; demo bez cudzích služieb", () => {
   const o = opp(PANENKA.company.category, PANENKA.profile, PANENKA.lead);
   const c = opportunityCallCard({ company: { ...PANENKA.company, category: "podlahy" }, categoryLabel: "Podlahy", profile: PANENKA.profile, opportunity: o, operatorName: "Roman", demoReady: true });
+  assert.equal(c.call_reason.type, "WEB_SYSTEM");
+  assert.ok(c.known.some((k) => /^VERIFIED: Telefón sa na mobile nedá ťuknúť/.test(k)));
+  assert.ok(c.unknown.some((u) => /Ručný proces: UNKNOWN/.test(u)));
   assert.match(c.opening, /telefón sa na mobile nedá rovno ťuknúť/);
   assert.deepEqual(c.facts.map((f) => f.level), ["VERIFIED", "VERIFIED"]);
   assert.ok(c.questions.length >= 2);
-  assert.equal(c.hypotheses[0].code, "WEAK_MOBILE_INTAKE");
-  assert.ok(c.hypotheses.slice(1).every((h) => /hypotéza segmentu/.test(h.text)));
+  assert.ok(c.hypotheses.length > 0 && c.hypotheses.every((h) => /hypotéza segmentu/.test(h.text)), "proces sa iba zisťuje");
   const r = route("podlahy", o);
   assert.equal(r.channel, "CALL");
   assert.equal(r.operator_id, "roman");
+  assert.ok(r.rules.some((x) => x.key === "fit" && x.passed && /WEB \/ SYSTEM/.test(x.label)));
   const d = buildDemoPayload({ company: { name: PANENKA.company.name, city: PANENKA.company.city, category: "podlahy" }, profile: PANENKA.profile, opportunity: o, nowIso: NOW });
   assert.deepEqual(d.business.services, ["podlahy"]);
   assert.equal(d.customer.fields.find((f) => f.id === "location")?.example, "Praha 10-Vršovice");
   assert.deepEqual([d.dashboard.from, d.dashboard.to], ["NEW", "MEASUREMENT"]);
 });
 
+test("dôvod hovoru: A (proces) je v poradí nad B (web / systém) pri inak podobných dátach", () => {
+  const a = opp("podlahy", profile({ signals: [{ code: "MEASUREMENT_REQUIRED" }] }), lead({ website_status: "weak" }));
+  const b = opp("podlahy", { ...PANENKA.profile, process_signals: [] }, lead({ website_status: "weak" }));
+  assert.equal(a.call_reason.type, "PROCESS");
+  assert.equal(b.call_reason.type, "WEB_SYSTEM");
+  assert.ok(a.rank > b.rank, `${a.rank} > ${b.rank}`);
+});
+
+test("WEAK_MOBILE_INTAKE iba keď je formulár a web nie je pre mobil; no_https ani tel: odkaz nie sú pain", () => {
+  const issue = (key: string, text: string) => ({ key, text, excerpt: key });
+  const web = (issues: { key: string; text: string; excerpt: string }[]) =>
+    ({ url: "https://firma.example", domain: "firma.example", status: "confirmed", evidence: [], health: { state: "weak", issues } }) as RadarProfile["website"];
+  const onlyHttps = opp("podlahy", profile({ website: web([issue("no_https", "bez https"), issue("no_tel_link", "chýba tel:")]) }), lead({ website_status: "weak" }));
+  assert.deepEqual(onlyHttps.pains, []);
+  const noForm = opp("podlahy", profile({ website: web([issue("no_viewport", "bez viewport")]) }), lead({ website_status: "weak" }));
+  assert.ok(!noForm.pains.some((p) => p.code === "WEAK_MOBILE_INTAKE"));
+  const withForm = opp("podlahy", profile({ website: web([issue("no_viewport", "bez viewport")]), signals: [{ code: "GENERIC_CONTACT_FORM", level: "VERIFIED" }] }), lead({ website_status: "weak" }));
+  assert.ok(withForm.pains.some((p) => p.code === "WEAK_MOBILE_INTAKE"));
+});
+
 /* ─────────── evidence vrstva ─────────── */
 
-test("evidence: register a problémy webu sú VERIFIED, aktivita OBSERVED; painy z nich odvodené", () => {
+test("evidence: register a problémy webu sú VERIFIED, aktivita OBSERVED; z problémov webu nie je pain", () => {
   const ev = collectEvidence(PANENKA.lead, PANENKA.profile);
   assert.ok(ev.some((e) => e.code === "register:active" && e.level === "VERIFIED"));
   assert.ok(ev.some((e) => e.code === "web:no_tel_link" && e.level === "VERIFIED"));
   assert.ok(ev.some((e) => e.code === "activity:active" && e.level === "OBSERVED"));
   assert.doesNotMatch(JSON.stringify(ev), /Roman PANENKA|16185749/);
-  assert.equal(derivePains(ev, segmentFor("podlahy")).length, 1);
+  assert.equal(derivePains(ev, segmentFor("podlahy")).length, 0);
+  assert.equal(deriveWebGaps(ev).length, 2);
   assert.equal(reconstructProcess(ev).level, "UNKNOWN");
+});
+
+/* ─────────── Preview je iba na čítanie ─────────── */
+
+test("preview guard: zápis iba v produkcii a lokálne, preview a chýbajúci VERCEL_ENV na Verceli = zákaz", () => {
+  assert.equal(writesAllowed({ VERCEL: "1", VERCEL_ENV: "production" }), true);
+  assert.equal(writesAllowed({}), true); // lokálne
+  assert.equal(writesAllowed({ VERCEL: "1", VERCEL_ENV: "preview" }), false);
+  assert.equal(writesAllowed({ VERCEL: "1", VERCEL_ENV: "development" }), false);
+  assert.equal(writesAllowed({ VERCEL: "1" }), false);
+  assert.throws(() => assertWritable("x", { VERCEL: "1", VERCEL_ENV: "preview" }), ReadOnlyEnvironmentError);
+});
+
+test("preview guard: read-only repository čítanie pustí, každý zápis odmietne bez volania úložiska", async () => {
+  let writes = 0;
+  const repo = new Proxy({} as Repository, {
+    get: (_t, prop) => (typeof prop === "string" ? async () => (/^(insert|update|upsert|delete|save|mark)/.test(prop) ? writes++ : []) : undefined),
+  });
+  const ro = readOnlyRepository(repo);
+  assert.deepEqual(await ro.listLeads(), []);
+  for (const m of ["insertLead", "updateLead", "insertCall", "upsertCommission", "saveSettings", "insertEvent", "updateCompany", "markNotificationsRead", "deleteOffer"] as const) {
+    await assert.rejects((ro[m] as (...a: unknown[]) => Promise<unknown>)("x", {}), ReadOnlyEnvironmentError, m);
+  }
+  assert.equal(writes, 0);
 });
