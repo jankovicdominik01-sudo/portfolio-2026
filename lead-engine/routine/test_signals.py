@@ -83,6 +83,13 @@ class QualityFirst(unittest.TestCase):
         out = R.select(ents, [{"caller": "roman", "need": 3}], ("SK",))["roman"]
         self.assertEqual([e["id"] for e in out], ["pain", "gold", "silver"])
 
+    def test_plan_respects_segments(self):
+        import radar_run as R
+        jobs = R.plan([{"caller": "roman", "need": 20}], {}, set(), "2026-10-02", ("SK",), segments={"autoservis", "strechy"})
+        self.assertTrue(jobs)
+        self.assertTrue(all(j["category"] in ("autoservis", "strechy") for j in jobs))
+        self.assertTrue(all(c in R.CATS for c in R.CALL_SEGMENTS))
+
 
 if __name__ == "__main__":
     unittest.main()
