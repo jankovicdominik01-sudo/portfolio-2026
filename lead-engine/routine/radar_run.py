@@ -228,7 +228,10 @@ def company_out(e):
             "sources": [{"source": s["source"], "url": s.get("url")} for s in e["sources"]][:8]}
 
 
-PAIN_SIGNALS = {"phone_ordering", "messenger_cta", "photos_by_message"}
+# Silné procesné signály (text na webe), staré kľúče kvôli starším profilom.
+PAIN_SIGNALS = {"CALL_FOR_APPOINTMENT", "PHONE_BOOKING", "CALL_FOR_PRICE", "PHOTOS_REQUESTED_SEPARATELY", "MEASUREMENT_REQUIRED",
+                "MANUAL_QUOTE_SIGNAL", "EMAIL_FOR_ORDER", "WHATSAPP_PRIMARY", "MESSENGER_PRIMARY", "GENERIC_CONTACT_FORM",
+                "phone_ordering", "messenger_cta", "photos_by_message"}
 
 
 def call_ready(e):

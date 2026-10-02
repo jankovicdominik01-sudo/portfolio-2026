@@ -308,6 +308,7 @@ class Radar:
         e["process_signals"] = SIG.process_signals(fp)
         e["tags"] = SIG.tags(fp)
         fp.pop("raw_pages", None)  # HTML nepotrebujeme ďalej držať v pamäti
+        fp.pop("page_raw", None)
         e["social_first"] = any(p["code"] == "SOCIAL_FIRST_BUSINESS" for p in e["commercial_problems"])
         e["last_verified"].update(category=now(), social=now())
         trace(e, "classify", f"{e['category']['id']} ({e['category']['confidence']}) · popis: {e['description']['text']}")
