@@ -13,6 +13,7 @@ Beh v kolách (vyhľadávanie robí agent nástrojom WebSearch — legitímne AP
 Max. 3 kolá. Exit 0 = hotovo (upload.json pripravený), 10 = čaká na vyhľadávanie, 2 = chyba.
 
 --recheck: ľahké preverenie leadov vo fronte pred hovorom (web stále funguje? nový web? zmena kontaktu?)
+           a obohatenie Opportunity (procesné signály z webu) pre leady s needs_reverify
 """
 import argparse
 import datetime
@@ -385,7 +386,10 @@ def main():
 def recheck(a, net, search, routing, active):
     """Ľahké preverenie pred hovorom: web (stále funguje / nový), zdravie, kontakt. Výstup: WORK/recheck.json → PATCH."""
     leads = api(a.engine, a.key, "/leady/api/v1/leads").get("leads", [])
-    todo = [l for l in leads if l.get("status") == "ready_to_call" and (l.get("call_attempts") or 0) == 0]
+    # pred hovorom: nevolané leady vo fronte; navyše leady čakajúce na obohatenie Opportunity (ANALYZING)
+    todo = [l for l in leads if (l.get("status") == "ready_to_call" and (l.get("call_attempts") or 0) == 0)
+            or (l.get("needs_reverify") and l.get("status") not in ("archived", "lost", "do_not_call"))]
+    todo.sort(key=lambda l: not l.get("needs_reverify"))  # najprv tie, na ktoré niekto čaká
     patches = []
     rad = Radar(net, search, routing=routing, active=active)
     for l in todo[:40]:

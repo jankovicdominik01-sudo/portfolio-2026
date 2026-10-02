@@ -92,3 +92,24 @@ test("Blob → Supabase mapping zachová všetky kolekcie aj nové Lead polia", 
   assert.equal(panenka.leads[0].consent_by, "roman");
   assert.equal(panenka.leads[0].heard_price, false);
 });
+
+/* ─────────── Kontrakt LeadSchema ↔ Supabase migrácie ─────────── */
+
+import { readdirSync, readFileSync } from "node:fs";
+import { LeadSchema } from "../lib/types";
+
+test("každé pole LeadSchema má stĺpec v Supabase migráciách (vrátane opportunity_feedback)", () => {
+  const dir = new URL("../supabase/migrations/", import.meta.url);
+  const sql = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort().map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
+  const create = sql.match(/create table if not exists leads \(([\s\S]*?)\n\);/)?.[1] ?? "";
+  const cols = new Set([
+    ...create.split("\n").map((l) => l.trim().split(/\s+/)[0]).filter(Boolean),
+    ...[...sql.matchAll(/alter table leads add column if not exists (\w+)/g)].map((m) => m[1]),
+  ]);
+  const missing = Object.keys(LeadSchema.shape).filter((k) => !cols.has(k));
+  assert.deepEqual(missing, []);
+  assert.ok(/add column if not exists opportunity_feedback jsonb/.test(sql));
+  const phase2 = readFileSync(new URL("0005_opportunity_feedback.sql", dir), "utf8").replace(/^--.*$/gm, "");
+  assert.ok(phase2.includes("add column if not exists"));
+  assert.ok(!/drop |truncate|delete |update /i.test(phase2), "Phase 2 migrácia je iba additive");
+});
