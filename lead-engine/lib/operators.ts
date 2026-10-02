@@ -26,6 +26,11 @@ export const OperatorSchema = z.object({
   phone_number: z.string().nullable().default(null),
   /** Max. nových leadov za deň. null = bez limitu. */
   daily_capacity: z.number().int().positive().nullable().default(null),
+  /**
+   * Koľko nevybavených leadov (na volanie + callback) má operátor mať vo fronte.
+   * Ranná rutina dopĺňa iba rozdiel. null = DEFAULT_QUEUE_TARGET.
+   */
+  queue_target: z.number().int().min(0).max(200).nullable().default(null),
   /** Prázdne = všetky segmenty. */
   assigned_segments: z.array(z.enum(CATEGORY_IDS)).default([]),
   /** Voľný text, napr. „po až pi, 9 až 16“. */
@@ -44,6 +49,7 @@ export const DEFAULT_OPERATORS: Operator[] = [
     channels: ["CALL"],
     phone_number: null,
     daily_capacity: null,
+    queue_target: null,
     assigned_segments: [],
     availability: null,
     notes: null,

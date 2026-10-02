@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Phone } from "lucide-react";
-import { callerCallAction } from "@/app/leady/actions";
+import { callerCallAction, opportunityFeedbackAction } from "@/app/leady/actions";
 import type { CallCard } from "@/lib/script";
 import type { OpportunityCallCard } from "@/lib/call-card";
 import { OUTCOME_LABEL, type CallerOutcome } from "@/lib/types";
@@ -40,8 +40,10 @@ export type CallScreenProps = {
   attempts: number;
   callbackNote: string | null;
   card: CallCard;
-  /** Call Card v2 (Opportunity Engine). Keď je, nahrádza pôvodný scenár. */
+  /** Call Card v3 (Opportunity Engine). Keď je, nahrádza pôvodný scenár. */
   opportunityCard?: OpportunityCallCard | null;
+  /** Doterajšie odpovede operátora na predpoklady (CONFIRM / REJECT / UNKNOWN). */
+  feedback?: { signal_code: string; result: "confirmed" | "rejected" | "unknown" }[];
   details: { label: string; points: number }[];
   risks: { label: string; points: number }[];
   websiteLabel: string | null;
@@ -145,6 +147,8 @@ export function CallScreen(p: CallScreenProps) {
               ) : null}
             </div>
 
+            {p.opportunityCard ? <OpportunityPanel c={p.opportunityCard} /> : null}
+
             {p.phone ? (
               <div className="mt-5 flex gap-2">
                 <a
@@ -165,9 +169,7 @@ export function CallScreen(p: CallScreenProps) {
               <p className="mt-4 text-red-300">Telefón chýba — napíš Dominikovi.</p>
             )}
 
-            {p.opportunityCard ? (
-              <OpportunityPanel c={p.opportunityCard} />
-            ) : (
+            {p.opportunityCard ? null : (
               <>
             {p.card.truth ? (
               <TruthPanel t={p.card.truth} />
@@ -362,6 +364,9 @@ export function CallScreen(p: CallScreenProps) {
                 </p>
               ) : null}
               <Area label="Krátka poznámka" value={note} onChange={setNote} placeholder="voliteľné" />
+              {p.opportunityCard?.hypotheses.length && !["wrong_number", "do_not_call"].includes(outcome) ? (
+                <HypothesisFeedback leadId={p.leadId} items={p.opportunityCard.hypotheses} initial={p.feedback ?? []} />
+              ) : null}
             </div>
 
             {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
@@ -510,72 +515,127 @@ function Area(props: { label: string; value: string; onChange: (v: string) => vo
   );
 }
 
-const LEVEL_TONE = { VERIFIED: "text-green-300/85", OBSERVED: "text-sky-200/85", ESTIMATE: "text-yellow-200/85" } as const;
+const LEVEL_TONE: Record<string, string> = {
+  VERIFIED: "bg-green-400/15 text-green-200 ring-green-400/30",
+  OBSERVED: "bg-sky-400/15 text-sky-100 ring-sky-400/30",
+  ESTIMATE: "bg-yellow-400/15 text-yellow-100 ring-yellow-400/30",
+  UNKNOWN: "bg-white/[0.06] text-white/50 ring-line",
+};
 
-/** Call Card v2: fakty s úrovňou dôkazu + pár viet na začiatok. Rozhovor vedie operátor sám. */
+export function LevelBadge({ level }: { level: string }) {
+  return (
+    <span className={cn("inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold tracking-[0.06em] ring-1 ring-inset", LEVEL_TONE[level] ?? LEVEL_TONE.UNKNOWN)}>
+      {level}
+    </span>
+  );
+}
+
+/**
+ * Call Card v3: firma → prečo → max. 3 fakty s úrovňou dôkazu → nápad na systém
+ * → jedna veta na začiatok → 2 až 3 otázky → ďalší krok. Rozhovor vedie operátor sám.
+ */
 function OpportunityPanel({ c }: { c: OpportunityCallCard }) {
   return (
-    <div className="mt-6 space-y-5">
-      <Box label="Prečo ju voláme">
-        <p className="text-[17px] leading-snug font-medium">{c.why_this_lead}</p>
-        {c.main_pain ? <p className="mt-2 text-[14px] text-sky-200/85">Hlavný problém: {c.main_pain}</p> : null}
-        {c.opportunity ? <p className="mt-1 text-[14px] text-white/60">Čo vieme vyriešiť: {c.opportunity}</p> : null}
-        {c.website ? (
-          <a href={c.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/70 underline underline-offset-2">
+    <div className="mt-5 space-y-4">
+      <Box label="Prečo voláme">
+        {c.why.map((w) => (
+          <p key={w} className="text-[17px] leading-snug font-medium">{w}</p>
+        ))}
+        {c.company.website ? (
+          <a href={c.company.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/60 underline underline-offset-2">
             Otvoriť ich web
           </a>
         ) : null}
-        <p className={cn("mt-2 text-[13px]", c.demo === "READY" ? "text-green-300/80" : "text-white/45")}>
-          Demo: {c.demo === "READY" ? "šablóna pre segment existuje" : "pre segment zatiaľ nie je"}
-        </p>
       </Box>
 
-      {c.verified.length ? (
-        <Box label="Overené">
-          {c.verified.map((v) => (
-            <p key={v.text} className={cn("text-[15px]", LEVEL_TONE.VERIFIED)}>✓ {v.text}</p>
-          ))}
+      {c.facts.length ? (
+        <Box label="Čo sme našli">
+          <ul className="space-y-3">
+            {c.facts.map((f) => (
+              <li key={f.evidence_id} className="flex items-start gap-2.5">
+                <LevelBadge level={f.level} />
+                <div className="min-w-0">
+                  <p className="text-[15px] leading-snug text-white/90">{f.text}</p>
+                  {f.excerpt ? <p className="mt-0.5 text-[13px] break-words text-white/45">„{f.excerpt}“</p> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         </Box>
       ) : null}
 
-      {c.observed.length ? (
-        <Box label="Videli sme na webe">
-          {c.observed.map((o) => (
-            <div key={o.key + o.excerpt} className="mb-2 last:mb-0">
-              <p className={cn("text-[15px]", LEVEL_TONE.OBSERVED)}>{o.text}</p>
-              <p className="text-[13px] text-white/45">„{o.excerpt}“</p>
-            </div>
-          ))}
+      {c.system_idea ? (
+        <Box label="Nápad na systém">
+          <p className="text-[17px] font-medium">{c.system_idea}</p>
+          {c.benefit ? <p className="mt-1 text-[14px] text-white/60">{c.benefit}</p> : null}
+          {c.system_is_hypothesis ? <p className="mt-1 text-[13px] text-yellow-200/80">Hypotéza pre segment, over otázkami.</p> : null}
         </Box>
       ) : null}
 
-      {c.estimate.length ? (
-        <Box label="Odhad (iba s predpokladmi)">
-          {c.estimate.map((e) => (
-            <p key={e.text} className={cn("text-[15px]", LEVEL_TONE.ESTIMATE)}>
-              {e.text} <span className="text-white/45">({e.assumptions.join(", ")})</span>
-            </p>
-          ))}
-        </Box>
-      ) : null}
-
-      <Line n={1} label="Začiatok">„{c.opening}“</Line>
-      <Line n={2} label="Čo sme si všimli">„{c.context_pain}“</Line>
-      <Line n={3} label="Nápad">„{c.idea}“</Line>
-      <Line n={4} label="Môžeš sa opýtať">
+      <Line n={1} label="Začni">„{c.opening}“</Line>
+      <Line n={2} label="Opýtaj sa">
         {c.questions.map((q) => (
           <span key={q} className="block">„{q}“</span>
         ))}
       </Line>
       <div className="rounded-3xl bg-ok/[0.07] p-5 ring-1 ring-ok/25">
         <Eyebrow className="text-green-300/80">Ďalší krok</Eyebrow>
-        <p className="mt-1.5 text-[19px] font-semibold">„{c.next_step}“</p>
+        <p className="mt-1.5 text-[19px] font-semibold">„{c.next_step.ask}“</p>
+        <p className="mt-1.5 text-[13px] text-white/55">{c.next_step.rule}</p>
       </div>
-      <Box label="Pozor">
-        {c.cautions.map((x) => (
-          <p key={x} className="text-[14px] text-white/70">{x}</p>
+      <details className="rounded-2xl bg-white/[0.02] text-[14px] text-white/60 ring-1 ring-inset ring-line">
+        <summary className="cursor-pointer list-none px-4 py-3">Na čo si dať pozor</summary>
+        <div className="space-y-1 px-4 pb-3">
+          {c.cautions.map((x) => (
+            <p key={x}>{x}</p>
+          ))}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+const RESULTS = [
+  { r: "confirmed", label: "Sedí" },
+  { r: "rejected", label: "Nesedí" },
+  { r: "unknown", label: "Neviem" },
+] as const;
+
+/** Po hovore: sedeli predpoklady? Ukladá sa hneď, voliteľné. Hypotéza ≠ potvrdenie. */
+function HypothesisFeedback({ leadId, items, initial }: { leadId: string; items: OpportunityCallCard["hypotheses"]; initial: NonNullable<CallScreenProps["feedback"]> }) {
+  const [vals, setVals] = useState<Record<string, string>>(() => Object.fromEntries(initial.map((f) => [f.signal_code, f.result])));
+  const [pending, start] = useTransition();
+  const set = (code: string, text: string, r: (typeof RESULTS)[number]["r"]) => {
+    setVals((v) => ({ ...v, [code]: r }));
+    start(async () => {
+      await opportunityFeedbackAction(leadId, { signal_code: code, predicted: text, result: r, note: null });
+    });
+  };
+  return (
+    <div className="rounded-3xl bg-white/[0.03] p-4 ring-1 ring-inset ring-line">
+      <Eyebrow>Sedeli predpoklady? (voliteľné)</Eyebrow>
+      <ul className="mt-3 space-y-3">
+        {items.map((h) => (
+          <li key={h.code}>
+            <p className="text-[14px] text-white/80">{h.text}</p>
+            <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+              {RESULTS.map((x) => (
+                <button
+                  key={x.r}
+                  disabled={pending}
+                  onClick={() => set(h.code, h.text, x.r)}
+                  className={cn(
+                    "h-9 rounded-xl text-[13px] ring-1 ring-inset",
+                    vals[h.code] === x.r ? "bg-white text-black ring-white" : "bg-white/[0.04] text-white/70 ring-line",
+                  )}
+                >
+                  {x.label}
+                </button>
+              ))}
+            </div>
+          </li>
         ))}
-      </Box>
+      </ul>
     </div>
   );
 }

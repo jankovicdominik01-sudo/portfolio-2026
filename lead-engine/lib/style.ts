@@ -47,13 +47,20 @@ const PRAISE = /\b(skvel|úžasn|krásn|perfektn|profesionáln|výborn|super)/i;
 
 /** Prvá veta podľa toho, čo sme videli. Vždy „všimol som si“ / „nenašiel som“, nikdy „nemáte“. */
 const PAIN: Record<string, string> = {
-  phone_ordering: "všimol som si, že termíny riešite hlavne telefonicky",
-  messenger_cta: "všimol som si, že zákazníkov posielate písať cez Messenger alebo WhatsApp",
-  photos_by_message: "všimol som si, že fotky od zákazníkov chcete poslať správou",
-  no_booking_found: "nenašiel som u vás online objednanie",
-  no_form_found: "nenašiel som u vás formulár na dopyt",
+  CALL_FOR_APPOINTMENT: "všimol som si, že na termín vás treba zavolať",
+  PHONE_BOOKING: "všimol som si, že termíny riešite hlavne telefonicky",
+  WHATSAPP_PRIMARY: "všimol som si, že zákazníkov posielate písať cez WhatsApp",
+  MESSENGER_PRIMARY: "všimol som si, že zákazníkov posielate písať cez Messenger",
+  PHOTOS_REQUESTED_SEPARATELY: "všimol som si, že fotky od zákazníkov chcete poslať správou",
+  GENERIC_CONTACT_FORM: "všimol som si, že formulár na webe sa pýta iba na meno, e-mail a správu",
+  MEASUREMENT_REQUIRED: "všimol som si, že pred ponukou robíte zameranie",
+  NO_BOOKING_FOUND: "nenašiel som u vás online objednanie",
+  NO_FORM_FOUND: "nenašiel som u vás formulár na dopyt",
 };
-const PAIN_ORDER = ["phone_ordering", "messenger_cta", "photos_by_message", "no_booking_found", "no_form_found"];
+const PAIN_ORDER = [
+  "CALL_FOR_APPOINTMENT", "PHONE_BOOKING", "WHATSAPP_PRIMARY", "MESSENGER_PRIMARY", "PHOTOS_REQUESTED_SEPARATELY",
+  "GENERIC_CONTACT_FORM", "MEASUREMENT_REQUIRED", "NO_BOOKING_FOUND", "NO_FORM_FOUND",
+];
 
 const IDEA: Record<string, string> = {
   service_booking: "Spravil som krátku ukážku, ako by vám chodila hotová požiadavka aj s autom, problémom a fotkami.",

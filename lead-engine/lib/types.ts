@@ -372,7 +372,20 @@ export const RadarProfileSchema = z
     web_search_queries: z.array(z.string()).optional().default([]),
     /* ── Opportunity Engine: procesné signály a tagy z webu (routine/radar/signals.py) ── */
     process_signals: z
-      .array(z.object({ key: z.string(), level: z.string(), text: z.string(), excerpt: z.string(), source: z.string() }))
+      .array(
+        z.object({
+          key: z.string(),
+          /** Phase 2: kód signálu (= key), doslovný úryvok, čas a istota. Staršie profily ich nemajú. */
+          code: z.string().optional(),
+          level: z.string(),
+          text: z.string(),
+          evidence: z.string().optional(),
+          excerpt: z.string(),
+          source: z.string(),
+          observed_at: z.string().optional(),
+          confidence: z.enum(["high", "medium", "low"]).optional(),
+        }),
+      )
       .optional()
       .default([]),
     tags: z
@@ -610,6 +623,11 @@ export const LeadSchema = z.object({
   channel_decision: z.record(z.string(), z.unknown()).nullable().optional(),
   /** Demo (Demo Engine). Vytvára ho iba Dominik tlačidlom, nikdy automaticky. */
   demo: z.record(z.string(), z.unknown()).nullable().optional(),
+  /**
+   * Spätná väzba operátora na predpoklady Opportunity Engine (Phase 3 learning loop).
+   * Hypotéza pred hovorom ≠ potvrdenie: potvrdiť ju môže iba hovor s firmou.
+   */
+  opportunity_feedback: z.array(z.lazy(() => OpportunityFeedbackSchema)).optional(),
   /** Ručne overená reklama (Transparency Center / Ad Library). Jediný spôsob, ako vznikne ACTIVE. */
   ads_check: z
     .object({ status: z.enum(["ACTIVE", "NOT_FOUND"]), url: z.string().nullable(), checked_at: z.string(), by: z.string() })
@@ -617,6 +635,21 @@ export const LeadSchema = z.object({
     .optional(),
 });
 export type Lead = z.infer<typeof LeadSchema>;
+
+export const FEEDBACK_RESULTS = ["confirmed", "rejected", "unknown"] as const;
+export const OpportunityFeedbackSchema = z.object({
+  /** Kód predpokladu (pain alebo procesný signál), napr. MANUAL_BOOKING. */
+  signal_code: z.string().regex(/^[A-Z_]{3,40}$/),
+  /** Čo engine predpovedal (text predpokladu v čase hovoru). */
+  predicted: z.string().max(300),
+  result: z.enum(FEEDBACK_RESULTS),
+  note: z.string().max(500).nullable(),
+  operator_id: z.string(),
+  at: z.string(),
+  /** Verzia pravidiel, ktoré predpoklad vytvorili. */
+  engine_version: z.string().nullable().optional(),
+});
+export type OpportunityFeedback = z.infer<typeof OpportunityFeedbackSchema>;
 
 export const WEBSITE_STATUS_LABEL: Record<NonNullable<Lead["website_status"]>, string> = {
   // „Bez webu“ netvrdíme nikdy — vieme iba, že sme ho nenašli.

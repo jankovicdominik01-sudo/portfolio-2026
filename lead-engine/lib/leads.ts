@@ -15,15 +15,15 @@ import {
   type SalesInput,
   type SalesStep,
 } from "./workflow";
-import { buildToday, DAILY_NEW } from "./queue";
+import { activeCount, buildToday, capacityNeed, DEFAULT_QUEUE_TARGET, freshCount } from "./queue";
 import { computeScore, priorityFromScore } from "./score";
 import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
 import { opportunityCallCard } from "./call-card";
-import { buildOpportunity, type Opportunity } from "./opportunity";
+import { analyzeOpportunity, atLeast, buildOpportunity, opportunityLog, readyOpportunity, type Opportunity } from "./opportunity";
 import { chooseChannel } from "./channel";
 import { configuredOperators } from "./operators";
-import { buildDemoPayload, hasDemoTemplate, type DemoPayload } from "./demo-templates";
+import { buildDemoPayload, DEMO_CODE_RE, hasDemoTemplate, publicDemoView, type PublicDemo } from "./demo-templates";
 import { draftFirstMessage } from "./style";
 import { applyFeedback, type FeedbackInput } from "./feedback";
 import { effectiveRouting } from "./routing";
@@ -52,7 +52,7 @@ import {
   type LeadWithCompany,
   type NextAction,
   type RadarProfile,
-  type SessionUser, categoryOf } from "./types";
+  type SessionUser, categoryOf, OpportunityFeedbackSchema } from "./types";
 
 /**
  * Obchodná logika (use-cases). UI, API aj ranná rutina volajú iba tieto funkcie.
@@ -551,9 +551,8 @@ export async function callerLeadView(u: SessionUser, leadId: string) {
     offers,
     nowIso: now(),
   });
-  // Call Card v2: každý lead s profilom z Lead Radaru. Bez profilu ostáva pôvodná karta.
-  const stored = lead.opportunity as unknown as Opportunity | null | undefined;
-  const opp = stored?.version === 1 ? stored : lead.company.profile ? buildOpportunity(lead, lead.company.category, lead.company.profile) : null;
+  // Call Card v3: každý lead s profilom z Lead Radaru. Bez profilu ostáva pôvodná karta.
+  const opp = readyOpportunity(lead.opportunity) ?? (lead.company.profile ? buildOpportunity(lead, lead.company.category, lead.company.profile, { leadId: lead.id, companyName: lead.company.name }) : null);
   const opportunityCard = opp
     ? opportunityCallCard({
         company: lead.company,
@@ -561,13 +560,13 @@ export async function callerLeadView(u: SessionUser, leadId: string) {
         profile: lead.company.profile,
         opportunity: opp,
         operatorName: u.name,
-        demoReady: !!opp.recommended_system && hasDemoTemplate(opp.recommended_system.id),
+        demoReady: !!opp.recommended_system && hasDemoTemplate(opp.recommended_system.id) && atLeast(opp.dimensions.DEMO_POTENTIAL.level, "MEDIUM"),
       })
     : null;
   const q = await callerQueue(u);
   const order = [...q.callbacks, ...q.retries, ...q.fresh].map((l) => l.id);
   const next = order.find((x) => x !== lead.id) ?? null;
-  return { lead, card, opportunityCard, next, price: settings.package.price };
+  return { lead, card, opportunityCard, feedback: lead.opportunity_feedback ?? [], next, price: settings.package.price };
 }
 
 /* ─────────────────────────── Overené fakty (rutina / backfill) ─────────────────────────── */
@@ -684,6 +683,10 @@ export async function patchLeadProfile(u: SessionUser, leadId: string, profile: 
     score,
     updated_at: now(),
   };
+  // Opportunity: obohatenie z webu hotové → READY (alebo FAILED). Stav ani priradenie sa nemení.
+  const opp = analyzeOpportunity({ ...lead, ...patch }, { ...company, profile: merged });
+  console.info(JSON.stringify(opportunityLog(lead.id, opp)));
+  patch.opportunity = opp as unknown as Lead["opportunity"];
   if (merged.data_quality === "research" && lead.status === "ready_to_call" && !(lead.call_attempts ?? 0)) {
     patch.status = "analyzed";
     patch.next_action = "review";
@@ -706,10 +709,13 @@ export async function morningStatus(u: SessionUser) {
   const r = await db();
   const [leads, settings] = await Promise.all([r.listLeads(), r.getSettings()]);
   const routing = effectiveRouting(settings);
-  const target = DAILY_NEW;
+  const ops = configuredOperators();
+  const all = await listLeads(u);
   const list = callers().map((c) => {
-    const fresh = leads.filter((l) => l.assigned_to === c.username && l.status === "ready_to_call" && !(l.call_attempts ?? 0)).length;
-    return { caller: c.username, name: c.name, fresh, target, need: Math.max(0, target - fresh) };
+    const target = ops.find((o) => o.operator_id === c.username)?.queue_target ?? DEFAULT_QUEUE_TARGET;
+    const active = activeCount(all, c.username);
+    // need = koľko doplniť do cieľovej kapacity (nevybavené), nie „ďalších 20“
+    return { caller: c.username, name: c.name, active, fresh: freshCount(leads, c.username), target, need: capacityNeed(active, target) };
   });
   const cut = new Date(Date.now() - 21 * 86_400_000).toISOString();
   const recent = (settings.radar?.query_log ?? [])
@@ -742,9 +748,27 @@ export async function refreshOpportunity(u: SessionUser, leadId: string) {
   assertAdmin(u);
   const lead = await getLead(u, leadId);
   if (!lead) throw new Error("Lead neexistuje.");
-  const opportunity = buildOpportunity(lead, lead.company.category, lead.company.profile);
+  const result = analyzeOpportunity(lead, lead.company);
+  console.info(JSON.stringify(opportunityLog(lead.id, result)));
+  if (result.status === "FAILED") {
+    await (await db()).updateLead(leadId, { opportunity: result as unknown as Lead["opportunity"], updated_at: now() });
+    await event(leadId, u.name, "analysis", `Opportunity FAILED: ${result.error}`);
+    throw new Error(`Analýza zlyhala: ${result.error}`);
+  }
+  const opportunity = result;
+  const channel = channelFor(lead, opportunity);
+  await (await db()).updateLead(leadId, {
+    opportunity: opportunity as unknown as Lead["opportunity"],
+    channel_decision: channel as unknown as Lead["channel_decision"],
+    updated_at: now(),
+  });
+  await event(leadId, u.name, "analysis", `Opportunity ${opportunity.priority} · kanál ${channel.channel} · v${opportunity.versions.opportunity_engine}`);
+  return { opportunity, channel };
+}
+
+function channelFor(lead: LeadWithCompany, opportunity: Opportunity) {
   const active = callers().map((c) => c.username);
-  const channel = chooseChannel({
+  return chooseChannel({
     category: lead.company.category,
     score_band: lead.score?.band,
     opportunity,
@@ -752,16 +776,48 @@ export async function refreshOpportunity(u: SessionUser, leadId: string) {
     phone_verified: lead.company.profile ? lead.company.profile.primary_phone?.confidence === "high" : undefined,
     category_verified: lead.company.profile ? ["high", "medium"].includes(lead.company.profile.category?.confidence ?? "") : undefined,
     has_email: !!lead.company.email,
-    do_not_contact: lead.status === "do_not_call",
+    do_not_contact: lead.status === "do_not_call" || !!lead.company.do_not_call,
     operators: configuredOperators().filter((o) => active.includes(o.operator_id)),
   });
-  await (await db()).updateLead(leadId, {
-    opportunity: opportunity as unknown as Lead["opportunity"],
-    channel_decision: channel as unknown as Lead["channel_decision"],
-    updated_at: now(),
+}
+
+/**
+ * Obohatenie z webu na pozadí: lead dostane stav ANALYZING a príznak na preverenie.
+ * Ranná rutina (radar --recheck) web znova prečíta, pošle profil a výsledok bude READY.
+ */
+export async function requestOpportunityEnrichment(u: SessionUser, leadId: string) {
+  assertAdmin(u);
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  await r.updateLead(leadId, { opportunity: { version: 2, status: "ANALYZING", requested_at: now() } as unknown as Lead["opportunity"], needs_reverify: true, updated_at: now() });
+  await event(leadId, u.name, "analysis", "Opportunity: čaká na obohatenie z webu (ranná rutina)");
+}
+
+/**
+ * Spätná väzba po hovore: operátor potvrdí / vyvráti predpoklad Opportunity Engine.
+ * Iba kontrakt pre Phase 3 (learning loop); pravidlá sa z toho zatiaľ nemenia.
+ */
+export async function saveOpportunityFeedback(
+  u: SessionUser,
+  leadId: string,
+  input: { signal_code: string; predicted: string; result: "confirmed" | "rejected" | "unknown"; note: string | null },
+) {
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead) throw new Error("Lead neexistuje.");
+  if (u.role !== "admin" && lead.assigned_to !== u.username) throw new AccessError("Tento lead nie je tvoj.");
+  const fb = OpportunityFeedbackSchema.parse({
+    ...input,
+    operator_id: u.username,
+    at: now(),
+    engine_version: (lead.opportunity as { versions?: { opportunity_engine?: string } } | null | undefined)?.versions?.opportunity_engine ?? null,
   });
-  await event(leadId, u.name, "analysis", `Opportunity ${opportunity.priority} · kanál ${channel.channel}`);
-  return { opportunity, channel };
+  // posledná odpoveď na ten istý predpoklad od toho istého operátora platí
+  const rest = (lead.opportunity_feedback ?? []).filter((x) => !(x.signal_code === fb.signal_code && x.operator_id === fb.operator_id));
+  await r.updateLead(leadId, { opportunity_feedback: [...rest, fb], updated_at: now() });
+  await event(leadId, u.name, "note", `Predpoklad ${fb.signal_code}: ${fb.result}`);
+  return fb;
 }
 
 /** Ručná kontrola reklamy (Transparency Center / Ad Library). ACTIVE vyžaduje odkaz. */
@@ -774,31 +830,45 @@ export async function saveAdsCheck(u: SessionUser, leadId: string, status: "ACTI
   return refreshOpportunity(u, leadId);
 }
 
-/** Vytvorí demo pre lead (iba tlačidlom). Firemné údaje berie iba z evidence. */
-export async function createDemo(u: SessionUser, leadId: string) {
+/** Vytvorí demo pre lead (iba tlačidlom, nič sa neposiela). Firemné údaje berie iba z evidence. */
+export async function createDemo(u: SessionUser, leadId: string, opts: { force?: boolean } = {}) {
   assertAdmin(u);
   const lead = await getLead(u, leadId);
   if (!lead) throw new Error("Lead neexistuje.");
-  const opp = (lead.opportunity as unknown as Opportunity | null) ?? (await refreshOpportunity(u, leadId)).opportunity;
-  const payload = buildDemoPayload({ company: lead.company, profile: lead.company.profile, opportunity: opp, nowIso: now() });
-  await (await db()).updateLead(leadId, { demo: payload as unknown as Lead["demo"], updated_at: now() });
-  await event(leadId, u.name, "note", `Demo vytvorené (${payload.template}), platí do ${payload.expires_at.slice(0, 10)}`);
+  const opp = readyOpportunity(lead.opportunity) ?? (await refreshOpportunity(u, leadId)).opportunity;
+  const payload = buildDemoPayload({ company: lead.company, profile: lead.company.profile, opportunity: opp, nowIso: now(), force: opts.force });
+  const run = { ...opp.run, demo_generated: true };
+  await (await db()).updateLead(leadId, {
+    demo: payload as unknown as Lead["demo"],
+    opportunity: { ...opp, run } as unknown as Lead["opportunity"],
+    updated_at: now(),
+  });
+  console.info(JSON.stringify({ event: "demo_generated", lead_id: leadId, segment: payload.segment, template: payload.template, expires_at: payload.expires_at }));
+  await event(leadId, u.name, "note", `Demo vytvorené (${payload.segment}), platí do ${payload.expires_at.slice(0, 10)}. Nič sa neodoslalo.`);
   return payload;
 }
 
-/** Verejné čítanie dema podľa kódu. Vracia iba payload, nič z leadu. Expirované = null. */
-export async function publicDemo(code: string): Promise<DemoPayload | null> {
-  if (!/^[a-z2-9]{8}$/.test(code)) return null;
+/** Vypne / zapne demo (vypnuté = verejne neexistuje). */
+export async function setDemoDisabled(u: SessionUser, leadId: string, disabled: boolean) {
+  assertAdmin(u);
+  const r = await db();
+  const lead = await r.getLead(leadId);
+  if (!lead?.demo) throw new Error("Lead nemá demo.");
+  await r.updateLead(leadId, { demo: { ...lead.demo, disabled } as Lead["demo"], updated_at: now() });
+  await event(leadId, u.name, "note", disabled ? "Demo vypnuté" : "Demo zapnuté");
+}
+
+/** Čítanie dema podľa kódu. Vracia iba bezpečnú projekciu, nič z leadu. Expirované / vypnuté = null. */
+export async function publicDemo(code: string): Promise<PublicDemo | null> {
+  if (!DEMO_CODE_RE.test(code)) return null;
   const leads = await (await db()).listLeads();
   const hit = leads.find((l) => (l.demo as { code?: string } | null | undefined)?.code === code);
-  const d = hit?.demo as unknown as DemoPayload | undefined;
-  if (!d || new Date(d.expires_at).getTime() < Date.now()) return null;
-  return d;
+  return publicDemoView(hit?.demo, Date.now());
 }
 
 /** Návrhy prvej správy (e-mail + SMS) na skopírovanie. Nič sa neodosiela. */
 export function leadDrafts(lead: Lead, demoBase: string) {
-  const opp = lead.opportunity as unknown as Opportunity | null;
+  const opp = readyOpportunity(lead.opportunity);
   if (!opp) return null;
   const code = (lead.demo as { code?: string } | null | undefined)?.code;
   const url = code ? `${demoBase}/d/${code}` : null;
@@ -820,19 +890,8 @@ export async function rerouteAsync(u: SessionUser, apply: boolean) {
   const todo = all.filter((l) => l.status === "analyzed" && l.next_action === "async_message" && !l.company.do_not_call);
   const moved: { id: string; name: string; operator: string }[] = [];
   for (const l of todo) {
-    const opportunity = buildOpportunity(l, l.company.category, l.company.profile);
-    const active = callers().map((c) => c.username);
-    const channel = chooseChannel({
-      category: l.company.category,
-      score_band: l.score?.band,
-      opportunity,
-      has_phone: !!l.company.phone,
-      phone_verified: l.company.profile ? l.company.profile.primary_phone?.confidence === "high" : undefined,
-      category_verified: l.company.profile ? ["high", "medium"].includes(l.company.profile.category?.confidence ?? "") : undefined,
-      has_email: !!l.company.email,
-      do_not_contact: false,
-      operators: configuredOperators().filter((o) => active.includes(o.operator_id)),
-    });
+    const opportunity = buildOpportunity(l, l.company.category, l.company.profile, { leadId: l.id, companyName: l.company.name });
+    const channel = channelFor(l, opportunity);
     if (channel.channel !== "CALL" || !channel.operator_id) continue;
     moved.push({ id: l.id, name: l.company.name, operator: channel.operator_id });
     if (!apply) continue;

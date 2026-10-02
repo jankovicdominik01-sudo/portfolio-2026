@@ -28,6 +28,7 @@ export async function CallerCall({ user, leadId, backHref }: { user: SessionUser
       callbackNote={lead.next_action === "callback" ? `Dohodnutý callback na ${fmtDate(lead.next_action_at, false)}` : null}
       card={card}
       opportunityCard={opportunityCard}
+      feedback={v.feedback.map((f) => ({ signal_code: f.signal_code, result: f.result }))}
       details={lead.score?.factors ?? []}
       risks={lead.score?.risks ?? []}
       websiteLabel={

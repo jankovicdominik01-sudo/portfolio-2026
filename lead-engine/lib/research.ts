@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db } from "./db";
 import { callers } from "./auth";
-import { buildOpportunity } from "./opportunity";
+import { buildOpportunity, opportunityLog } from "./opportunity";
 import { chooseChannel } from "./channel";
 import { configuredOperators } from "./operators";
 import { findBannedPhrases } from "./ai/guard";
@@ -498,7 +498,8 @@ export async function ingestRadar(actor: SessionUser, raw: z.infer<typeof Resear
   const settings = await r.getSettings();
   const active = callers().map((u) => u.username);
   const route = routeLead(company.category, profile.recommended_caller, effectiveRouting(settings), active);
-  const opportunity = buildOpportunity({ ...base, website_status: websiteStatusFromProfile(profile) }, company.category, profile);
+  const opportunity = buildOpportunity({ ...base, website_status: websiteStatusFromProfile(profile) }, company.category, profile, { leadId: base.id, companyName: company.name, nowIso: at });
+  console.info(JSON.stringify(opportunityLog(base.id, opportunity)));
   const channel = chooseChannel({
     category: company.category,
     score_band: score.band,

@@ -10,7 +10,6 @@ import { leadSource } from "@/lib/analytics";
 import { SalesPanel } from "@/components/sales-panel";
 import { getLead, leadDrafts } from "@/lib/leads";
 import { OpportunityPanel } from "@/components/opportunity-panel";
-import type { Opportunity } from "@/lib/opportunity";
 import type { ChannelDecision } from "@/lib/channel";
 import { displayUrl, fmtDate, fmtDateTime, telHref } from "@/lib/format";
 import {
@@ -109,10 +108,10 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
         <div className="min-w-0 space-y-5">
           <OpportunityPanel
             leadId={lead.id}
-            opportunity={(lead.opportunity as unknown as Opportunity | null) ?? null}
+            stored={lead.opportunity ?? null}
             channel={(lead.channel_decision as unknown as ChannelDecision | null) ?? null}
             drafts={leadDrafts(lead, process.env.DJWEBY_DEMO_BASE ?? "https://djweby.sk")}
-            demo={(lead.demo as unknown as { code: string; expires_at: string; template: string } | null) ?? null}
+            demo={(lead.demo as unknown as { code: string; expires_at: string; segment?: string; disabled?: boolean } | null) ?? null}
           />
           <RadarPanel lead={lead} />
           {a ? (

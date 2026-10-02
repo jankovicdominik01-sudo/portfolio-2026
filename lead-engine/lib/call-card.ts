@@ -1,60 +1,67 @@
 /**
- * Call Card v2 pre operátora (Opportunity Engine).
+ * Call Card v3 pre operátora (Opportunity Engine v2).
  *
- * Nie je to scenár na čítanie. Operátor dostane fakty a jednu-dve vety na začiatok,
- * rozhovor vedie sám. Všetko tvrdené o firme musí mať úroveň dôkazu:
- * VERIFIED (so zdrojom), OBSERVED (úryvok z webu), ESTIMATE (s predpokladmi).
- * Žiadne „robíme webstránky“, žiadne vymyslené čísla.
+ * Roman má do ~10 sekúnd vedieť: PREČO volá → AKÝ problém sme našli → AKÝ dôkaz
+ * → ČO by sme postavili → AKO to pomôže → ČO povedať ako prvé. Nie je to scenár:
+ * jedna veta na začiatok, 2 až 3 otázky, ktoré predpoklady potvrdia alebo vyvrátia.
+ *
+ * Tvrdenie o webe iba pri webe, ktorý firme POTVRDENE patrí. Nikdy „nemáte“, iba „nenašli sme“.
+ * Žiadne čísla o ich stratách ani reklame.
  */
-import type { Opportunity, RecommendedSystem } from "./opportunity";
+import type { Opportunity } from "./opportunity";
+import type { EvidenceLevel, OppEvidence, PainCode } from "./process";
+import { MODULES, segmentFor } from "./segments";
 import type { Company, RadarProfile } from "./types";
 import { forbiddenClaims } from "./script";
 
+export type CallFact = { level: EvidenceLevel; text: string; excerpt: string | null; source: string | null; evidence_id: string };
+
 export type OpportunityCallCard = {
-  firm: string;
-  category: string;
-  city: string | null;
-  phone: string | null;
-  website: string | null;
-  /** Hlavný ručný proces, ktorý sme videli (OBSERVED), alebo null. */
-  main_pain: string | null;
-  why_this_lead: string;
-  opportunity: string | null;
-  verified: { text: string; source: string | null }[];
-  observed: { key: string; text: string; excerpt: string; source: string }[];
-  /** Odhady iba s predpokladmi. Prázdne = nič neodhadujeme. */
-  estimate: { text: string; assumptions: string[] }[];
-  demo: "READY" | "NOT_READY";
+  version: 3;
+  company: { name: string; segment: string; city: string | null; phone: string | null; website: string | null };
+  /** 1 až 3 vety. */
+  why: string[];
+  /** Max. 3 najsilnejšie fakty s úrovňou dôkazu. */
+  facts: CallFact[];
+  system_idea: string | null;
+  /** Ako to firme pomôže (z modulov), 1 veta. */
+  benefit: string | null;
+  system_is_hypothesis: boolean;
   opening: string;
-  context_pain: string;
-  idea: string;
   questions: string[];
-  next_step: string;
+  next_step: { ask: string; rule: string };
+  /** Predpoklady na potvrdenie po hovore (CONFIRM / REJECT / UNKNOWN). */
+  hypotheses: { code: PainCode; text: string }[];
+  demo: "READY" | "NOT_READY";
   cautions: string[];
 };
 
-/** Pokračovanie vety „Pozerali sme vašu stránku a všimli sme si, že …“. Nikdy „nemáte“. */
-const PAIN_SENTENCE: Record<string, string> = {
-  phone_ordering: "termíny a objednávky riešite hlavne telefonicky",
-  messenger_cta: "zákazníkov posielate písať cez Messenger alebo WhatsApp",
-  photos_by_message: "fotky od zákazníkov chcete dostávať správou",
-  no_booking_found: "online objednanie sme na nej nenašli",
-  no_form_found: "formulár na dopyt sme na nej nenašli",
+/** Pokračovanie vety „…pozerali sme vašu stránku a všimli sme si, že …“. */
+const OPENING_FACT: Record<string, string> = {
+  CALL_FOR_APPOINTMENT: "na termín vás treba zavolať",
+  PHONE_BOOKING: "termíny riešite hlavne telefonicky",
+  CALL_FOR_PRICE: "cenu poviete až po telefonáte",
+  GENERIC_CONTACT_FORM: "formulár sa pýta iba na základné kontaktné údaje",
+  PHOTOS_REQUESTED_SEPARATELY: "fotky od zákazníkov chcete dostať správou",
+  MEASUREMENT_REQUIRED: "pred ponukou robíte zameranie",
+  WHATSAPP_PRIMARY: "zákazníkov posielate písať cez WhatsApp",
+  MESSENGER_PRIMARY: "zákazníkov posielate písať cez Messenger",
+  EMAIL_FOR_ORDER: "objednávky chcete dostávať e-mailom",
+  MANUAL_QUOTE_SIGNAL: "ponuku pripravujete pre každého zvlášť",
+  NO_BOOKING_FOUND: "online objednanie sme na nej nenašli",
+  NO_FORM_FOUND: "formulár na dopyt sme na nej nenašli",
+  "web:no_tel_link": "telefón sa na mobile nedá rovno ťuknúť",
+  "web:no_viewport": "na mobile sa zobrazuje zmenšená verzia",
 };
 
-const IDEA: Record<string, string> = {
-  service_booking: "Dominik robí systém, kde si zákazník sám vyberie termín a opíše problém aj s fotkou, a vám príde hotová požiadavka.",
-  project_pipeline: "Dominik robí systém, kde dopyt príde rovno s rozmermi a fotkami a všetky zákazky vidíte na jednom mieste.",
-  appointment: "Dominik robí systém, kde si klient sám vyberie čas a deň vopred mu príde pripomienka.",
-  inquiry: "Dominik robí systém, kde dopyt príde rovno so všetkými údajmi, bez dopytovania.",
-};
+/** Poradie faktov: priame texty a overené fakty o procese pred neprítomnosťou. */
+const FACT_ORDER = [
+  "CALL_FOR_APPOINTMENT", "PHONE_BOOKING", "GENERIC_CONTACT_FORM", "PHOTOS_REQUESTED_SEPARATELY", "MEASUREMENT_REQUIRED", "CALL_FOR_PRICE",
+  "WHATSAPP_PRIMARY", "MESSENGER_PRIMARY", "EMAIL_FOR_ORDER", "MANUAL_QUOTE_SIGNAL", "PDF_PRICE_LIST", "PHOTO_UPLOAD_MISSING",
+  "NO_FORM_FOUND", "NO_BOOKING_FOUND", "SOCIAL_REALIZATIONS", "web:no_tel_link", "web:no_viewport", "web:no_https", "web:frames",
+];
 
-const QUESTIONS: Record<string, string[]> = {
-  service_booking: ["Koľko termínov týždenne vybavíte cez telefón?", "Posielajú vám zákazníci fotky poškodenia?", "Kto u vás dvíha telefón, keď ste pri aute?"],
-  project_pipeline: ["Koľko dopytov vám príde za týždeň?", "Ako dlho vám trvá zistiť rozmery a detaily pred ponukou?", "Kde máte dnes prehľad o rozbehnutých zákazkách?"],
-  appointment: ["Objednávajú sa k vám ľudia skôr cez Instagram alebo telefón?", "Stáva sa vám, že niekto nepríde na termín?"],
-  inquiry: ["Koľko dopytov vám príde za týždeň?", "Čo sa u zákazníka najčastejšie dopytujete?"],
-};
+const GENERIC_QUESTIONS = ["Ako sa k vám dnes zákazníci najčastejšie ozývajú?", "Čo od nového zákazníka potrebujete vedieť ako prvé?"];
 
 export function opportunityCallCard(opts: {
   company: Pick<Company, "name" | "city" | "phone" | "website" | "category">;
@@ -65,52 +72,67 @@ export function opportunityCallCard(opts: {
   demoReady: boolean;
 }): OpportunityCallCard {
   const { company, profile, opportunity: o, operatorName } = opts;
-  const sys: RecommendedSystem | null = o.recommended_system;
-  const sysId = sys?.id ?? "inquiry";
-
-  const verified: OpportunityCallCard["verified"] = [];
-  const reg = profile?.register as { found?: boolean; ico?: string; name?: string } | null | undefined;
-  if (reg?.found) verified.push({ text: `V registri aktívna${reg.ico ? `, IČO ${reg.ico}` : ""}`, source: "register" });
-  if (profile?.primary_phone?.confidence === "high") verified.push({ text: `Telefón ${profile.primary_phone.value}`, source: profile.primary_phone.sources[0] ?? null });
-  if (profile?.website_resolution === "confirmed" && profile.website?.url) verified.push({ text: `Web patrí firme: ${profile.website.url}`, source: profile.website.url });
-
-  // Tvrdenie o webe iba pri webe, ktorý firme POTVRDENE patrí, a iba s úryvkom (OBSERVED).
+  const template = segmentFor(company.category);
   const webConfirmed = profile?.website_resolution === "confirmed";
-  const pains = webConfirmed ? o.observed.filter((s) => PAIN_SENTENCE[s.key]) : [];
-  const lead = pains.find((s) => !s.key.endsWith("_found")) ?? pains[0];
-  const context = lead
-    ? `Pozerali sme vašu stránku a všimli sme si, že ${PAIN_SENTENCE[lead.key]}.`
-    : "Zaujímalo by ma, ako sa k vám dnes zákazníci objednávajú.";
 
+  // Fakty: iba z potvrdeného webu (signály a problémy webu), inak nič o stránke netvrdíme.
+  const usable = (e: OppEvidence) => (e.kind === "signal" || e.kind === "web" ? webConfirmed : false);
+  const rank = (e: OppEvidence) => {
+    const i = FACT_ORDER.indexOf(e.code);
+    return i < 0 ? 99 : i;
+  };
+  const facts: CallFact[] = o.evidence
+    .filter(usable)
+    .filter((e) => FACT_ORDER.includes(e.code))
+    .sort((a, b) => rank(a) - rank(b))
+    .slice(0, 3)
+    .map((e) => ({ level: e.level, text: e.text, excerpt: e.excerpt && e.excerpt !== e.text ? e.excerpt : null, source: e.source, evidence_id: e.id }));
+
+  const first = facts.find((f) => OPENING_FACT[o.evidence.find((e) => e.id === f.evidence_id)?.code ?? ""]);
+  const firstCode = first ? o.evidence.find((e) => e.id === first.evidence_id)!.code : null;
+  const opening =
+    webConfirmed && firstCode
+      ? `Dobrý deň, volám sa ${operatorName} a ozývam sa za Dominika, pozerali sme vašu stránku a všimli sme si, že ${OPENING_FACT[firstCode]}.`
+      : `Dobrý deň, volám sa ${operatorName} a ozývam sa za Dominika, chcel by som sa spýtať, ako sa k vám dnes zákazníci objednávajú.`;
+
+  // Otázky: tie, ktoré potvrdia alebo vyvrátia predpoklady (painy) tohto leadu.
+  const painCodes = new Set(o.pains.map((p) => p.code));
+  const qs = template
+    ? [...template.call_questions].sort((a, b) => Number(b.confirms.some((c) => painCodes.has(c))) - Number(a.confirms.some((c) => painCodes.has(c)))).map((q) => q.text)
+    : GENERIC_QUESTIONS;
+  const questions = qs.slice(0, 3);
+
+  const sys = o.recommended_system;
+  const benefit = sys?.primary_modules.length ? `${MODULES[sys.primary_modules[0]].what[0].toUpperCase()}${MODULES[sys.primary_modules[0]].what.slice(1)}.` : null;
   const card: OpportunityCallCard = {
-    firm: company.name,
-    category: opts.categoryLabel ?? company.category,
-    city: company.city,
-    phone: company.phone,
-    website: webConfirmed ? (profile?.website?.url ?? company.website ?? null) : null,
-    main_pain: lead?.text ?? null,
-    why_this_lead: o.why_this_lead,
-    opportunity: sys?.label ?? null,
-    verified,
-    observed: o.observed,
-    estimate: [],
+    version: 3,
+    company: {
+      name: company.name,
+      segment: opts.categoryLabel ?? company.category,
+      city: company.city,
+      phone: company.phone,
+      website: webConfirmed ? (profile?.website?.url ?? company.website ?? null) : null,
+    },
+    why: o.why_lines.length ? o.why_lines.map((l) => l.text) : ["Silný dôvod sme nenašli. Iba sa pýtaj, ako to dnes riešia."],
+    facts,
+    system_idea: sys?.label || null,
+    benefit,
+    system_is_hypothesis: sys?.basis === "segment",
+    opening,
+    questions,
+    next_step: {
+      ask: opts.demoReady ? "Môže vám Dominik poslať krátku ukážku, ako by to vyzeralo u vás?" : "Môže sa vám Dominik ozvať a ukázať, ako by to u vás mohlo fungovať?",
+      rule: "Ak potvrdí ručný príjem dopytov alebo termínov → súhlas pre Dominika (follow-up + personalizované demo).",
+    },
+    hypotheses: [...o.pains].sort((a, b) => Number(a.hypothesis) - Number(b.hypothesis)).slice(0, 4).map((p) => ({ code: p.code, text: p.label })),
     demo: opts.demoReady ? "READY" : "NOT_READY",
-    opening: webConfirmed
-      ? `Dobrý deň, volám sa ${operatorName} a ozývam sa za Dominika ohľadom vašej stránky.`
-      : `Dobrý deň, volám sa ${operatorName} a ozývam sa za Dominika, robí firmám weby, cez ktoré chodia hotové objednávky.`,
-    context_pain: context,
-    idea: IDEA[sysId] ?? IDEA.inquiry,
-    questions: (QUESTIONS[sysId] ?? QUESTIONS.inquiry).slice(0, 3),
-    next_step: opts.demoReady
-      ? "Môže vám Dominik poslať krátku ukážku, ako by to vyzeralo u vás?"
-      : "Môže vám Dominik napísať, ako by to u vás mohlo fungovať?",
     cautions: [
       "Hovor o tom, čo sme videli. Nikdy „nemáte“, iba „nenašli sme“.",
-      "Žiadne čísla o ich stratách ani reklame. Spend nevieme.",
+      "Žiadne čísla o ich stratách ani reklame.",
       "Keď nechcú, poďakuj a skonči. „Nevolať“ zapíš hneď.",
     ],
   };
-  const bad = forbiddenClaims([card.opening, card.context_pain, card.idea, card.next_step, ...card.questions]);
-  if (bad.length) throw new Error(`Call Card v2 obsahuje zakázané tvrdenia: ${bad.join(", ")}`);
+  const bad = forbiddenClaims([card.opening, card.next_step.ask, ...card.questions, ...card.why]);
+  if (bad.length) throw new Error(`Call Card v3 obsahuje zakázané tvrdenia: ${bad.join(", ")}`);
   return card;
 }

@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { configuredOperators, canTakeCall, DEFAULT_OPERATORS, type Operator } from "../lib/operators";
-import { buildOpportunity, whyThisLead, type Opportunity } from "../lib/opportunity";
+import { buildOpportunity, type Opportunity } from "../lib/opportunity";
 import { chooseChannel } from "../lib/channel";
 import { roi } from "../lib/roi";
 import { opportunityCallCard } from "../lib/call-card";
@@ -76,7 +76,9 @@ test("autoservis s telefonickým objednávaním bez formulára = TOP a service_b
   assert.equal(o.dimensions.AUTOMATION_FIT.level, "HIGH");
   assert.equal(o.priority, "TOP");
   assert.equal(o.recommended_system?.id, "service_booking");
-  assert.match(o.why_this_lead, /telefonicky/);
+  assert.equal(o.recommended_system?.basis, "evidence");
+  assert.ok(o.recommended_system?.primary_modules.includes("booking"));
+  assert.match(o.why_this_lead, /telefonát/);
   assert.ok(!/\.\./.test(o.why_this_lead));
 });
 
@@ -95,8 +97,8 @@ test("Money Leak nikdy nepočíta eurá", () => {
   const o = buildOpportunity(lead, "autoservis", profile());
   const text = JSON.stringify(o.money_leak);
   assert.ok(!/€|eur/i.test(text));
-  assert.ok(o.money_leak.some((l) => l.label === "Spend" && l.level === "UNKNOWN"));
-  assert.ok(o.money_leak.some((l) => /riziko/i.test(l.label)));
+  assert.ok(o.money_leak.lines.some((l) => l.label === "Spend" && l.level === "UNKNOWN"));
+  assert.ok(o.money_leak.lines.some((l) => /riziko/i.test(l.label)));
 });
 
 test("bez signálov (web nečitateľný) je PROCESS_PAIN UNKNOWN, nie vymyslený", () => {
@@ -112,7 +114,8 @@ test("online rezervácia už existuje = PROCESS_PAIN LOW", () => {
 
 test("WHY THIS LEAD bez silných dimenzií povie, že dôvod nemáme", () => {
   const weak = buildOpportunity({ ...lead, data_quality: "research" }, "ine", profile({ process_signals: [], business_status: null, tags: null }));
-  assert.equal(whyThisLead({ ...weak.dimensions, VISUAL_GAP: { level: "LOW", reasons: [] } }, null), "Silný dôvod sme nenašli.");
+  assert.equal(weak.why_this_lead, "Silný dôvod sme nenašli.");
+  assert.deepEqual(weak.why_lines, []);
 });
 
 /* ─────────── Routing kanála ─────────── */
@@ -181,14 +184,15 @@ test("ROI: rozsahy a zdroje sa prepíšu do predpokladov, záporné vstupy sú c
 
 /* ─────────── Call Card v2 ─────────── */
 
-test("Call Card v2: konkrétny kontext, žiadne „robíme webstránky“, žiadne zakázané tvrdenia", () => {
+test("Call Card v3: konkrétny kontext, žiadne „robíme webstránky“, žiadne zakázané tvrdenia", () => {
   const o = buildOpportunity(lead, "autoservis", profile());
   const c = opportunityCallCard({ company: { name: "Autoservis Novák", city: "Skalica", category: "autoservis", phone: "+421905123456", website: "https://autoservis-novak.sk" }, profile: profile(), opportunity: o, operatorName: "Roman", demoReady: true });
-  assert.match(c.context_pain, /telefonicky/);
+  assert.match(c.opening, /telefonicky/);
   assert.equal(c.demo, "READY");
   assert.ok(c.questions.length >= 2 && c.questions.length <= 3);
-  assert.ok(c.verified.some((v) => /IČO 12345678/.test(v.text)));
-  const all = [c.opening, c.context_pain, c.idea, c.next_step, ...c.questions].join(" ");
+  assert.ok(c.facts.length >= 1 && c.facts.length <= 3);
+  assert.ok(c.why.length >= 1 && c.why.length <= 3);
+  const all = [c.opening, c.next_step.ask, ...c.questions, ...c.why].join(" ");
   assert.ok(!/robíme webstránky/i.test(all));
   assert.deepEqual(forbiddenClaims([all]), []);
   assert.ok(!/nemáte/i.test(all));
@@ -198,8 +202,10 @@ test("Call Card v2: konkrétny kontext, žiadne „robíme webstránky“, žiad
 
 test("Demo payload berie iba údaje s evidence a má 3 šablóny", () => {
   const o = buildOpportunity(lead, "autoservis", profile());
-  const d = buildDemoPayload({ company: { name: "Novák", city: null }, profile: profile(), opportunity: o, nowIso: NOW, code: "abc23456" });
+  const d = buildDemoPayload({ company: { name: "Novák", city: null, category: "autoservis" }, profile: profile(), opportunity: o, nowIso: NOW, code: "abc23456" });
+  assert.equal(d.version, 2);
   assert.equal(d.template, "service_booking");
+  assert.equal(d.segment, "AUTO_SERVICE");
   assert.equal(d.business.name, "Autoservis Novák");
   assert.deepEqual(d.evidence.map((e) => e.field).sort(), ["city", "name", "services"]);
   assert.equal(d.expires_at, "2026-10-30T10:00:00.000Z");
@@ -208,10 +214,10 @@ test("Demo payload berie iba údaje s evidence a má 3 šablóny", () => {
 
 test("Demo bez služieb nevymýšľa služby; segment bez šablóny = chyba", () => {
   const o = buildOpportunity(lead, "autoservis", profile({ services: [] }));
-  const d = buildDemoPayload({ company: { name: "Novák", city: "Skalica" }, profile: profile({ services: [] }), opportunity: o, nowIso: NOW });
+  const d = buildDemoPayload({ company: { name: "Novák", city: "Skalica", category: "autoservis" }, profile: profile({ services: [] }), opportunity: o, nowIso: NOW });
   assert.deepEqual(d.business.services, []);
   assert.ok(!d.evidence.some((e) => e.field === "services"));
-  assert.equal(d.code.length, 8);
+  assert.equal(d.code.length, 12);
   const none: Opportunity = { ...o, recommended_system: null };
   assert.throws(() => buildDemoPayload({ company: { name: "X", city: null }, profile: null, opportunity: none, nowIso: NOW }), DemoError);
 });
@@ -229,7 +235,7 @@ test("e-mail draft: konkrétny problém, bez diakritiky, bez .sk, podpis Jankovi
   assert.ok(!/djweby\.sk/.test(body));
   assert.match(d.text, /\n\nJankovič\n\n--\n/);
   assert.deepEqual(d.issues, []);
-  assert.equal(d.pain_code, "phone_ordering");
+  assert.equal(d.pain_code, "PHONE_BOOKING");
 });
 
 test("SMS draft má STOP a počíta segmenty v UCS-2", () => {
