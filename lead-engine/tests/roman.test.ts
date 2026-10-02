@@ -189,51 +189,51 @@ function profile(p: Partial<RadarProfile> = {}): RadarProfile {
   return {
     version: 1,
     country: "CZ",
-    brand_names: ["R&L PANENKA koberce"],
+    brand_names: ["Podlahy Novotný"],
     city: "Hodonín",
     services: ["Pokládka koberců", "PVC a vinyl"],
     business_status: { value: "active", evidence: ["register: aktívna"] },
     data_quality: "gold",
     website_resolution: "confirmed",
-    website: { url: "https://panenka-koberce.example", status: "confirmed", evidence: [] },
+    website: { url: "https://podlahy-novotny.example", status: "confirmed", evidence: [] },
     register: { found: true, ico: "12345678" },
     primary_phone: { value: "+420600000000", confidence: "high", sources: ["web"] },
     category: { id: "podlahy", code: "FLOORING", confidence: "high", evidence: [] },
     process_signals: [
-      { key: "phone_ordering", level: "OBSERVED", text: "Objednávky / termíny riešia telefonicky (píšu to na webe)", excerpt: "zamereni objednavejte telefonicky", source: "https://panenka-koberce.example" },
-      { key: "no_form_found", level: "OBSERVED", text: "Formulár sme na webe nenašli", excerpt: "homepage + podstránky bez <form>", source: "https://panenka-koberce.example" },
+      { key: "phone_ordering", level: "OBSERVED", text: "Objednávky / termíny riešia telefonicky (píšu to na webe)", excerpt: "zamereni objednavejte telefonicky", source: "https://podlahy-novotny.example" },
+      { key: "no_form_found", level: "OBSERVED", text: "Formulár sme na webe nenašli", excerpt: "homepage + podstránky bez <form>", source: "https://podlahy-novotny.example" },
     ],
     tags: { ads_status: "NOT_FOUND", spend: "UNKNOWN", google_ads: null, ga4: null, gtm: null, meta_pixel: null },
     ...p,
   } as RadarProfile;
 }
 
-test("Call Card v2: opening podľa evidence, všetky bloky, žiadny robotický scenár", () => {
+test("Call Card v3: opening podľa evidence, všetky bloky, žiadny robotický scenár", () => {
   const o = buildOpportunity({ website_status: "working", data_quality: "gold", ads_check: null }, "podlahy", profile());
   const c = opportunityCallCard({
-    company: { name: "R&L PANENKA koberce - podlahářství", city: "Hodonín", category: "podlahy", phone: "+420600000000", website: "https://panenka-koberce.example" },
+    company: { name: "Podlahy Novotný", city: "Hodonín", category: "podlahy", phone: "+420600000000", website: "https://podlahy-novotny.example" },
     categoryLabel: "Podlahy",
     profile: profile(),
     opportunity: o,
     operatorName: "Roman",
     demoReady: true,
   });
-  assert.equal(c.opening, "Dobrý deň, volám sa Roman a ozývam sa za Dominika ohľadom vašej stránky.");
-  assert.equal(c.context_pain, "Pozerali sme vašu stránku a všimli sme si, že termíny a objednávky riešite hlavne telefonicky.");
-  assert.equal(c.category, "Podlahy");
-  assert.equal(c.website, "https://panenka-koberce.example");
-  assert.ok(c.main_pain);
+  assert.equal(c.opening, "Dobrý deň, volám sa Roman a ozývam sa za Dominika, pozerali sme vašu stránku a všimli sme si, že termíny riešite hlavne telefonicky.");
+  assert.equal(c.company.segment, "Podlahy");
+  assert.equal(c.company.website, "https://podlahy-novotny.example");
+  assert.ok(c.facts.length && c.facts[0].excerpt);
   assert.ok(c.questions.length >= 2 && c.questions.length <= 3);
-  assert.ok(c.next_step.length > 10);
-  assert.ok(!/máte záujem/i.test([c.opening, c.context_pain, c.idea, c.next_step].join(" ")));
+  assert.ok(c.next_step.ask.length > 10);
+  assert.ok(!/máte záujem/i.test([c.opening, c.next_step.ask, ...c.why].join(" ")));
 });
 
-test("Call Card v2: pri nepotvrdenom webe žiadne tvrdenie o stránke", () => {
+test("Call Card v3: pri nepotvrdenom webe žiadne tvrdenie o stránke", () => {
   const p = profile({ website_resolution: "probable" });
   const o = buildOpportunity({ website_status: "working", data_quality: "silver", ads_check: null }, "podlahy", p);
   const c = opportunityCallCard({ company: { name: "X", city: null, category: "podlahy", phone: null, website: null }, profile: p, opportunity: o, operatorName: "Roman", demoReady: false });
-  assert.doesNotMatch(c.opening + c.context_pain, /vašu stránku|vašej stránky/);
-  assert.equal(c.website, null);
+  assert.doesNotMatch(c.opening, /vašu stránku|vašej stránky/);
+  assert.equal(c.company.website, null);
+  assert.deepEqual(c.facts, []);
 });
 
 test("WHY CALL: každé pravidlo je vidieť, CALL ide Romanovi", () => {

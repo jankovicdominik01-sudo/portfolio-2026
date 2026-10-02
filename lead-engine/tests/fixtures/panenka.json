@@ -1,0 +1,39 @@
+{
+  "_zdroj": "Produkčný profil leadu R&L PANENKA koberce (Lead Radar, overené 2026-09-28). Skrátené: bez mena živnostníka, IČO, e-mailu a telefónnych čísel (telefón nahradený zástupným). Procesné signály v profile NIE SÚ, radar ich vtedy ešte nezbieral. Fixture sa nesmie dopĺňať o vymyslené fakty.",
+  "company": { "name": "R&L PANENKA koberce - podlahářství", "category": "podlahy", "city": "Praha 10-Vršovice", "website": "http://kobercepanenka.cz", "phone": "+420600000000" },
+  "lead": { "website_status": "weak", "data_quality": "gold", "ads_check": null },
+  "profile": {
+    "version": 1,
+    "country": "CZ",
+    "city": "Praha 10-Vršovice",
+    "brand_names": ["R&L PANENKA koberce - podlahářství", "podlahářství"],
+    "services": ["podlahy", "predaj rastlín a drevín"],
+    "website_resolution": "confirmed",
+    "website": {
+      "url": "http://kobercepanenka.cz/",
+      "domain": "kobercepanenka.cz",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": ["zlatestranky_cz uvádza http://www.kobercepanenka.cz", "na webe je rovnaký e-mail", "názov firmy je na webe", "mesto Praha 10-Vršovice je na webe"],
+      "health": {
+        "state": "weak",
+        "issues": [
+          { "key": "no_https", "text": "Web beží bez https (prehliadač píše „Nezabezpečené“)", "points": 2, "excerpt": "http://kobercepanenka.cz/" },
+          { "key": "no_tel_link", "text": "Telefón sa na mobile nedá ťuknúť (chýba tel: odkaz)", "points": 1, "excerpt": "žiadny href=\"tel:\"" }
+        ]
+      }
+    },
+    "category": { "id": "podlahy", "code": "FLOORING", "confidence": "high", "evidence": ["„Podlahy“ potvrdzuje: web kobercepanenka.cz (titulok)", "„Podlahy“ potvrdzuje: zlatestranky_cz"] },
+    "register": { "registry": "ARES", "found": true, "dead": false },
+    "business_status": { "value": "active", "evidence": ["register: aktívna", "vlastný web funguje"] },
+    "primary_phone": { "value": "+420600000000", "confidence": "high", "sources": ["website"] },
+    "identity": { "confidence": "high", "evidence": ["register (podľa IČO) potvrdzuje názov z katalógu"] },
+    "data_quality": "gold",
+    "commercial_problems": [
+      { "code": "WEAK_WEBSITE", "label": "Ich web má objektívne problémy", "evidence": ["Web beží bez https (prehliadač píše „Nezabezpečené“)", "Telefón sa na mobile nedá ťuknúť (chýba tel: odkaz)"] }
+    ],
+    "last_verified": { "website": "2026-09-28T14:34:43+00:00", "business_status": "2026-09-28T14:34:31+00:00" },
+    "process_signals": [],
+    "recommended_caller": "roman"
+  }
+}

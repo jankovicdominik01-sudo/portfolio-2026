@@ -167,7 +167,10 @@ def fingerprint(url, net, country=None, max_subpages=2):
     fp.update(title=home["title"], meta=home["meta"], h=home["h"], portfolio=any(p["portfolio"] for p in pages),
               cta=any(p["cta"] for p in pages), text=" ".join(p["text"] for p in pages)[:12000],
               digits="".join(p["digits"] for p in pages), pages=[p["url"] for p in pages],
-              forms=any(p["forms"] for p in pages), raw_pages="\n".join(p.pop("head") for p in pages))
+              forms=any(p["forms"] for p in pages),
+              # po stránkach kvôli zdroju procesných signálov (URL konkrétnej podstránky)
+              page_raw=[{"url": p["url"], "html": p["head"], "text": p["text"]} for p in pages],
+              raw_pages="\n".join(p.pop("head") for p in pages))
     return fp
 
 

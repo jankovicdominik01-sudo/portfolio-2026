@@ -92,6 +92,43 @@ DISCOVERY (katalógy SK/CZ, registre RPO/ARES, výsledky vyhľadávania: web / I
 - Golden set (ručne overené reálne firmy) je v súkromnom úložisku (`/leady/api/v1/golden`), meranie presnosti:
   `routine/radar_golden.py`.
 
+### Opportunity Engine v2 (Phase 2)
+
+Otázka: *čo táto firma robí ručne, čo jej web alebo jednoduchý systém vie zobrať z rúk?*
+
+```
+COMPANY → EVIDENCE → PROCESS RECONSTRUCTION → BUSINESS PAIN → OPPORTUNITY → RECOMMENDED SYSTEM
+        → MONEY LEAK (minúty, nie eurá) → DEMO PREVIEW → ROMAN (Call Card v3)
+```
+
+| Modul | Čo robí |
+|---|---|
+| `routine/radar/signals.py` | 16 procesných signálov z webu (`code, level, evidence, source, observed_at, confidence`), neprítomnosť = „nenašli sme“ |
+| `lib/process.ts` | normalizácia signálov (aj staré kľúče), evidence s id, business painy, rekonštrukcia procesu (krok iba z evidence) |
+| `lib/segments.ts` | segment templates AUTO_SERVICE, FLOORING_TRADES, BARBER_BEAUTY, GENERAL_TRADES: jeden zdroj pre engine, demo, neskôr djweby.sk simulátor a dj-core |
+| `lib/opportunity.ts` | 7 dimenzií (HIGH/MEDIUM/LOW/UNKNOWN + dôvod + evidence_ids), odporúčaný systém z painov, WHY THIS LEAD, verzie pravidiel, stav, run log |
+| `lib/money-leak.ts` | čas na dopyt iba s predpokladmi, dopyty / týždeň UNKNOWN, eurá iba s hodinovou sadzbou od používateľa |
+| `lib/call-card.ts` | Call Card v3: prečo, max. 3 fakty, nápad na systém, 1 veta, 2 až 3 otázky, ďalší krok, predpoklady na potvrdenie |
+| `lib/demo-templates.ts` | demo v2 (zákazník + dashboard), personalizácia iba z evidence, verejná projekcia, `expires_at`, vypnutie |
+
+- Stav analýzy: `NOT_ANALYZED → (ANALYZING) → READY | FAILED`. Výpočet je čistá funkcia nad uloženým profilom.
+  Čítanie webu beží v rannej rutine (`radar_run.py --recheck`), nie v requeste. „Obohatiť z webu“ nastaví ANALYZING
+  a `needs_reverify`, recheck pošle nový profil a výsledok je READY.
+- Verzie pravidiel sú pri každom výsledku (`versions`): engine 2.0, segment templates 1.0, money leak 1.0, signály 1.0.
+- `opportunity_feedback` (CONFIRM / REJECT / UNKNOWN od operátora) je dátový kontrakt pre Phase 3 learning loop.
+- Do Romanovej fronty ide lead iba s overenou identitou, aktivitou, telefónom, ručným procesom alebo overenou medzerou
+  webu, WHY THIS LEAD z evidence a odporúčaným systémom. Telefón a starý web samy nestačia.
+- Demo: iba tlačidlom Dominika, interný náhľad `/leady/demo/<kód>` (noindex, iba admin). Nič sa neodosiela.
+- Testy: `tests/phase2.test.ts`, `tests/golden-opportunity.test.ts` (10 typov firiem), Panenka z reálnej evidence
+  v `tests/fixtures/panenka.json`.
+
+### Kapacita fronty operátora
+
+Ranná rutina nepridáva slepo ďalších 20. `GET /leady/api/v1/routines/morning` vráti pre každého operátora
+`active` (nevybavené: na volanie + opakovaný pokus + callback), `target` (`queue_target` v `LE_OPERATORS`,
+predvolene 20) a `need = max(0, target − active)`. Nerátajú sa Dominik follow-up a ďalej, lost, nevolať,
+vyradené ani ASYNC. Prompt rutiny: `routine/ROUTINE_PROMPT.md`.
+
 ### Ranná rutina (1.0)
 
 `runMorningRoutine` (lib/routine.ts) je hotová pipeline — chýba jej iba zdroj firiem.
@@ -137,7 +174,7 @@ npm run hash-password   # vypíše scrypt$… hash, heslo sa nikde neukladá
 
 ```
 LE_USERS=dominik|Dominik Jankovič|admin|<hash Dominika>;roman|Roman|caller|<hash Romana>|m
-LE_OPERATORS=[{"operator_id":"roman","name":"Roman","status":"ACTIVE","channels":["CALL"],"phone_number":null}]
+LE_OPERATORS=[{"operator_id":"roman","name":"Roman","status":"ACTIVE","channels":["CALL"],"phone_number":null,"queue_target":20}]
 ```
 
 `LE_OPERATORS` je voliteľné, kým je Roman jediný operátor (je predvolený).

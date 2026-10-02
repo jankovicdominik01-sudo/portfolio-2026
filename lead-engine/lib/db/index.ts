@@ -2,6 +2,7 @@ import "server-only";
 import type { Repository } from "./types";
 import { documentRepository } from "./document";
 import { blobConfigured } from "./blob-token";
+import { readOnlyRepository, writesAllowed } from "./guard";
 
 let repo: Repository | null = null;
 
@@ -25,5 +26,7 @@ export async function db(): Promise<Repository> {
     const { fileBackend } = await import("./file");
     repo = documentRepository(fileBackend);
   }
+  // Preview / iné ne-produkčné prostredie na Verceli: iba čítanie (fail-closed).
+  if (!writesAllowed()) repo = readOnlyRepository(repo);
   return repo;
 }

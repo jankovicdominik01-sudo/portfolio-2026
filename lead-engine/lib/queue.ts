@@ -17,8 +17,11 @@ const PRIO = { hot: 0, ready: 1, check: 2, low: 3 } as const;
 /** Quality-first: príležitosť TOP pred ostatnými, potom skóre. */
 const OPP = { TOP: 0, NORMAL: 1, LOW: 2 } as const;
 const oppRank = (l: Lead) => OPP[((l.opportunity as { priority?: keyof typeof OPP } | null | undefined)?.priority ?? "NORMAL")] ?? 1;
+/** Opportunity v2: poradie z dimenzií (proces, fit, aktivita, dôkazy; reklama max. 1 bod). */
+const dimRank = (l: Lead) => (l.opportunity as { rank?: number } | null | undefined)?.rank ?? 0;
 export const byScore = (a: Lead, b: Lead) =>
   oppRank(a) - oppRank(b) ||
+  dimRank(b) - dimRank(a) ||
   (b.score?.points ?? -999) - (a.score?.points ?? -999) ||
   PRIO[a.priority] - PRIO[b.priority] ||
   a.created_at.localeCompare(b.created_at);
@@ -46,8 +49,34 @@ export function buildToday<T extends L>(leads: T[], username: string, nowIso: st
   };
 }
 
-/** Koľko nových (ešte nevolaných) leadov má volajúci — ranná rutina dopĺňa do DAILY_NEW. */
-export const DAILY_NEW = 20;
+/**
+ * Kapacita fronty operátora: ranná rutina neprikladá slepo ďalších 20, ale drží cieľový
+ * počet NEVYBAVENÝCH leadov. Do kapacity sa ráta iba to, čo operátor ešte musí urobiť:
+ * na volanie (ready_to_call) a volané s ďalším krokom u neho (opakovaný pokus, callback).
+ * Nerátajú sa: Dominik follow-up a ďalej (dominik_call…paid), lost, do_not_call, archived,
+ * analyzed (ASYNC / review) a firmy „nevolať“.
+ */
+export const DEFAULT_QUEUE_TARGET = 20;
+/** @deprecated názov z Phase 1, rovnaké číslo ako DEFAULT_QUEUE_TARGET. */
+export const DAILY_NEW = DEFAULT_QUEUE_TARGET;
+
+const OPERATOR_STEPS = ["caller_call", "callback"];
+export function isActiveForOperator(l: L, username: string) {
+  if (l.assigned_to !== username || l.company?.do_not_call) return false;
+  if (l.status === "ready_to_call") return true;
+  return l.status === "called" && OPERATOR_STEPS.includes(l.next_action ?? "");
+}
+
+export function activeCount(leads: L[], username: string) {
+  return leads.filter((l) => isActiveForOperator(l, username)).length;
+}
+
+/** Koľko leadov treba doplniť do cieľa. Nikdy záporné. */
+export function capacityNeed(active: number, target: number = DEFAULT_QUEUE_TARGET) {
+  return Math.max(0, Math.floor(target) - Math.max(0, active));
+}
+
+/** Koľko nových (ešte nevolaných) leadov má volajúci. Iba informácia, cieľ riadi activeCount. */
 export function freshCount(leads: Lead[], username: string) {
   return leads.filter((l) => l.assigned_to === username && l.status === "ready_to_call" && (l.call_attempts ?? 0) === 0)
     .length;

@@ -28,6 +28,9 @@ import {
   refreshOpportunity,
   saveAdsCheck,
   createDemo,
+  requestOpportunityEnrichment,
+  saveOpportunityFeedback,
+  setDemoDisabled,
 } from "@/lib/leads";
 import { importRows, parseImport } from "@/lib/import";
 import { SALES_STEPS } from "@/lib/workflow";
@@ -515,12 +518,52 @@ export async function adsCheckAction(leadId: string, input: z.input<typeof AdsCh
   }
 }
 
-export async function createDemoAction(leadId: string): Promise<ActionResult> {
+export async function createDemoAction(leadId: string, force = false): Promise<ActionResult> {
   const user = await requireUser("admin");
   try {
-    const d = await createDemo(user, leadId);
+    const d = await createDemo(user, leadId, { force });
     refreshAll();
-    return { ok: true, message: `Demo pripravené: /d/${d.code}` };
+    return { ok: true, message: `Demo pripravené (nič sa neodoslalo): /leady/demo/${d.code}` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function setDemoDisabledAction(leadId: string, disabled: boolean): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    await setDemoDisabled(user, leadId, disabled);
+    refreshAll();
+    return { ok: true, message: disabled ? "Demo vypnuté." : "Demo zapnuté." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function enrichOpportunityAction(leadId: string): Promise<ActionResult> {
+  const user = await requireUser("admin");
+  try {
+    await requestOpportunityEnrichment(user, leadId);
+    refreshAll();
+    return { ok: true, message: "Ranná rutina web znova prečíta. Do tej doby je stav ANALYZING." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const OppFeedbackInput = z.object({
+  signal_code: z.string().regex(/^[A-Z_]{3,40}$/),
+  predicted: z.string().trim().max(300),
+  result: z.enum(["confirmed", "rejected", "unknown"]),
+  note: z.string().trim().max(500).nullable().optional().default(null),
+});
+
+/** Operátor po hovore: predpoklad sedí / nesedí / nevie. Nič iné na leade nemení. */
+export async function opportunityFeedbackAction(leadId: string, input: z.input<typeof OppFeedbackInput>): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await saveOpportunityFeedback(user, leadId, OppFeedbackInput.parse(input));
+    return { ok: true, message: "Uložené." };
   } catch (e) {
     return fail(e);
   }
