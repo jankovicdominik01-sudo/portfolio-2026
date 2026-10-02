@@ -172,7 +172,7 @@ export function buildOpportunity(
   const corroborated = strong.filter((p) => p.evidence_ids.length >= 2);
   const painIds = proc.flatMap((p) => p.evidence_ids);
   const bookingTool = evidence.some((e) => e.code === "BOOKING_TOOL_PRESENT");
-  if (!signals.length) dims.PROCESS_PAIN = dim("UNKNOWN", ["Web sme nevedeli prečítať, procesné signály chýbajú"]);
+  if (!signals.length) dims.PROCESS_PAIN = dim("UNKNOWN", ["Procesné signály chýbajú (web sme ešte nečítali alebo sa nedal prečítať)"]);
   else if (corroborated.length || strong.length >= 2) dims.PROCESS_PAIN = dim("HIGH", strong.map((p) => p.label), painIds);
   else if (strong.length || proc.some((p) => p.evidence_ids.some((id) => evidence.find((e) => e.id === id)?.code === "NO_FORM_FOUND")))
     dims.PROCESS_PAIN = dim("MEDIUM", proc.map((p) => p.label), painIds);
@@ -377,10 +377,9 @@ export function whyLines(o: {
   }
   const s = o.system;
   if (s && (top.length || atLeast(o.dims.VISUAL_GAP.level, "MEDIUM"))) {
-    const intake = o.template?.intake_schema.filter((f) => f.type !== "contact" && f.type !== "date").slice(0, 4).map((f) => f.label.toLowerCase());
     const text =
-      s.primary_modules[0] === "smart_inquiry" && intake?.length
-        ? `Príležitosť nie je iba nový web: Smart Inquiry by zbieral ${intake.join(", ")} ešte pred telefonátom${s.basis === "segment" ? " (hypotéza, potvrdiť v hovore)" : ""}.`
+      s.primary_modules[0] === "smart_inquiry" && o.template
+        ? `Príležitosť nie je iba nový web: Smart Inquiry by zbieral ${o.template.inquiry_phrase} ešte pred telefonátom${s.basis === "segment" ? " (hypotéza, potvrdiť v hovore)" : ""}.`
         : `Príležitosť: ${s.label}${s.basis === "segment" ? " (hypotéza, potvrdiť v hovore)" : ""}.`;
     out.push({ text, evidence_ids: s.evidence_ids });
   }

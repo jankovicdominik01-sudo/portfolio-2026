@@ -144,3 +144,7 @@ export function demoCode(): string {
 }
 
 export const DEMO_CODE_RE = /^[a-z2-9]{8,12}$/;
+
+/** Demo sa nikdy neindexuje (stránka aj API). */
+export const DEMO_ROBOTS = { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } } as const;
+export const DEMO_NOINDEX_HEADER = "noindex, nofollow, noarchive";

@@ -9,7 +9,7 @@
  * Žiadne čísla o ich stratách ani reklame.
  */
 import type { Opportunity } from "./opportunity";
-import type { EvidenceLevel, OppEvidence, PainCode } from "./process";
+import { PAIN_LABEL, type EvidenceLevel, type OppEvidence, type PainCode } from "./process";
 import { MODULES, segmentFor } from "./segments";
 import type { Company, RadarProfile } from "./types";
 import { forbiddenClaims } from "./script";
@@ -60,6 +60,19 @@ const FACT_ORDER = [
   "WHATSAPP_PRIMARY", "MESSENGER_PRIMARY", "EMAIL_FOR_ORDER", "MANUAL_QUOTE_SIGNAL", "PDF_PRICE_LIST", "PHOTO_UPLOAD_MISSING",
   "NO_FORM_FOUND", "NO_BOOKING_FOUND", "SOCIAL_REALIZATIONS", "web:no_tel_link", "web:no_viewport", "web:no_https", "web:frames",
 ];
+
+/**
+ * Predpoklady na potvrdenie po hovore: najprv painy z evidence, potom to, čo overujú otázky
+ * segmentu (hypotéza segmentu). Max. 4, aby to Roman stihol označiť.
+ */
+function hypothesesFor(o: Opportunity, template: ReturnType<typeof segmentFor>): OpportunityCallCard["hypotheses"] {
+  const out = [...o.pains].sort((a, b) => Number(a.hypothesis) - Number(b.hypothesis)).map((p) => ({ code: p.code, text: p.label }));
+  for (const q of template?.call_questions ?? []) {
+    const c = q.confirms.find((x) => !out.some((h) => h.code === x));
+    if (c) out.push({ code: c, text: `${PAIN_LABEL[c]} (hypotéza segmentu)` });
+  }
+  return out.slice(0, 4);
+}
 
 const GENERIC_QUESTIONS = ["Ako sa k vám dnes zákazníci najčastejšie ozývajú?", "Čo od nového zákazníka potrebujete vedieť ako prvé?"];
 
@@ -124,7 +137,7 @@ export function opportunityCallCard(opts: {
       ask: opts.demoReady ? "Môže vám Dominik poslať krátku ukážku, ako by to vyzeralo u vás?" : "Môže sa vám Dominik ozvať a ukázať, ako by to u vás mohlo fungovať?",
       rule: "Ak potvrdí ručný príjem dopytov alebo termínov → súhlas pre Dominika (follow-up + personalizované demo).",
     },
-    hypotheses: [...o.pains].sort((a, b) => Number(a.hypothesis) - Number(b.hypothesis)).slice(0, 4).map((p) => ({ code: p.code, text: p.label })),
+    hypotheses: hypothesesFor(o, template),
     demo: opts.demoReady ? "READY" : "NOT_READY",
     cautions: [
       "Hovor o tom, čo sme videli. Nikdy „nemáte“, iba „nenašli sme“.",

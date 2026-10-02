@@ -87,6 +87,8 @@ export type SegmentTemplate = {
     notification: string;
   };
   call_questions: CallQuestion[];
+  /** Čo by Smart Inquiry zbieral (do vety „…by zbieral X ešte pred telefonátom“). */
+  inquiry_phrase: string;
   /** ASSUMPTION: ručné prvotné spracovanie jedného dopytu. */
   minutes_per_inquiry: { range: [number, number]; assumptions: string[] };
 };
@@ -126,6 +128,7 @@ export const SEGMENT_TEMPLATES: Record<SegmentId, SegmentTemplate> = {
       { text: "Pýtajú sa vás ľudia telefonicky, či je auto už hotové?", confirms: ["NO_JOB_STATUS"] },
       { text: "Posielajú vám zákazníci fotky poškodenia, a ak áno, kam?", confirms: ["PHOTOS_VIA_MESSENGER"] },
     ],
+    inquiry_phrase: "auto, problém, termín a fotky",
     minutes_per_inquiry: {
       range: [3, 6],
       assumptions: ["termín a problém sa dohadujú telefonicky", "2 až 3 doplňujúce otázky (auto, problém, kedy)", "fotky, ak sú, prídu zvlášť"],
@@ -169,6 +172,7 @@ export const SEGMENT_TEMPLATES: Record<SegmentId, SegmentTemplate> = {
       { text: "Posielajú vám ľudia fotky ešte pred zameraním?", confirms: ["PHOTOS_VIA_MESSENGER"] },
       { text: "Ako dnes evidujete, či je zákazka po zameraní alebo čaká na ponuku?", confirms: ["MANUAL_MEASUREMENT_COORDINATION", "NO_JOB_STATUS", "MANUAL_QUOTE_PREP"] },
     ],
+    inquiry_phrase: "typ podlahy, plochu v m², lokalitu a fotky",
     minutes_per_inquiry: {
       range: [4, 8],
       assumptions: ["typ podlahy, plocha a lokalita sa zisťujú telefonicky", "3 až 4 opakované otázky na každý dopyt", "fotky prídu zvlášť (správou alebo mailom)"],
@@ -202,6 +206,7 @@ export const SEGMENT_TEMPLATES: Record<SegmentId, SegmentTemplate> = {
       { text: "Objednávajú sa k vám ľudia skôr telefonicky alebo cez správy?", confirms: ["MANUAL_BOOKING"] },
       { text: "Stáva sa vám, že niekto nepríde na termín?", confirms: ["NO_AUTOMATED_REMINDERS"] },
     ],
+    inquiry_phrase: "službu a čas",
     minutes_per_inquiry: {
       range: [2, 4],
       assumptions: ["termín sa dohaduje telefonicky alebo správami", "1 až 2 výmeny, kým sa nájde voľný čas"],
@@ -246,6 +251,7 @@ export const SEGMENT_TEMPLATES: Record<SegmentId, SegmentTemplate> = {
       { text: "Posielajú vám ľudia fotky pred obhliadkou, a kam?", confirms: ["PHOTOS_VIA_MESSENGER"] },
       { text: "Kde máte dnes prehľad, ktorá zákazka čaká na obhliadku a ktorá na ponuku?", confirms: ["NO_JOB_STATUS", "MANUAL_MEASUREMENT_COORDINATION", "MANUAL_QUOTE_PREP"] },
     ],
+    inquiry_phrase: "typ práce, lokalitu, rozsah a fotky",
     minutes_per_inquiry: {
       range: [4, 8],
       assumptions: ["rozsah a lokalita sa zisťujú telefonicky", "3 až 4 opakované otázky na každý dopyt", "fotky prídu zvlášť alebo až na obhliadke"],

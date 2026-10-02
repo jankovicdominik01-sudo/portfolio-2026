@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { publicDemo } from "@/lib/leads";
 import { DemoPreview } from "@/components/demo-preview";
+import { DEMO_ROBOTS } from "@/lib/demo-templates";
 
 /**
  * Interný náhľad dema (Phase 2): iba prihlásený admin, nič sa neodosiela.
@@ -10,7 +11,7 @@ import { DemoPreview } from "@/components/demo-preview";
  */
 export const metadata: Metadata = {
   title: "Náhľad dema",
-  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
+  robots: DEMO_ROBOTS,
 };
 
 export default async function DemoPage({ params }: { params: Promise<{ code: string }> }) {
