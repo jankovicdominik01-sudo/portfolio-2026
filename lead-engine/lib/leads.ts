@@ -15,7 +15,7 @@ import {
   type SalesInput,
   type SalesStep,
 } from "./workflow";
-import { buildToday } from "./queue";
+import { buildToday, DAILY_NEW } from "./queue";
 import { computeScore, priorityFromScore } from "./score";
 import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
@@ -706,7 +706,7 @@ export async function morningStatus(u: SessionUser) {
   const r = await db();
   const [leads, settings] = await Promise.all([r.listLeads(), r.getSettings()]);
   const routing = effectiveRouting(settings);
-  const target = 10;
+  const target = DAILY_NEW;
   const list = callers().map((c) => {
     const fresh = leads.filter((l) => l.assigned_to === c.username && l.status === "ready_to_call" && !(l.call_attempts ?? 0)).length;
     return { caller: c.username, name: c.name, fresh, target, need: Math.max(0, target - fresh) };

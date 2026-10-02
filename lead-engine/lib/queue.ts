@@ -47,7 +47,7 @@ export function buildToday<T extends L>(leads: T[], username: string, nowIso: st
 }
 
 /** Koľko nových (ešte nevolaných) leadov má volajúci — ranná rutina dopĺňa do DAILY_NEW. */
-export const DAILY_NEW = 10;
+export const DAILY_NEW = 20;
 export function freshCount(leads: Lead[], username: string) {
   return leads.filter((l) => l.assigned_to === username && l.status === "ready_to_call" && (l.call_attempts ?? 0) === 0)
     .length;

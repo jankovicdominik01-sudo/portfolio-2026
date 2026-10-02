@@ -49,7 +49,14 @@ def api(engine, key, path, body=None, method=None):
 
 # ─────────────── plán discovery (query generator + locality engine) ───────────────
 
-def plan(callers, routing, recent, day, countries=("SK", "CZ"), cities_per=1, search_strategies=1):
+# Segmenty, kde má Lead Engine hotový systém (fit HIGH) a hovor dáva zmysel. Prvé tri skupiny majú
+# telefón ako prirodzený kanál aj bez signálu z webu (lib/opportunity.ts PHONE_FIRST_SEGMENTS).
+CALL_SEGMENTS = ["autoservis", "pneuservis", "stavebnictvo", "murari", "strechy", "detailing", "fasady", "maliar", "podlahy",
+                 "obklady", "tesari", "kuchyne", "stolarstvo", "brany-ploty", "kovovyroba", "zahradnictvo", "kadernictvo", "barber",
+                 "nechty", "mihalnice", "kozmetika", "makeup"]
+
+
+def plan(callers, routing, recent, day, countries=("SK", "CZ"), cities_per=1, search_strategies=1, segments=None):
     """Pre každého volajúceho s potrebou: jeho kategórie × krajina × mesto × stratégia. Rotuje lokality aj segmenty,
     nerobí dopyty spustené za posledné 3 týždne, pridá 1 exploration segment. Katalógy sú zadarmo; vyhľadávanie
     (drahé) iba `search_strategies` stratégií na kategóriu × krajinu × mesto."""
@@ -59,9 +66,9 @@ def plan(callers, routing, recent, day, countries=("SK", "CZ"), cities_per=1, se
         if c.get("need", 0) <= 0:
             continue
         # segmenty operátora = výslovne jemu priradené + nepriradené (jediný operátor dostane všetky)
-        mine = [k for k in CATS if k != "ine" and routing.get(k) in (None, "", c["caller"])]
+        mine = [k for k in CATS if k != "ine" and routing.get(k) in (None, "", c["caller"]) and (not segments or k in segments)]
         rnd.shuffle(mine)
-        others = [k for k in CATS if k != "ine" and k not in mine]
+        others = [k for k in CATS if k != "ine" and k not in mine and (not segments or k in segments)]
         n_cat = min(len(mine), 2 + c["need"] // 4)
         explore = [x for x in mine[n_cat:n_cat + 1]] or rnd.sample(others, min(1, len(others)))
         for cat in mine[:n_cat] + explore:
@@ -280,6 +287,7 @@ def main():
     ap.add_argument("--recheck", action="store_true")
     ap.add_argument("--callers", help="prepíše potrebu z Lead Engine, napr. roman:10 (QA / ručný beh)")
     ap.add_argument("--search-limit", type=int, default=25, help="koľko firiem smie ísť do vyhľadávania")
+    ap.add_argument("--segments", help="iba tieto segmenty (čiarkou), alebo „call“ = CALL_SEGMENTS")
     ap.add_argument("--no-upload-plan", action="store_true", help="nepýtať sa Lead Engine (offline QA)")
     a = ap.parse_args()
     if not a.key and not a.no_upload_plan:
@@ -311,8 +319,11 @@ def main():
     ex = leady.load_exclusions(a.exclude, a.engine, a.key)
     keys = {f"email:{m}" for m in ex["emails"]} | {f"domain:{d}" for d in ex["domains"]} | {f"phone:{p[-9:]}" for p in ex["phones"] if p}
     api_search = any(p.configured() and p.name != "agent" for p in providers)
+    segments = None
+    if a.segments:
+        segments = set(CALL_SEGMENTS) if a.segments == "call" else {x.strip() for x in a.segments.split(",") if x.strip() in CATS}
     jobs = plan(callers, routing, recent, day, tuple(a.countries.split(",")), cities_per=3 if api_search else 1,
-                search_strategies=2 if api_search else 1)
+                search_strategies=2 if api_search else 1, segments=segments)
     print(f"PLÁN: {len(jobs)} discovery úloh ({len({(j['category'], j['country']) for j in jobs})} segmentov × krajín)")
     records, health = discover(jobs, net, search, day, os.environ.get("GOOGLE_PLACES_KEY"))
     print(f"  discovery: {len(records)} záznamov")
