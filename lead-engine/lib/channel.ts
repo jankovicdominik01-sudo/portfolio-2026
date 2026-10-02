@@ -12,7 +12,7 @@
  *   ASYNC  všetko ostatné
  */
 import { canTakeCall, type Operator } from "./operators";
-import { atLeast, PHONE_FIRST_SEGMENTS, type Opportunity } from "./opportunity";
+import { atLeast, callSuitable, type Opportunity } from "./opportunity";
 import { categoryOf } from "./types";
 
 export const CHANNELS = ["CALL", "ASYNC", "HOLD"] as const;
@@ -51,7 +51,7 @@ export function chooseChannel(i: ChannelInput): ChannelDecision {
   if (!i.has_phone && !i.has_email) return decision("HOLD", null, null, [], ["Nemáme telefón ani e-mail"]);
 
   const phoneSignal = i.opportunity.observed.some((s) => s.key === "phone_ordering");
-  const phoneSegment = PHONE_FIRST_SEGMENTS.includes(categoryOf(i.category).id);
+  const phoneSegment = callSuitable(i.category);
   const operator = i.operators.find((o) => canTakeCall(o, categoryOf(i.category).id, i.assigned_today?.[o.operator_id] ?? 0)) ?? null;
 
   const quality: Rule[] = [
@@ -62,10 +62,14 @@ export function chooseChannel(i: ChannelInput): ChannelDecision {
     },
     { key: "evidence", label: "Dôkazy aspoň MEDIUM (GOLD alebo SILVER)", passed: atLeast(d.EVIDENCE_QUALITY.level, "MEDIUM") },
     { key: "active", label: "Firma je aktívna (register, web alebo profil)", passed: atLeast(d.BUSINESS_ACTIVITY.level, "MEDIUM") },
-    { key: "fit", label: "Automation fit HIGH", passed: d.AUTOMATION_FIT.level === "HIGH" },
+    {
+      key: "fit",
+      label: "Je čo riešiť: systém pre segment alebo slabý web",
+      passed: atLeast(d.AUTOMATION_FIT.level, "MEDIUM") || atLeast(d.VISUAL_GAP.level, "MEDIUM"),
+    },
     {
       key: "phone_natural",
-      label: phoneSignal ? "Telefón je ich kanál (píšu to na webe)" : "Telefón je v segmente bežný kanál",
+      label: phoneSignal ? "Telefón je ich kanál (píšu to na webe)" : "Lokálna firma, telefonát majiteľovi je bežný",
       passed: phoneSignal || phoneSegment,
     },
     { key: "phone", label: "Telefón overený (vysoká istota)", passed: i.has_phone && (i.phone_verified ?? true) },

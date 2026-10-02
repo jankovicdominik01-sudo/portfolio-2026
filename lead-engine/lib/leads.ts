@@ -808,3 +808,46 @@ export function leadDrafts(lead: Lead, demoBase: string) {
     demo_url: url,
   };
 }
+
+/**
+ * Preradí leady čakajúce na async (Opportunity Engine) podľa aktuálnych pravidiel kanála.
+ * Lead, ktorý teraz spĺňa podmienky hovoru, ide do fronty operátora. Nič iné sa nemení.
+ * Predvolene na sucho.
+ */
+export async function rerouteAsync(u: SessionUser, apply: boolean) {
+  assertAdmin(u);
+  const all = await listLeads(u);
+  const todo = all.filter((l) => l.status === "analyzed" && l.next_action === "async_message" && !l.company.do_not_call);
+  const moved: { id: string; name: string; operator: string }[] = [];
+  for (const l of todo) {
+    const opportunity = buildOpportunity(l, l.company.category, l.company.profile);
+    const active = callers().map((c) => c.username);
+    const channel = chooseChannel({
+      category: l.company.category,
+      score_band: l.score?.band,
+      opportunity,
+      has_phone: !!l.company.phone,
+      phone_verified: l.company.profile ? l.company.profile.primary_phone?.confidence === "high" : undefined,
+      category_verified: l.company.profile ? ["high", "medium"].includes(l.company.profile.category?.confidence ?? "") : undefined,
+      has_email: !!l.company.email,
+      do_not_contact: false,
+      operators: configuredOperators().filter((o) => active.includes(o.operator_id)),
+    });
+    if (channel.channel !== "CALL" || !channel.operator_id) continue;
+    moved.push({ id: l.id, name: l.company.name, operator: channel.operator_id });
+    if (!apply) continue;
+    const at = now();
+    await (await db()).updateLead(l.id, {
+      opportunity: opportunity as unknown as Lead["opportunity"],
+      channel_decision: channel as unknown as Lead["channel_decision"],
+      status: "ready_to_call",
+      assigned_to: channel.operator_id,
+      assigned_history: [...(l.assigned_history ?? []), { user: channel.operator_id, at, by: u.name }],
+      next_action: "caller_call",
+      next_action_at: null,
+      updated_at: at,
+    });
+    await event(l.id, u.name, "assign", `CALL → ${channel.operator_id} (nové pravidlá kanála)`);
+  }
+  return { checked: todo.length, moved };
+}
