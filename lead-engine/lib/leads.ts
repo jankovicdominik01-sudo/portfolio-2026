@@ -20,7 +20,7 @@ import { computeScore, priorityFromScore } from "./score";
 import { mergeSources } from "./identity";
 import { buildCallCard } from "./script";
 import { opportunityCallCard } from "./call-card";
-import { analyzeOpportunity, atLeast, buildOpportunity, opportunityLog, readyOpportunity, type Opportunity } from "./opportunity";
+import { analyzeOpportunity, atLeast, buildOpportunity, OPPORTUNITY_ENGINE_VERSION, opportunityLog, readyOpportunity, type Opportunity } from "./opportunity";
 import { chooseChannel } from "./channel";
 import { configuredOperators } from "./operators";
 import { buildDemoPayload, DEMO_CODE_RE, hasDemoTemplate, publicDemoView, type PublicDemo } from "./demo-templates";
@@ -811,7 +811,8 @@ export async function saveOpportunityFeedback(
     ...input,
     operator_id: u.username,
     at: now(),
-    engine_version: (lead.opportunity as { versions?: { opportunity_engine?: string } } | null | undefined)?.versions?.opportunity_engine ?? null,
+    // karta vznikla z uloženého v2 výsledku, inak ju práve vypočítal aktuálny engine
+    engine_version: readyOpportunity(lead.opportunity)?.versions.opportunity_engine ?? OPPORTUNITY_ENGINE_VERSION,
   });
   // posledná odpoveď na ten istý predpoklad od toho istého operátora platí
   const rest = (lead.opportunity_feedback ?? []).filter((x) => !(x.signal_code === fb.signal_code && x.operator_id === fb.operator_id));
