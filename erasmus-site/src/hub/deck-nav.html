@@ -1,0 +1,22 @@
+<!-- Erasmus hub control (added by erasmus-site/build.mjs). Unobtrusive: faint until hovered. -->
+<style>
+#erx-nav { position: fixed; left: 14px; bottom: 14px; z-index: 9999; display: flex; gap: 8px; align-items: center; font: 500 12px/1 "Inter", system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; opacity: .28; transition: opacity .3s; }
+#erx-nav:hover, #erx-nav:focus-within, #erx-nav.armed { opacity: 1; }
+#erx-nav a, #erx-nav button { color: #fff; background: rgba(10,14,24,.72); border: 1px solid rgba(255,255,255,.25); border-radius: 30px; padding: 10px 14px; text-decoration: none; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+#erx-nav button.armed { border-color: #a7c96f; color: #a7c96f; }
+@media print { #erx-nav { display: none; } }
+</style>
+<nav id="erx-nav" aria-label="Erasmus presentations">
+  <a href="../index.html" title="Back to the Erasmus hub (H)">← Hub</a>
+  <button type="button" id="erx-switch" title="Switch to the other presentation (click twice)">Ecological agriculture →</button>
+</nav>
+<script>
+(function () {
+  var nav = document.getElementById("erx-nav"), b = document.getElementById("erx-switch"), t = 0;
+  function arm() { b.classList.add("armed"); nav.classList.add("armed"); b.textContent = "Click again to switch →"; clearTimeout(t); t = setTimeout(disarm, 4000); }
+  function disarm() { b.classList.remove("armed"); nav.classList.remove("armed"); b.textContent = "Ecological agriculture →"; }
+  b.addEventListener("click", function (e) { e.stopPropagation(); if (b.classList.contains("armed")) location.href = "../agriculture/index.html"; else arm(); });
+  nav.addEventListener("click", function (e) { e.stopPropagation(); });
+  document.addEventListener("keydown", function (e) { if (!e.metaKey && !e.ctrlKey && !e.altKey && (e.key === "h" || e.key === "H")) location.href = "../index.html"; });
+})();
+</script>
