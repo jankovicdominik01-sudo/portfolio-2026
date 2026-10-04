@@ -9,15 +9,18 @@
 // relative paths, so the whole dist/ folder also runs offline from a USB stick
 // (double-click index.html).
 //
-// Optional photos, picked up automatically if present:
-//   assets/agriculture/ecofarm/*.jpg|webp  (+ captions.json)  → scene 09
-//   assets/agriculture/field/*.jpg|webp    (+ captions.json)  → scene 19
+// Also:  dist/agriculture/presenter.html  presenter window (press P in the deck)
+//        dist/agriculture/script.html     printable speaker script + presenter map
+// Our own photos live in assets/agriculture/field (composting plant) and
+// assets/agriculture/coop (farming cooperative); see tools/prepare_photos.py.
 
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
+import { renderScript } from "./tools/render-script.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = join(here, "dist");
@@ -56,26 +59,20 @@ const hubFontCss = [
   face("IBM Plex Mono", "normal", 500, `${PM}latin-ext-500-normal.woff2`)
 ].join("\n");
 
-// ---------- agriculture: optional photo folders ----------
-const IMG = /\.(jpe?g|png|webp)$/i;
-function photoSet(name) {
-  const dir = join(here, "assets", "agriculture", name);
-  if (!existsSync(dir)) return [];
-  const caps = existsSync(join(dir, "captions.json")) ? JSON.parse(readFileSync(join(dir, "captions.json"), "utf8")) : {};
-  const out = join(dist, "agriculture", "img", name);
-  mkdirSync(out, { recursive: true });
-  return readdirSync(dir).filter((f) => IMG.test(f)).sort().map((f) => {
-    cpSync(join(dir, f), join(out, f));
-    const c = caps[f] || {};
-    return { src: `img/${name}/${f}`, caption: (typeof c === "string" ? c : c.caption) || "", credit: c.credit || "" };
-  });
+// ---------- agriculture: images ----------
+// img/*.webp (Wikimedia + Sentinel-2), img/field/* (our visit to the composting
+// plant), img/coop/* (photos the farming cooperative shared with us)
+const imgOut = join(dist, "agriculture", "img");
+mkdirSync(imgOut, { recursive: true });
+for (const f of readdirSync(join(here, "assets", "agriculture", "img"))) cpSync(join(here, "assets", "agriculture", "img", f), join(imgOut, f));
+for (const d of ["field", "coop"]) {
+  const src = join(here, "assets", "agriculture", d);
+  if (existsSync(src)) cpSync(src, join(imgOut, d), { recursive: true });
 }
-mkdirSync(join(dist, "agriculture", "img"), { recursive: true });
-for (const f of readdirSync(join(here, "assets", "agriculture", "img"))) cpSync(join(here, "assets", "agriculture", "img", f), join(dist, "agriculture", "img", f));
 const credits = Object.entries(JSON.parse(read("assets/agriculture/credits.json"))).map(([, c]) =>
   `${c.title.replace(/^File:/, "").replace(/\.[a-z]+$/i, "")} — ${c.artist} · ${c.license} · Wikimedia Commons`);
 credits.push("Satellite images: Sentinel-2 cloudless 2024 by EOX IT Services GmbH (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0");
-const assets = { ecofarm: photoSet("ecofarm"), field: photoSet("field"), credits };
+const assets = { credits };
 
 // ---------- agriculture: bundle ----------
 const js = await build({
@@ -90,6 +87,22 @@ const agriHtml = read("src/agriculture/index.html")
   .replace("/*INLINE_JS*/", () => agriJs);
 writeFileSync(join(dist, "agriculture", "index.html"), agriHtml);
 console.log(`agriculture/index.html   ${kb(agriHtml)}  (js ${kb(agriJs)})`);
+
+// ---------- agriculture: presenter window (P) ----------
+const presenterHtml = read("src/agriculture/presenter.html").replace("/*FONTS*/", () => hubFontCss + "\n" + face("IBM Plex Sans", "normal", 500, `${PS}latin-500-normal.woff2`) + "\n" + face("IBM Plex Mono", "normal", 400, `${PM}latin-400-normal.woff2`));
+writeFileSync(join(dist, "agriculture", "presenter.html"), presenterHtml);
+console.log(`agriculture/presenter.html ${kb(presenterHtml)}`);
+
+// ---------- agriculture: printable speaker script + presenter map ----------
+const metaBuild = await build({ entryPoints: [join(here, "src/agriculture/meta.js")], bundle: true, platform: "node", format: "esm", write: false, logLevel: "silent" });
+const metaFile = join(here, ".meta.tmp.mjs");
+writeFileSync(metaFile, metaBuild.outputFiles[0].text);
+const { META } = await import(pathToFileURL(metaFile).href + "?t=" + Date.now());
+rmSync(metaFile, { force: true });
+const { SCRIPT, PRESENTERS } = await import(pathToFileURL(join(here, "src/agriculture/notes.js")).href);
+const scriptHtml = renderScript(META, SCRIPT, PRESENTERS);
+writeFileSync(join(dist, "agriculture", "script.html"), scriptHtml);
+console.log(`agriculture/script.html  ${kb(scriptHtml)}`);
 
 // ---------- slovakia: the original deck, unchanged, plus a small hub control ----------
 const slovakDir = join(dist, "slovakia");

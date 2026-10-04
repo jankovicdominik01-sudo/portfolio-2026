@@ -10,6 +10,7 @@ import act2 from "./scenes/act2.js";
 import act3 from "./scenes/act3.js";
 import act4 from "./scenes/act4.js";
 import act5 from "./scenes/act5.js";
+import backup from "./scenes/backup.js";
 
 gsap.registerPlugin(Flip, MotionPathPlugin, MorphSVGPlugin, DrawSVGPlugin);
 
@@ -25,7 +26,7 @@ function grain() {
 
 function start() {
   grain();
-  createEngine([...act1, ...act2, ...act3, ...act4, ...act5], {
+  window.__deck = createEngine([...act1, ...act2, ...act3, ...act4, ...act5, ...backup], {
     otherDeck: { title: "Slovakia & Senica", href: "../slovakia/index.html" },
     hubHref: "../index.html"
   });

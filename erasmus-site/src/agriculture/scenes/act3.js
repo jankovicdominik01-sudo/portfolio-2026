@@ -1,214 +1,198 @@
-// ACT III · FOOD → WASTE — scenes 12–14
+// ACT III · OUR UNPLANNED VISIT — scenes 09–11: the farming cooperative in Senica
 import { gsap } from "gsap";
-import { stepper, $, $$, svg, rng } from "../lib/stepper.js";
-import { head, up, fade, out, count, pills } from "../lib/fx.js";
+import { stepper, $, $$, svg } from "../lib/stepper.js";
+import { head, up, fade, out, pills } from "../lib/fx.js";
+import { photoHTML, bindPhoto } from "../lib/photo.js";
 
-// ---------------------------------------------------------------- 12
-const SHAPES = {
-  tomato: "M300 120C420 120 520 210 520 330C520 450 420 540 300 540C180 540 80 450 80 330C80 210 180 120 300 120Z",
-  plate: "M40 340C40 280 160 240 300 240C440 240 560 280 560 340C560 400 440 440 300 440C160 440 40 400 40 340Z",
-  scraps: "M120 420L180 390L220 440L150 460Z M260 440C290 400 340 400 360 440C330 470 290 470 260 440Z M400 400L470 410L450 470L390 450Z M180 480L230 470L240 510L190 515Z M330 500C350 480 390 480 400 510C370 530 350 530 330 500Z",
-  bin: "M160 200H440L410 540H190Z M140 165H460V200H140Z M260 135H340V165H260Z",
-  stream: "M-200 330C0 300 200 360 450 330S800 300 1100 330V420C800 390 650 450 450 420S0 390 -200 420Z"
-};
-const s12 = stepper({
-  id: "s-foodwaste", title: "Then food becomes waste", loop: 2, steps: 3,
-  notes: "In 2025 Senica's composting plant took in over 3,300 tonnes of bio-waste — the operator told us this by email. 20 02 01 = biodegradable garden and park waste; 20 01 08 = biodegradable kitchen and canteen waste.",
+// a hoof print (cloven, two toes), pointing up
+const HOOF = "M-7 -14C-11 -13 -12 -4 -11 4C-10 10 -6 13 -3 11C-1 8 -1 -2 -2 -8C-3 -12 -5 -14 -7 -14ZM7 -14C11 -13 12 -4 11 4C10 10 6 13 3 11C1 8 1 -2 2 -8C3 -12 5 -14 7 -14Z";
+
+// ---------------------------------------------------------------- 09 · the visit we didn't plan
+const s09 = stepper({
+  id: "s-coop", title: "The visit we didn't plan", loop: 1, steps: 3,
   html: `
-    <div class="s12-text"><p class="kicker fx">From harvest to bin</p><h2 class="head split">Then food <em>becomes waste</em></h2></div>
-    <svg class="s12-svg" viewBox="0 0 1920 1080" aria-label="A tomato becomes a meal, scraps, a bin and a waste stream">
-      <g class="morphg" transform="translate(1060 200)">
-        <path class="leaf12" d="M300 125C270 80 230 80 210 95C250 100 270 115 300 125ZM300 125C330 80 370 80 390 95C350 100 330 115 300 125Z" fill="#6f9a45"/>
-        <path class="morph" d="${SHAPES.tomato}" fill="#d9442f"/>
-        <path class="food12" d="M200 330C220 290 380 290 400 330C380 360 220 360 200 330Z" fill="#c9793c" opacity="0"/>
-      </g>
-    </svg>
-    <p class="s12-label mono"></p>
-    <div class="s12-tons fx">
-      <p class="kicker">Senica composting plant · intake in 2025</p>
-      <p class="s12-big"><span class="num">0</span> t</p>
-      <div class="bar"><i class="g"></i><i class="k"></i><em class="cap"></em></div>
-      <ul class="mono"><li><b class="sw g"></b>2,685 t garden & park waste <small>(20 02 01)</small></li><li><b class="sw k"></b>642 t kitchen waste <small>(20 01 08)</small></li><li><b class="sw c"></b>capacity 4,200 t / year</li></ul>
-      <span data-src="tssenica"></span>
+    <div class="s9c-bg" data-bg="img/coop/landscape-2.webp"></div>
+    <div class="s9c-shade"></div>
+    <figure class="s9c-print fx"><img data-img="img/coop/team-cooperative.webp" data-lightbox="coop" data-caption="Our team at the farming cooperative in Senica (Poľnohospodárske družstvo Senica), 30 September 2026. Photo: our teacher Martin Woznica." alt="Our four students in front of the farming cooperative building in Senica"><figcaption class="mono">Poľnohospodárske družstvo Senica · 30 Sep 2026</figcaption><span class="stamp s9c-stamp">Field visit</span></figure>
+    <div class="s9c-text">
+      <p class="kicker fx">Field visit 2 · Senica</p>
+      <h2 class="head split">The visit <em>we didn't plan</em></h2>
+      <p class="sub fx">After the composting plant, we also stopped at the farming cooperative in Senica.</p>
     </div>
-    <figure class="s12-photo fx"><img src="img/kitchen-waste.webp" data-lightbox="waste" alt="Kitchen bio-waste: vegetable peels and scraps" data-caption="Kitchen bio-waste. Photo: Muu-karhu · CC BY-SA 3.0 · Wikimedia Commons"><figcaption class="mono">Real kitchen bio-waste · Muu-karhu · CC BY-SA 3.0</figcaption></figure>
-    <div class="s12-eu fx"><span class="stamp">EU · since 31 Dec 2023</span><p>Bio-waste must be separated at source or collected separately.</p><span data-src="euwfd"></span></div>`,
-  timelines: [
-    (tl, el) => {
-      const m = $(el, ".morph"), lab = $(el, ".s12-label");
-      const setL = (t) => () => (lab.textContent = t);
-      head(tl, $(el, ".s12-text .head"), 0);
-      up(tl, $(el, ".s12-text .kicker"), 0.2);
-      tl.fromTo($(el, ".morphg"), { scale: 0.6, autoAlpha: 0, svgOrigin: "1360 530" }, { scale: 1, autoAlpha: 1, duration: 1.2, ease: "back.out(1.5)", immediateRender: false }, 0.2)
-        .call(setL("Harvest"), null, 0.2)
-        .to($(el, ".leaf12"), { autoAlpha: 0, duration: 0.4 }, 2)
-        .to(m, { morphSVG: SHAPES.plate, fill: "#ece5d8", duration: 1.1, ease: "power2.inOut" }, 2)
-        .to($(el, ".food12"), { opacity: 1, duration: 0.5 }, 2.8).call(setL("Meal"), null, 2.6)
-        .to($(el, ".food12"), { opacity: 0, duration: 0.4 }, 4)
-        .to(m, { morphSVG: SHAPES.scraps, fill: "#b98a4a", duration: 1.1, ease: "power2.inOut" }, 4).call(setL("Scraps"), null, 4.5)
-        .to(m, { morphSVG: SHAPES.bin, fill: "#6b4f33", duration: 1.1, ease: "power2.inOut" }, 5.8).call(setL("Brown bio-waste bin"), null, 6.3);
-      fade(tl, $(el, ".s12-photo"), 6.6);
-    },
-    (tl, el) => {
-      tl.to($(el, ".morph"), { morphSVG: SHAPES.stream, fill: "#8c6a48", duration: 1.4, ease: "power2.inOut" }, 0)
-        .call(() => ($(el, ".s12-label").textContent = "Waste stream"), null, 0.6)
-        .to($(el, ".morphg"), { x: -700, y: 250, scale: 0.9, svgOrigin: "1360 530", duration: 1.4, ease: "power2.inOut" }, 0.9)
-        .to($(el, ".s12-photo"), { autoAlpha: 0, duration: 0.4 }, 0)
-        .to([$(el, ".morphg"), $(el, ".s12-label")], { autoAlpha: 0, duration: 0.6 }, 2);
-      up(tl, $(el, ".s12-tons"), 1.2);
-      count(tl, $(el, ".s12-big .num"), 3327, 1.4, { d: 1.8 });
-      tl.fromTo($(el, ".bar .g"), { width: 0 }, { width: (2685 / 4200) * 100 + "%", duration: 1.2, ease: "power2.out", immediateRender: false }, 1.5)
-        .fromTo($(el, ".bar .k"), { width: 0 }, { width: (642 / 4200) * 100 + "%", duration: 0.8, ease: "power2.out", immediateRender: false }, 2.5);
-    },
-    (tl, el) => { up(tl, $(el, ".s12-eu"), 0); }
-  ]
-});
-
-// ---------------------------------------------------------------- 13
-const ITEMS = [
-  { k: "Plastic bag", x: 560, y: 460, where: "Screened out and handed to an authorised company for disposal (operator)." },
-  { k: "Can / metal", x: 1180, y: 380, where: "Metal is on the operator's list of problem items." },
-  { k: "Textile", x: 880, y: 700, where: "Textile doesn't belong in bio-waste — it has to be removed." },
-  { k: "Stone", x: 1460, y: 640, where: "Stones are on the operator's list — they have to be screened out." },
-  { k: "Soil", x: 380, y: 760, where: "Soil is on the operator's list of things that shouldn't be in the bin." },
-  { k: "Mixed municipal waste", x: 1340, y: 860, where: "Mixed rubbish belongs in the black bin, not in bio-waste." }
-];
-const s13 = stepper({
-  id: "s-contamination", title: "It looks clean. Look closer.", loop: 3, steps: 3,
-  notes: "The composting plant told us this directly. The top photo is garden waste (not from Senica); the close-up is an illustration of the items the operator listed. After 30 September our own photos replace it.",
-  html: `
-    <div class="s13-photo"><img src="img/garden-waste.webp" alt="Garden waste being dumped into a container"></div>
-    <div class="s13-shade"></div>
-    <div class="s13-text"><p class="kicker fx">Bio-waste, from above</p><h2 class="head split">It looks clean. <em>Look closer.</em></h2><p class="mono s13-cred fx">Photo: garden waste · Albarubescens · CC BY-SA 4.0 · not from Senica</p></div>
-    <svg class="s13-macro" viewBox="0 0 1920 1080" aria-label="Illustrated close-up of bio-waste with contaminants"></svg>
-    <div class="s13-tip"></div>
-    <p class="s13-cap fx"><b>What the Senica composting plant finds in bio-waste:</b> stones, soil, plastic, textile, mixed municipal waste, metal — and branches that aren't prepared as instructed. <span data-src="tssenica"></span></p>
-    <span class="visnote s13-vis fx">Illustration of the operator's list</span>
-    <div class="s13-chain">
-      <p class="fx"><b>One wrong item</b></p><i class="fx">→</i><p class="fx">extra sorting</p><i class="fx">→</i><p class="fx">rejected material</p><i class="fx">→</i><p class="fx">lower-quality compost</p>
+    <div class="s9c-expect">
+      <p class="s9c-q fx">We expected to hear about <em>the weather.</em></p>
+      <ul class="s9c-icons mono">
+        <li class="fx"><svg viewBox="-30 -30 60 60"><circle r="11" class="sun"/><g class="rays">${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<line x1="0" y1="-17" x2="0" y2="-25" transform="rotate(${a})"/>`).join("")}</g></svg>heat</li>
+        <li class="fx"><svg viewBox="-30 -30 60 60"><path class="crack" d="M-24 10H24M-10 10L-6 2L-12 -6M6 10L2 0L9 -8L5 -16"/></svg>drought</li>
+        <li class="fx"><svg viewBox="-30 -30 60 60"><path class="cloud" d="M-18 4C-26 4 -26 -8 -17 -8C-15 -18 0 -20 4 -10C14 -14 22 -4 15 4Z"/><path class="rain" d="M-12 12L-15 20M0 12L-3 20M12 12L9 20"/></svg>storms</li>
+        <li class="fx"><svg viewBox="-30 -30 60 60"><path class="frost" d="M0 -22V22M-19 -11L19 11M-19 11L19 -11"/></svg>frost</li>
+      </ul>
     </div>
-    <div class="s13-nums">
-      <div class="fx"><p class="big">12 %</p><p>Horné Jatovo biogas plant: up to 12 % of delivered bio-waste didn't belong there — even a printer and rebar (July 2024).</p><span data-src="ctzn"></span></div>
-      <div class="fx"><p class="big">3 g/kg</p><p>EU limit for compost or digestate sold as a fertilising product: glass, metal and plastic over 2 mm, per kg of dry matter.</p><span data-src="eufpr"></span></div>
-    </div>`,
-  setup(el, ctx) {
-    const s = $(el, ".s13-macro"), R = rng(13);
-    s.innerHTML = `<rect width="1920" height="1080" fill="#211a12"/>`;
-    const org = svg("g", {}, s);
-    for (let i = 0; i < 420; i++) {
-      const x = R() * 1920, y = R() * 1080, r = 10 + R() * 40, a = R() * 180, t = R();
-      if (t < 0.45) svg("ellipse", { cx: x, cy: y, rx: r, ry: r * 0.45, transform: `rotate(${a} ${x} ${y})`, fill: `hsl(${40 + R() * 70},${30 + R() * 30}%,${18 + R() * 22}%)` }, org);
-      else if (t < 0.75) svg("path", { d: `M${x} ${y}l${(R() - 0.5) * 160} ${(R() - 0.5) * 60}`, stroke: `hsl(${25 + R() * 15},${30 + R() * 20}%,${22 + R() * 18}%)`, "stroke-width": 3 + R() * 7, "stroke-linecap": "round" }, org);
-      else svg("circle", { cx: x, cy: y, r: r * 0.4, fill: `hsl(${20 + R() * 40},${40 + R() * 30}%,${30 + R() * 25}%)` }, org);
-    }
-    const draw = {
-      "Plastic bag": (g, x, y) => { svg("path", { d: `M${x - 70} ${y - 30}C${x - 40} ${y - 60} ${x + 50} ${y - 50} ${x + 80} ${y - 20}L${x + 60} ${y + 60}C${x + 10} ${y + 80} ${x - 40} ${y + 70} ${x - 80} ${y + 40}Z`, fill: "rgba(235,240,245,.82)", stroke: "#fff", "stroke-width": 2 }, g); svg("path", { d: `M${x - 40} ${y - 45}q15 -40 40 0M${x + 20} ${y - 48}q15 -40 40 0`, stroke: "rgba(235,240,245,.9)", "stroke-width": 6, fill: "none" }, g); },
-      "Can / metal": (g, x, y) => { svg("rect", { x: x - 60, y: y - 30, width: 120, height: 60, rx: 10, fill: "#9aa3ab", transform: `rotate(-20 ${x} ${y})` }, g); svg("path", { d: `M${x - 80} ${y + 60}l140 -20l20 30`, stroke: "#6f7780", "stroke-width": 7, fill: "none" }, g); },
-      Textile: (g, x, y) => svg("path", { d: `M${x - 90} ${y - 20}c30 -30 60 10 90 -10s60 -20 90 10l-10 60c-30 20 -60 -10 -90 10s-60 10 -80 -10z`, fill: "#3f6bb0", stroke: "#2c4f86", "stroke-width": 3 }, g),
-      Stone: (g, x, y) => svg("path", { d: `M${x - 60} ${y}c0 -40 40 -55 70 -45s50 30 45 55s-40 40 -70 35s-45 -20 -45 -45z`, fill: "#8d8a84", stroke: "#6d6a64", "stroke-width": 3 }, g),
-      Soil: (g, x, y) => { for (let i = 0; i < 26; i++) svg("circle", { cx: x + (R() - 0.5) * 120, cy: y + (R() - 0.5) * 60, r: 6 + R() * 12, fill: "#4b3622" }, g); },
-      "Mixed municipal waste": (g, x, y) => svg("path", { d: `M${x - 70} ${y + 40}c-10 -60 20 -100 70 -100s80 40 70 100z M${x - 10} ${y - 60}l10 -20l10 20z`, fill: "#161616", stroke: "#333", "stroke-width": 3 }, g)
-    };
-    const tip = $(el, ".s13-tip");
-    ITEMS.forEach((it, i) => {
-      const g = svg("g", { class: "item interactive", "data-i": i }, s);
-      draw[it.k](g, it.x, it.y);
-      const ring = svg("g", { class: "ring13" }, s);
-      svg("circle", { cx: it.x, cy: it.y, r: 110, class: "rc" }, ring);
-      const t = svg("text", { x: it.x, y: it.y - 128, "text-anchor": "middle", class: "rt" }, ring);
-      t.textContent = it.k;
-      g.addEventListener("click", (e) => {
-        e.stopPropagation();
-        tip.innerHTML = `<b>${it.k}</b>${it.where}`;
-        tip.style.left = Math.min(1500, it.x + 120) + "px"; tip.style.top = Math.max(120, it.y - 60) + "px";
-        gsap.fromTo(tip, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.3 });
-      });
-    });
-    el.addEventListener("click", () => gsap.to(tip, { autoAlpha: 0, duration: 0.2 }));
-  },
-  timelines: [
-    (tl, el) => {
-      tl.fromTo($(el, ".s13-photo"), { scale: 1 }, { scale: 1.08, duration: 6, ease: "none", immediateRender: false }, 0);
-      head(tl, $(el, ".s13-text .head"), 0.2);
-      up(tl, [$(el, ".s13-text .kicker"), $(el, ".s13-cred")], 0.4);
-    },
-    (tl, el) => {
-      tl.to($(el, ".s13-photo"), { scale: 3.2, autoAlpha: 0, duration: 1.6, ease: "expo.in", transformOrigin: "55% 60%" }, 0)
-        .to($(el, ".s13-text"), { autoAlpha: 0, duration: 0.5 }, 0)
-        .fromTo($(el, ".s13-macro"), { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 1, scale: 1, duration: 1.4, ease: "expo.out", immediateRender: false }, 1.3)
-        .fromTo($$(el, ".ring13"), { autoAlpha: 0, scale: 1.8, transformOrigin: "50% 50%" }, { autoAlpha: 1, scale: 1, duration: 0.6, stagger: 0.3, ease: "back.out(2)", immediateRender: false }, 2.5);
-      up(tl, [$(el, ".s13-cap"), $(el, ".s13-vis")], 2.4);
-    },
-    (tl, el) => {
-      tl.to($(el, ".s13-macro"), { opacity: 0.1, duration: 0.8 }, 0).to($(el, ".s13-cap"), { autoAlpha: 0, duration: 0.4 }, 0);
-      up(tl, $$(el, ".s13-chain > *"), 0.3, { s: 0.18, y: 0 });
-      up(tl, $$(el, ".s13-nums > div"), 1.6, { s: 0.4 });
-    }
-  ]
-});
-
-// ---------------------------------------------------------------- 14
-const ICON = {
-  branch: '<path d="M-26 8L26 -8M0 0l8 -16M-10 3l-6 -14" stroke="#8c6a48" stroke-width="5" stroke-linecap="round" fill="none"/>',
-  leaf: '<path d="M-20 0C-10 -16 14 -16 22 0C14 14 -10 14 -20 0Z" fill="#b89a3a"/><path d="M-20 0H22" stroke="#6f5a20" stroke-width="2"/>',
-  grass: '<path d="M-14 12q2 -20 -4 -28M0 12q0 -22 4 -30M12 12q-2 -18 8 -24" stroke="#8fb55b" stroke-width="4" fill="none" stroke-linecap="round"/>',
-  food: '<path d="M-18 6C-18 -12 18 -16 20 2C20 16 -14 20 -18 6Z" fill="#d9772f"/><circle cx="4" cy="-2" r="5" fill="#a8c65a"/>',
-  oil: '<path d="M0 -22C10 -6 16 2 16 10A16 16 0 0 1 -16 10C-16 2 -10 -6 0 -22Z" fill="#e7c24a"/>',
-  slurry: '<ellipse cx="0" cy="4" rx="22" ry="12" fill="#5b4028"/><ellipse cx="-6" cy="0" rx="7" ry="3" fill="#7a5a3a"/>'
-};
-const s14 = stepper({
-  id: "s-split", title: "The right material for the right process", loop: 3, steps: 3,
-  notes: "This split comes from the Slovak Biogas Association — an industry view, so we say whose view it is. Composting needs oxygen; a biogas plant works without it.",
-  html: `
-    <div class="s14-text"><p class="kicker fx">Composting and biogas are not rivals</p><h2 class="head split">The right material <em>for the right process</em></h2></div>
-    <svg class="s14-svg" viewBox="0 0 1920 1080" aria-label="Bio-waste splits into composting and anaerobic digestion; both return to the soil">
-      <path id="s14L" class="flowp" d="M960 360C900 520 600 520 520 690"/>
-      <path id="s14R" class="flowp" d="M960 360C1020 520 1320 520 1400 690"/>
-      <path id="s14L2" class="flowp2" d="M520 800C520 900 700 960 960 985"/>
-      <path id="s14R2" class="flowp2" d="M1400 800C1400 900 1220 960 960 985"/>
-      <circle cx="960" cy="340" r="64" class="pile"/><text x="960" y="350" class="pl" text-anchor="middle">bio-waste</text>
-      <g class="box l"><rect x="330" y="690" width="380" height="110" rx="8"/><text x="520" y="738" text-anchor="middle">COMPOSTING</text><text x="520" y="772" text-anchor="middle" class="t2">with oxygen · heat · weeks to months</text></g>
-      <g class="box r"><rect x="1210" y="690" width="380" height="110" rx="8"/><text x="1400" y="738" text-anchor="middle">ANAEROBIC DIGESTION</text><text x="1400" y="772" text-anchor="middle" class="t2">no oxygen · biogas + digestate</text></g>
-      <rect x="0" y="985" width="1920" height="95" class="soil14"/><text x="960" y="1040" text-anchor="middle" class="sl">compost and digestate → back to the soil</text>
-      <g class="icons"></g>
-    </svg>
-    <div class="s14-sba fx"><p><b>According to the Slovak Biogas Association:</b> woody material suits composting; liquid waste, animal by-products and oils suit biogas plants — and the two should cooperate.</p><span data-src="sba"></span></div>
-    <div class="s14-vince fx">
-      <p class="quote">“By definition, compost is a managed process.”</p>
-      <p class="quote-by"><b>Jozef Vince</b> · our interview · on his farm's own “unmanaged heap, which people call compost”</p>
-      <span data-src="vince"></span>
-    </div>`,
+    <p class="s9c-else fx">We heard <em>something else.</em></p>
+    <svg class="s9c-hooves" viewBox="0 0 1920 1080" aria-hidden="true"></svg>
+    <div class="s9c-src">${pills(["visitcoop", "Our field visit"])}</div>`,
   setup(el) {
-    const g = $(el, ".icons");
-    [["branch", "L"], ["food", "R"], ["leaf", "L"], ["oil", "R"], ["grass", "L"], ["slurry", "R"], ["branch", "L"], ["food", "R"]].forEach(([k, side], i) => {
-      const n = svg("g", { class: "ic ic" + side, "data-side": side, "data-i": i }, g);
-      n.innerHTML = ICON[k];
-    });
-    el._loop = gsap.timeline({ paused: true, repeat: -1 });
-    $$(el, ".ic").forEach((n, i) => {
-      const p = n.dataset.side;
-      el._loop.fromTo(n, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, i * 0.6)
-        .to(n, { motionPath: { path: `#s14${p}`, align: `#s14${p}`, alignOrigin: [0.5, 0.5] }, duration: 2.2, ease: "power1.in" }, i * 0.6)
-        .to(n, { autoAlpha: 0, duration: 0.3 }, i * 0.6 + 2);
-    });
+    const s = $(el, ".s9c-hooves");
+    for (let i = 0; i < 14; i++) {
+      const x = 120 + i * 130, y = 990 + (i % 2 ? -26 : 18), g = svg("g", { class: "hoof", transform: `translate(${x} ${y}) rotate(84)` }, s);
+      svg("path", { d: HOOF }, g);
+    }
   },
   timelines: [
     (tl, el) => {
-      head(tl, $(el, ".s14-text .head"), 0);
-      up(tl, $(el, ".s14-text .kicker"), 0.2);
-      tl.fromTo($(el, ".pile"), { scale: 0, svgOrigin: "960 340" }, { scale: 1, duration: 0.8, ease: "back.out(2)", immediateRender: true }, 0.4)
-        .fromTo($$(el, ".flowp"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.2, ease: "power2.inOut", immediateRender: true }, 0.9)
-        .fromTo($$(el, ".box"), { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.2, immediateRender: true }, 1.7)
-        .fromTo($$(el, ".flowp2"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.2, immediateRender: true }, 2.3)
-        .fromTo($(el, ".soil14"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6, immediateRender: true }, 2.9)
-        .fromTo($(el, ".sl"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6, immediateRender: true }, 3.1)
-        .call(() => el._loop.play(0), null, 1.8);
+      tl.fromTo($(el, ".s9c-bg"), { scale: 1.12 }, { scale: 1.02, duration: 6, ease: "power1.out", immediateRender: false }, 0);
+      tl.fromTo($(el, ".s9c-print"), { autoAlpha: 0, y: 80, rotation: 6 }, { autoAlpha: 1, y: 0, rotation: -2.5, duration: 1.2, ease: "expo.out", immediateRender: false }, 0.3)
+        .fromTo($(el, ".s9c-stamp"), { autoAlpha: 0, scale: 1.8 }, { autoAlpha: 1, scale: 1, duration: 0.4, ease: "power4.in", immediateRender: false }, 1.4);
+      head(tl, $(el, ".s9c-text .head"), 0.2);
+      up(tl, [$(el, ".s9c-text .kicker"), $(el, ".s9c-text .sub"), $(el, ".s9c-src")], 0.5);
     },
-    (tl, el) => { up(tl, $(el, ".s14-sba"), 0); },
-    (tl, el) => { tl.to($(el, ".s14-sba"), { y: -40, opacity: 0.5, duration: 0.6 }, 0); up(tl, $(el, ".s14-vince"), 0.3); }
-  ],
-  onEnter(el, ctx, dir) { if (dir < 0 || ctx.reduced) el._loop.play(0); if (ctx.reduced) el._loop.pause(1.4); },
-  onLeave(el) { setTimeout(() => el._loop.pause(), 800); }
+    (tl, el) => {
+      up(tl, $(el, ".s9c-q"), 0);
+      up(tl, $$(el, ".s9c-icons li"), 0.5, { s: 0.2 });
+    },
+    (tl, el) => {
+      tl.to($$(el, ".s9c-icons li"), { autoAlpha: 0.18, duration: 0.5, stagger: 0.05 }, 0)
+        .to($(el, ".s9c-q"), { autoAlpha: 0.4, duration: 0.5 }, 0);
+      up(tl, $(el, ".s9c-else"), 0.4);
+      tl.fromTo($$(el, ".hoof"), { autoAlpha: 0, scale: 0.4, transformOrigin: "50% 50%" }, { autoAlpha: 0.9, scale: 1, duration: 0.25, stagger: 0.12, ease: "back.out(2)", immediateRender: false }, 0.8);
+    }
+  ]
 });
 
-export default [s12, s13, s14];
+// ---------------------------------------------------------------- 10 · adaptation is not always high-tech
+const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+const s10 = stepper({
+  id: "s-adapt", title: "Adaptation is not always high-tech", loop: 1, steps: 3,
+  html: `
+    <div class="s10a-bg" data-bg="img/coop/landscape.webp"></div>
+    <div class="s10a-shade"></div>
+    <div class="s10a-text">
+      <p class="kicker fx">What they told us · farming cooperative, Senica</p>
+      <h2 class="head split">Adaptation is not always <em>high-tech</em></h2>
+      <p class="sub fx">They told us they can often adapt to the weather.</p>
+    </div>
+    <div class="s10a-cal fx">
+      <div class="months mono">${MONTHS.map((m) => `<span>${m}</span>`).join("")}</div>
+      <div class="track"><i class="win"><b class="mono">sowing</b></i><i class="ghost"></i></div>
+      <div class="s10a-wx mono"><span class="wx">warm, dry spring</span><span class="arrow">← earlier, when needed</span></div>
+      <p class="mono s10a-ill">Illustration · not their real dates or crops</p>
+    </div>
+    <div class="s10a-big">
+      <p class="quote split">Sometimes adaptation means changing <em>when</em> you plant.</p>
+      <div class="s10a-said fx"><span class="mono">● Our field visit · paraphrased</span><p>“At the cooperative we were told that changing the sowing time — for example sowing earlier — helps them respond to the weather.”</p></div>
+    </div>
+    <p class="s10a-cred mono fx">Photo: farming cooperative in Senica · fields near Senica</p>
+    <div class="s10a-src">${pills(["visitcoop", "Our field visit"], ["coopphotos", "Cooperative's photo"])}</div>`,
+  setup(el) { gsap.set($(el, ".ghost"), { autoAlpha: 0 }); },
+  timelines: [
+    (tl, el) => {
+      tl.fromTo($(el, ".s10a-bg"), { scale: 1.08 }, { scale: 1, duration: 5, ease: "power1.out", immediateRender: false }, 0);
+      head(tl, $(el, ".s10a-text .head"), 0.2);
+      up(tl, [$(el, ".s10a-text .kicker"), $(el, ".s10a-text .sub"), $(el, ".s10a-cred"), $(el, ".s10a-src")], 0.5);
+    },
+    (tl, el) => {
+      up(tl, $(el, ".s10a-cal"), 0);
+      tl.fromTo($(el, ".win"), { left: "29%", width: "16%" }, { left: "29%", width: "16%", duration: 0.01, immediateRender: false }, 0)
+        .fromTo($(el, ".wx"), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.5, immediateRender: false }, 1)
+        .fromTo($(el, ".ghost"), { autoAlpha: 0, left: "29%", width: "16%" }, { autoAlpha: 0.35, left: "29%", width: "16%", duration: 0.3, immediateRender: false }, 1.4)
+        .to($(el, ".win"), { left: "21%", duration: 1.4, ease: "power3.inOut" }, 1.6)
+        .fromTo($(el, ".arrow"), { autoAlpha: 0, x: 30 }, { autoAlpha: 1, x: 0, duration: 0.6, immediateRender: false }, 2.2);
+      fade(tl, $(el, ".s10a-ill"), 2.6);
+    },
+    (tl, el) => {
+      tl.to([$(el, ".s10a-text .sub"), $(el, ".s10a-cal")], { autoAlpha: 0, y: -20, duration: 0.5 }, 0)
+        .to($(el, ".s10a-text"), { y: -60, duration: 0.6 }, 0);
+      head(tl, $(el, ".s10a-big .quote"), 0.4, { s: 0.08 });
+      up(tl, $(el, ".s10a-said"), 1.6);
+    }
+  ]
+});
+
+// ---------------------------------------------------------------- 11 · wildlife is harder to control
+const RAPE = { src: "img/coop/rapeseed-grazed.webp", w: 1920, h: 1440 };
+const EVIDENCE = [
+  ["sorghum-fallow-deer", "Sorghum eaten by fallow deer", "fallow deer"],
+  ["rapeseed-red-deer-2", "Rapeseed after red deer", "red deer"],
+  ["maize-wild-boar", "Maize after wild boar", "wild boar"],
+  ["sorghum-harvest", "Sorghum after red deer — at harvest time", "red deer"]
+];
+const WEB = [
+  ["Food production", "the farm has to harvest something", 960, 250],
+  ["Wildlife", "deer and wild boar need food and cover", 1430, 470],
+  ["Landscape ecology", "woods and hedges give animals shelter", 1250, 820],
+  ["Crop protection", "how to protect fields without harming animals?", 670, 820],
+  ["Economic loss", "what is eaten cannot be sold", 490, 470]
+];
+let ph11;
+const s11 = stepper({
+  id: "s-wildlife", title: "Wildlife is harder to control", loop: 1, steps: 4,
+  html: `
+    ${photoHTML("rape", { ...RAPE, alt: "A rapeseed field near Senica: in front grazed, in the background in bloom" })}
+    <div class="s11w-top"></div>
+    <div class="s11w-text"><p class="kicker fx">Farming cooperative, Senica · their photo, their words</p><h2 class="head split">Wildlife is harder <em>to control</em></h2></div>
+    <p class="s11w-q fx">“Fallow deer like the flowers too.”<span class="mono">caption by the cooperative · translated</span></p>
+    <div class="s11w-wall">${EVIDENCE.map(([f, c, a]) => `<figure class="fx"><img data-img="img/coop/${f}.webp" data-lightbox="wild" data-caption="${c}. Photo and caption: farming cooperative in Senica (translated from Slovak)." alt="${c}"><figcaption><span class="mono tag">${a}</span>${c}</figcaption></figure>`).join("")}</div>
+    <svg class="s11w-web" viewBox="0 0 1920 1080" aria-label="A web of needs: food production, wildlife, landscape, crop protection, economic loss"></svg>
+    <div class="s11w-webtext">${WEB.map(([t, d, x, y]) => `<div class="wn fx" style="left:${x}px;top:${y}px"><b>${t}</b><span>${d}</span></div>`).join("")}<div class="wc fx" style="left:960px;top:560px"><b>One field<br>next to the woods</b></div></div>
+    <p class="s11w-not mono fx">Not an enemy — a conflict of needs</p>
+    <div class="s11w-local">
+      <p class="chain fx"><s>climate change → bad weather → lower harvest</s></p>
+      <p class="real fx">At this cooperative: <b>the weather</b> — they adapt the sowing time. <b>Wildlife</b> — much harder.</p>
+      <p class="quote s11w-end split">Agriculture needs biodiversity. Agriculture also feels <em>pressure from wildlife.</em></p>
+      <p class="s11w-ask fx">How do we protect crops — without treating wildlife as the enemy?</p>
+    </div>
+    <div class="s11w-src">${pills(["coopphotos", "Cooperative's photos"], ["visitcoop", "Our field visit"], "iep")}</div>`,
+  setup(el) {
+    ph11 = bindPhoto(el, "rape", {
+      ...RAPE, start: { x: 960, y: 720, z: 1 },
+      notes: [
+        { id: "bloom", x: 1320, y: 528, title: "In the background", text: "rapeseed in bloom", status: "confirmed", word: "Cooperative's caption", dx: 60, dy: -110 },
+        { id: "grazed", x: 860, y: 1010, title: "In front: grazed", text: "the flowers are gone", status: "confirmed", word: "Cooperative's caption", dx: 120, dy: -170, r: 60 },
+        { id: "left", x: 405, y: 935, title: "A few flowers left", status: "seen", dx: -60, dy: 100, r: 16 }
+      ]
+    });
+    const s = $(el, ".s11w-web");
+    WEB.forEach(([, , x, y], i) => {
+      svg("line", { x1: 960, y1: 560, x2: x, y2: y, class: "spoke" }, s);
+      const [nx, ny] = WEB[(i + 1) % WEB.length].slice(2);
+      svg("line", { x1: x, y1: y, x2: nx, y2: ny, class: "rim" }, s);
+    });
+    gsap.set([s, $(el, ".s11w-webtext")], { autoAlpha: 0 });
+  },
+  timelines: [
+    (tl, el) => {
+      tl.fromTo(ph11.el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 1.2, immediateRender: false }, 0);
+      ph11.move(tl, { x: 960, y: 760, z: 1.08 }, 0, { d: 6, ease: "none" });
+      head(tl, $(el, ".s11w-text .head"), 0.4);
+      up(tl, [$(el, ".s11w-text .kicker"), $(el, ".s11w-src")], 0.6);
+      ph11.show(tl, ["bloom", "grazed", "left"], 1.6, { stagger: 0.6 });
+      up(tl, $(el, ".s11w-q"), 3.4);
+    },
+    (tl, el) => {
+      ph11.hide(tl, ["bloom", "grazed", "left"], 0);
+      tl.to(ph11.el, { autoAlpha: 0.1, duration: 0.7 }, 0.1)
+        .to([$(el, ".s11w-q"), $(el, ".s11w-text .head")], { autoAlpha: 0, duration: 0.5 }, 0);
+      tl.fromTo($$(el, ".s11w-wall figure"), { autoAlpha: 0, y: 50, rotation: (i) => [-2, 1.5, -1, 2][i] }, { autoAlpha: 1, y: 0, rotation: (i) => [-1.2, 0.8, -0.6, 1][i], duration: 0.8, stagger: 0.22, ease: "expo.out", immediateRender: false }, 0.4);
+    },
+    (tl, el) => {
+      tl.to($$(el, ".s11w-wall figure"), { autoAlpha: 0, scale: 0.92, duration: 0.5, stagger: 0.05 }, 0)
+        .to($(el, ".s11w-text"), { autoAlpha: 0, duration: 0.4 }, 0)
+        .fromTo($(el, ".s11w-web"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, immediateRender: false }, 0.4)
+        .fromTo($(el, ".s11w-webtext"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, immediateRender: false }, 0.4)
+        .fromTo($$(el, ".s11w-web .spoke"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.7, stagger: 0.15, immediateRender: false }, 0.5)
+        .fromTo($$(el, ".s11w-web .rim"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.7, stagger: 0.12, immediateRender: false }, 1.2);
+      up(tl, $(el, ".wc"), 0.5);
+      up(tl, $$(el, ".wn"), 0.8, { s: 0.25 });
+      up(tl, $(el, ".s11w-not"), 2.2);
+    },
+    (tl, el) => {
+      tl.to([$(el, ".s11w-web"), $(el, ".s11w-webtext"), $(el, ".s11w-not")], { autoAlpha: 0.08, duration: 0.6 }, 0);
+      up(tl, $(el, ".s11w-local .chain"), 0.3);
+      up(tl, $(el, ".s11w-local .real"), 1.1);
+      head(tl, $(el, ".s11w-end"), 1.9, { s: 0.07 });
+      up(tl, $(el, ".s11w-ask"), 3.4);
+    }
+  ]
+});
+
+export default [s09, s10, s11];

@@ -4,22 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Back to Soil? · Ecological Agriculture</title>
-<meta name="description" content="Erasmus+ Mersin 2026 · Slovak team · an interactive documentary about soil, farming, waste and recovery.">
+<meta name="description" content="Erasmus+ Mersin 2026 · Slovak team · a field report about soil, farming, bio-waste and recovery in our region.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23a7c96f' stroke-width='6'/%3E%3Ccircle cx='32' cy='10' r='7' fill='%23a7c96f'/%3E%3C/svg%3E">
 <style>/*INLINE_CSS*/</style>
 </head>
 <body>
-<main id="stage" tabindex="-1" aria-live="polite">
+<main id="stage" tabindex="-1">
   <div id="scenes"></div>
   <nav id="loopnav" class="hidden" aria-label="Where we are in the loop"></nav>
+  <div id="progress" aria-hidden="true"></div>
   <button id="menubtn" aria-label="Menu (M)"><i></i></button>
-  <div id="notes" class="overlay"><span class="dim mono">Presenter note · N</span><span id="notes-text"></span></div>
+  <div id="notes" class="overlay"><span class="dim mono">Presenter note · N · better: press P for the presenter window</span><span id="notes-text"></span></div>
+  <div id="srctip" class="mono" role="tooltip"></div>
   <aside id="drawer" class="overlay" aria-label="Source"></aside>
   <section id="menu" class="overlay" aria-label="Menu"></section>
-  <section id="sources" class="overlay" aria-label="Sources"></section>
+  <section id="sources" class="overlay" aria-label="Our research"></section>
+  <section id="overview" class="overlay" aria-label="Scene overview"></section>
   <div id="lightbox" class="overlay"><div class="bg"></div><img alt=""><p class="cap"></p><button class="nav l" data-d="-1" aria-label="Previous">‹</button><button class="nav r" data-d="1" aria-label="Next">›</button></div>
-  <div id="flash" class="mono"></div>
+  <div id="flash" class="mono" role="status"></div>
   <div id="grain" aria-hidden="true"></div>
+  <div id="blackout" aria-hidden="true"></div>
 </main>
 <div id="curtain" style="position:fixed;inset:0;background:#14100c;z-index:99"></div>
 <script>/*INLINE_JS*/</script>
