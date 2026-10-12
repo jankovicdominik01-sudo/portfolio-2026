@@ -36,10 +36,10 @@ photos have a small ⤢ button in the top-right corner.
 
 Slide 7 (Senica) plays a short map zoom (Europe → Slovakia → Trnava Region → Senica); wait ~5 s before moving on.
 
-**Sport (slide 6):** the slide plays `media/hockey-2002.mp4` if that file exists — save
-the clip of the final under exactly that name and it plays inside the deck, offline. Without
-it, the slide offers a "Find it on YouTube" button (needs internet). Broadcast footage is
-copyrighted, so it is not included here.
+**Sport (slide 6):** click the video to play the 2002 final, Slovakia – Russia 4:3 (TVfunasicek,
+YouTube) full screen; Ľubomír Višňovský scores the first goal after 22 seconds. `Esc` shrinks it
+back, `Space` pauses, `→` moves on. It streams from YouTube (internet needed); a copy saved as
+`media/hockey-2002.mp4` plays instead, offline.
 
 **Host city:** the route on the map ends at Istanbul and is labelled "Turkey". To point it at your
 actual host city, edit `DESTINATION` at the top of `src/deck.js` and rebuild.
@@ -53,7 +53,7 @@ erasmus-deck/src/deck.js      navigation, map camera, animations
 erasmus-deck/src/credits.json photo credits shown with C
 node erasmus-deck/build.mjs   rebuilds erasmus-site/dist/slovakia (or pass --out <dir>)
 erasmus-deck/img/             photos (img/full/: sharper copies for the lightbox)
-erasmus-deck/media/           optional local films (media/films/*.mp4) and hockey-2002.mp4
+erasmus-deck/media/           optional local copies of the films (media/films/*.mp4, media/hockey-2002.mp4)
 ```
 
 `tools/build_map.py` regenerates `src/map-data.json` from Natural Earth data;

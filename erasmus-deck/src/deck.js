@@ -545,8 +545,8 @@
     }
     runCounters(next, baseDelay + (chapterChange && mapState !== "off" ? 0.65 : 0));
     if (!opts.noHash) { try { history.replaceState(null, "", "#s" + (i - OFFSET + 1)); } catch (e) { /* sandboxed */ } }
-    if (prev !== -1 && slides[prev].id === "intro") introLeave();
-    if (next.id === "intro") introEnter();
+    if (prev !== -1) filmLeave(slides[prev]);
+    filmEnter(next);
     pauseMedia(prev);
     if (prev !== -1 && hint) hint.style.opacity = "0";
     busy = true;
@@ -580,7 +580,7 @@
     var k = e.key;
     keepAwake();
     if (lightboxKey(e)) return;
-    if (introKey(e)) return;
+    if (filmKey(e)) return;
     if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === " " || k === "Enter") { e.preventDefault(); nextSlide(); }
     else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") { e.preventDefault(); prevSlide(); }
     else if (k === "Home") { go(0); }
@@ -595,7 +595,7 @@
 
   stage.addEventListener("click", function (e) {
     keepAwake();
-    if (e.target.closest("a, button, video, #credits, #notes, [data-zoom]")) return;
+    if (e.target.closest("a, button, video, .player, #credits, #notes, [data-zoom]")) return;
     var rect = stage.getBoundingClientRect();
     if (e.clientX - rect.left < rect.width * 0.25) prevSlide(); else nextSlide();
   });
@@ -640,20 +640,23 @@
   }
 
   /* ------------------------------------------------------------
-     Films (first slide): → plays the main film full screen; → again
-     (or the film ending) moves on to the cover. Other cards play on
-     click, Esc returns to the cards, Space pauses.
+     Films: the first slide (This is Slovakia) and the Sport slide
+     (the 2002 final). A film grows out of its card to full screen.
+     First slide: → plays it; → again (or the film ending) moves on to
+     the cover. Sport slide: click the card; when the film ends it
+     shrinks back. Esc returns to the card, Space pauses.
      Source per film: a local copy (data-local) if it exists, else the
      YouTube embed (needs internet and http(s); from a USB copy the
      film opens on YouTube instead).
      ------------------------------------------------------------ */
   var intro = document.getElementById("intro");
-  var player = intro ? intro.querySelector(".player") : null;
-  var cards = intro ? Array.prototype.slice.call(intro.querySelectorAll(".film-card")) : [];
-  var introState = "menu", ytFrame = null, localVid = null, paused = false;
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".film-card, .clip-card"));
+  var introCard = intro ? intro.querySelector(".film-card") : null;
+  var filmSlide = null, player = null, filmState = "menu", ytFrame = null, localVid = null, paused = false;
   var canEmbed = /^https?:$/.test(location.protocol);
   // probe local copies once
   cards.forEach(function (c) {
+    if (!c.getAttribute("data-local")) return;
     var v = document.createElement("video");
     v.preload = "metadata"; v.muted = true;
     v.addEventListener("loadedmetadata", function () { c.setAttribute("data-has-local", ""); });
@@ -671,9 +674,13 @@
       return;
     }
     stopFilm(true);
-    introState = "playing"; paused = false;
-    intro.classList.add("playing");
+    filmSlide = card.closest(".slide");
+    player = filmSlide.querySelector(".player");
+    filmState = "playing"; paused = false;
+    filmSlide.classList.add("playing");
+    chrome.classList.add("film");
     var frame = player.querySelector(".frame");
+    frame.innerHTML = "";
     if (card.hasAttribute("data-has-local")) {
       localVid = document.createElement("video");
       localVid.src = card.getAttribute("data-local");
@@ -684,7 +691,7 @@
     } else {
       var host = document.createElement("div");
       frame.appendChild(host);
-      embedYouTube(host, id);
+      embedYouTube(host, id, parseInt(card.getAttribute("data-start") || "0", 10));
     }
     // grow out of the card to the full stage
     player.style.transition = "none";
@@ -695,18 +702,29 @@
     requestAnimationFrame(function () { setBox({ left: 0, top: 0, width: 1920, height: 1080 }); });
   }
   function stopFilm(instant) {
-    var frame = player && player.querySelector(".frame");
-    if (!frame) return;
+    if (!player) return;
+    var p = player, frame = p.querySelector(".frame"), slide = filmSlide;
     if (localVid) { localVid.pause(); localVid = null; }
     if (ytPlayer && ytPlayer.destroy) { try { ytPlayer.destroy(); } catch (e) { /* gone */ } }
     ytPlayer = null; ytFrame = null; clearTimeout(ytWatch);
-    player.classList.remove("needs-click");
-    introState = "menu";
-    intro.classList.remove("playing");
-    player.classList.remove("on");
-    setTimeout(function () { if (introState === "menu") frame.innerHTML = ""; }, instant ? 0 : 700);
+    p.classList.remove("needs-click");
+    filmState = "menu";
+    slide.classList.remove("playing");
+    chrome.classList.remove("film");
+    // shrink back into the card (or just vanish)
+    var card = slide.querySelector(".film-card, .clip-card");
+    var shrink = !instant && card && slide !== intro && slide.classList.contains("active");
+    if (shrink) setBox(stageRect(card)); else p.classList.remove("on");
+    setTimeout(function () {
+      if (filmState === "playing" && filmSlide === slide) return; // started again meanwhile
+      p.classList.remove("on");
+      frame.innerHTML = "";
+    }, instant ? 0 : 750);
   }
-  function filmEnded() { if (slides[current] === intro && introState === "playing") go(current + 1); }
+  function filmEnded() {
+    if (filmState !== "playing" || slides[current] !== filmSlide) return;
+    if (filmSlide === intro) go(current + 1); else stopFilm();
+  }
 
   /* YouTube via its IFrame API. Browsers (Safari above all) may refuse to
      start a film with sound on their own; the player then waits for a click
@@ -726,13 +744,13 @@
     }
     ytApi.push(done);
   }
-  function needClick() { if (introState === "playing" && ytFrame) player.classList.add("needs-click"); }
+  function needClick() { if (filmState === "playing" && ytFrame) player.classList.add("needs-click"); }
   function takeKeysBack() {
-    player.classList.remove("needs-click");
+    if (player) player.classList.remove("needs-click");
     if (document.activeElement && document.activeElement.tagName === "IFRAME") document.activeElement.blur();
     window.focus();
   }
-  function embedYouTube(host, id) {
+  function embedYouTube(host, id, start) {
     var token = {};
     ytPlayer = token;
     loadYtApi(function (failed) {
@@ -740,20 +758,22 @@
       if (failed) { // no API: a plain embed that the presenter can click
         ytFrame = document.createElement("iframe");
         ytFrame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-        ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0&playsinline=1&iv_load_policy=3";
+        ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0&playsinline=1&iv_load_policy=3" + (start ? "&start=" + start : "");
         host.parentNode.replaceChild(ytFrame, host);
         ytPlayer = null;
         player.classList.add("needs-click");
         return;
       }
+      var vars = { autoplay: 1, rel: 0, playsinline: 1, iv_load_policy: 3, modestbranding: 1, origin: location.origin };
+      if (start) vars.start = start;
       ytPlayer = new YT.Player(host, {
         videoId: id,
         host: "https://www.youtube-nocookie.com",
-        playerVars: { autoplay: 1, rel: 0, playsinline: 1, iv_load_policy: 3, modestbranding: 1, origin: location.origin },
+        playerVars: vars,
         events: {
           onReady: function (e) {
             ytFrame = e.target.getIframe();
-            if (introState !== "playing") return;
+            if (filmState !== "playing") return;
             if (paused) e.target.pauseVideo(); else e.target.playVideo();
             clearTimeout(ytWatch);
             ytWatch = setTimeout(function () {
@@ -763,7 +783,7 @@
           },
           onAutoplayBlocked: needClick,
           onStateChange: function (e) {
-            if (e.data === 1) { clearTimeout(ytWatch); if (player.classList.contains("needs-click")) setTimeout(takeKeysBack, 300); }
+            if (e.data === 1) { clearTimeout(ytWatch); if (player && player.classList.contains("needs-click")) setTimeout(takeKeysBack, 300); }
             if (e.data === 0) filmEnded();
           },
           onError: needClick
@@ -774,7 +794,7 @@
   }
   // a click on the film's ▶ moves focus into YouTube; give it back to the deck once it plays
   window.addEventListener("blur", function () {
-    if (!ytFrame || document.activeElement !== ytFrame || player.classList.contains("needs-click")) return;
+    if (!ytFrame || document.activeElement !== ytFrame || (player && player.classList.contains("needs-click"))) return;
     setTimeout(takeKeysBack, 0);
   });
   function togglePause() {
@@ -782,14 +802,14 @@
     if (localVid) { if (paused) localVid.pause(); else localVid.play(); }
     if (ytPlayer && ytPlayer.pauseVideo) { if (paused) ytPlayer.pauseVideo(); else ytPlayer.playVideo(); }
   }
-  function introEnter() { if (intro) stopFilm(true); }
-  function introLeave() { if (intro) setTimeout(function () { if (slides[current] !== intro) stopFilm(true); }, 1000); }
+  function filmEnter(slide) { if (filmSlide === slide) stopFilm(true); }
+  function filmLeave(slide) { if (filmSlide === slide) setTimeout(function () { if (slides[current] !== slide && filmSlide === slide) stopFilm(true); }, 1000); }
   function introNext() {
-    if (introState === "menu" && cards[0] && (canEmbed || cards[0].hasAttribute("data-has-local"))) { playFilm(cards[0]); return true; }
+    if (filmState === "menu" && introCard && (canEmbed || introCard.hasAttribute("data-has-local"))) { playFilm(introCard); return true; }
     return false; // playing: → moves on to the cover
   }
-  function introKey(e) {
-    if (!intro || slides[current] !== intro || introState !== "playing") return false;
+  function filmKey(e) {
+    if (filmState !== "playing" || slides[current] !== filmSlide) return false;
     var k = e.key;
     if (k === "Escape" || k === "ArrowLeft" || k === "PageUp" || k === "Backspace") { e.preventDefault(); stopFilm(); return true; }
     if (k === " " || k === "k" || k === "K") { e.preventDefault(); togglePause(); return true; }
@@ -801,26 +821,6 @@
     if (i < 0 || !slides[i]) return;
     Array.prototype.forEach.call(slides[i].querySelectorAll("video"), function (v) { v.pause(); });
   }
-
-  /* ------------------------------------------------------------
-     Hockey clip: plays media/hockey-2002.mp4 if you put it there,
-     otherwise offers the clip on YouTube.
-     ------------------------------------------------------------ */
-  Array.prototype.forEach.call(document.querySelectorAll(".clip"), function (box) {
-    var v = box.querySelector("video");
-    if (!v) return;
-    v.addEventListener("loadedmetadata", function () { box.classList.add("ready"); });
-    v.addEventListener("error", function () { box.classList.add("missing"); });
-    var src = v.querySelector("source");
-    if (src) src.addEventListener("error", function () { box.classList.add("missing"); });
-    box.querySelector(".clip-play").addEventListener("click", function (e) {
-      e.stopPropagation();
-      if (box.classList.contains("missing")) return;
-      box.classList.add("playing");
-      v.controls = true;
-      v.play();
-    });
-  });
 
   /* ------------------------------------------------------------
      Lightbox: every photo opens full screen, growing out of its
