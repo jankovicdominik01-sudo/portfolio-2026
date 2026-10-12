@@ -630,7 +630,7 @@
     el.setAttribute("aria-label", text);
     el.textContent = "";
     // size the word to the stage: short words big, the long sentence smaller
-    el.style.setProperty("--fs", Math.min(250, Math.round(1700 / (text.length * 0.5))) + "px");
+    el.style.setProperty("--fs", Math.min(230, Math.round(1700 / (text.length * 0.5))) + "px");
     text.split(" ").forEach(function (word, wi) {
       if (wi) el.appendChild(document.createTextNode(" "));
       var w = document.createElement("span");

@@ -43,7 +43,7 @@ back, `Space` pauses, `→` moves on. It streams from YouTube (internet needed);
 
 **Your turn (slide 13):** the audience tries to say Slovak words out loud. The slide shows one
 word at a time; `→` reveals how to say it and what it means, `→` again brings the next word, `←`
-steps back. Nine words, from *Ahoj* to *najneobhospodarovávateľnejší*. The rules (volunteers, the audience
+steps back. Five hard ones, from *Čučoriedka* to *najneobhospodarovávateľnejší*. The rules (volunteers, the audience
 picks the best) are only in the presenter notes, not on the slide.
 
 **Host city:** the route on the map ends at Istanbul and is labelled "Turkey". To point it at your
