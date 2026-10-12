@@ -28,7 +28,7 @@
     { roman: "I", name: "Slovakia", sub: "The country" },
     { roman: "II", name: "Senica", sub: "Our town" },
     { roman: "III", name: "Our School", sub: "Where we learn" },
-    { roman: "IV", name: "Erasmus+", sub: "Why we are here" }
+    { roman: "IV", name: "Your turn", sub: "Say it in Slovak" }
   ];
   // The intro film (if present) is slide 0 and is not counted as a numbered slide.
   var OFFSET = slides[0] && slides[0].id === "intro" ? 1 : 0;
@@ -187,7 +187,7 @@
     { t: "label", text: "Austria", cls: "big", lon: 13.2, lat: 47.0, on: "europe" },
     { t: "label", text: "Germany", lon: 10.4, lat: 51.2, on: "europe" },
     { t: "label", text: "Italy", lon: 12.4, lat: 43.1, on: "europe" },
-    { t: "label", text: "Turkey", cls: "trl", lon: 34.0, lat: 39.1, on: "europe network" },
+    { t: "label", text: "Turkey", cls: "trl", lon: 34.0, lat: 39.1, on: "europe" },
     { t: "label", text: "Black Sea", lon: 34.5, lat: 43.3, on: "europe" },
     { t: "pin", text: "Bratislava", sub: "Capital", cls: "small left", lon: 17.108, lat: 48.149, on: "europe journey1 journey2" },
     { t: "pin", text: "Istanbul", cls: "tr small", lon: 28.978, lat: 41.008, on: "europe" },
@@ -198,7 +198,7 @@
     { t: "label", text: "Austria", lon: 16.55, lat: 48.2, on: "journey2" },
     { t: "label", text: "Hungary", lon: 18.1, lat: 47.85, on: "journey2" },
     { t: "pin", text: "Trnava", sub: "Regional capital", cls: "small", lon: 17.588, lat: 48.377, on: "journey2" },
-    { t: "pin", text: "Senica", sub: "Our town", cls: "hero", lon: 17.367, lat: 48.679, on: "journey3 area network route-start" },
+    { t: "pin", text: "Senica", sub: "Our town", cls: "hero", lon: 17.367, lat: 48.679, on: "journey3 area route-start" },
     // area (slide 7)
     { t: "pin", text: "Kunov", cls: "small left", lon: 17.338, lat: 48.702, on: "area" },
     { t: "pin", text: "Branč Castle", cls: "small", lon: 17.467, lat: 48.733, on: "area" },
@@ -208,25 +208,10 @@
     { t: "pin", text: "Skalica", cls: "small left", lon: 17.227, lat: 48.845, on: "area" },
     { t: "label", text: "Záhorie", cls: "big", lon: 17.12, lat: 48.57, on: "area" },
     { t: "label", text: "Little Carpathians", lon: 17.55, lat: 48.585, on: "area" },
-    // network (slide 12)
-    { t: "pin", text: "Istanbul", cls: "tr small", lon: 28.978, lat: 41.008, on: "network" },
-    { t: "pin", text: "Ankara", cls: "tr small", lon: 32.86, lat: 39.93, on: "network" },
     // route (slide 14)
     { t: "pin", text: "Senica", sub: "Slovakia", cls: "hero left", lon: 17.367, lat: 48.679, on: "route" },
     { t: "pin", text: DESTINATION.name, sub: DESTINATION.sub, cls: "tr hero left", lon: DESTINATION.lon, lat: DESTINATION.lat, on: "route", delay: 2.2 }
   ];
-
-  var NETWORK = [
-    { name: "Brussels", lon: 4.352, lat: 50.85 }, { name: "Paris", lon: 2.352, lat: 48.857 },
-    { name: "Berlin", lon: 13.405, lat: 52.52 }, { name: "Warsaw", lon: 21.012, lat: 52.23 },
-    { name: "Prague", lon: 14.438, lat: 50.076 },
-    { name: "Budapest", lon: 19.04, lat: 47.498 }, { name: "Rome", lon: 12.496, lat: 41.903 },
-    { name: "Athens", lon: 23.728, lat: 37.984 }, { name: "Vilnius", lon: 25.28, lat: 54.687 },
-    { name: "Copenhagen", lon: 12.568, lat: 55.676 }
-  ];
-  NETWORK.forEach(function (n) {
-    MARKS.push({ t: "pin", text: n.name, cls: "small", lon: n.lon, lat: n.lat, on: "network" });
-  });
 
   MARKS.forEach(function (mk) {
     mk.xy = project(mk.lon, mk.lat);
@@ -261,7 +246,6 @@
     trnava: camAt(17.62, 48.42, 1300, 560, 0.2),
     senica: camAt(17.367, 48.679, 1180, 420, 0.085),
     area: camAt(17.35, 48.72, 1260, 380, 0.052),
-    network: camAt(16, 47, 1260, 500, 2.7),
     route: camAt(17.367, 48.679, 1200, 290, 1.6)
   };
 
@@ -381,14 +365,6 @@
       setMapClasses(["show-regions", "zoomed"]);
       moveCam(CAMS.area, wasOff ? 0 : 1600);
       showMarks("area");
-    } else if (state === "network") {
-      setMapClasses(["show-tr"]);
-      if (wasOff) moveCam(camAt(16, 47, 1260, 500, 3.6), 0);
-      moveCam(CAMS.network, 2000);
-      showMarks("network");
-      NETWORK.forEach(function (n, i) { addArc(SENICA, [n.lon, n.lat], "", 0.9 + i * 0.12, 1.4, 0.2); });
-      addArc(SENICA, [28.978, 41.008], "tr", 0.7, 1.8, -0.22);
-      addArc(SENICA, [32.86, 39.93], "tr", 1.0, 1.9, -0.22);
     } else if (state === "route") {
       setMapClasses(["show-tr"]);
       if (wasOff) moveCam(camAt(17.367, 48.679, 1200, 290, 2.6), 0);
@@ -547,14 +523,15 @@
     if (!opts.noHash) { try { history.replaceState(null, "", "#s" + (i - OFFSET + 1)); } catch (e) { /* sandboxed */ } }
     if (prev !== -1) filmLeave(slides[prev]);
     filmEnter(next);
+    if (next === quiz) quizShow(prev > i ? qLast : 0);
     pauseMedia(prev);
     if (prev !== -1 && hint) hint.style.opacity = "0";
     busy = true;
     setTimeout(function () { busy = false; }, 350);
   }
 
-  function nextSlide() { if (busy) return; if (slides[current].id === "intro" && introNext()) return; go(current + 1); }
-  function prevSlide() { if (!busy) go(current - 1); }
+  function nextSlide() { if (busy) return; if (slides[current].id === "intro" && introNext()) return; if (quizNext()) return; go(current + 1); }
+  function prevSlide() { if (busy) return; if (quizPrev()) return; go(current - 1); }
 
   document.getElementById("next").addEventListener("click", function (e) { e.stopPropagation(); go(current + 1); });
   document.getElementById("prev").addEventListener("click", function (e) { e.stopPropagation(); go(current - 1); });
@@ -638,6 +615,59 @@
     }
     return "slide " + c.slide;
   }
+
+  /* ------------------------------------------------------------
+     Say it in Slovak: one word at a time. → shows how to say it and
+     what it means, → again brings the next word; ← steps back.
+     ------------------------------------------------------------ */
+  var quiz = document.getElementById("quiz");
+  var qWords = quiz ? Array.prototype.slice.call(quiz.querySelectorAll(".qz")) : [];
+  var qDots = quiz ? Array.prototype.slice.call(quiz.querySelectorAll(".qz-dots li")) : [];
+  var qStep = 0, qLast = qWords.length * 2 - 1;
+  var DIA = /[áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽ]/;
+  qWords.forEach(function (q) {
+    var el = q.querySelector(".qz-word"), text = el.textContent, n = 0;
+    el.setAttribute("aria-label", text);
+    el.textContent = "";
+    // size the word to the stage: short words big, the long sentence smaller
+    el.style.setProperty("--fs", Math.min(250, Math.round(1640 / (text.length * 0.62))) + "px");
+    text.split(" ").forEach(function (word, wi) {
+      if (wi) el.appendChild(document.createTextNode(" "));
+      var w = document.createElement("span");
+      w.className = "qw";
+      word.split("").forEach(function (c) {
+        var ch = document.createElement("span");
+        ch.className = "ch" + (DIA.test(c) ? " dia" : "");
+        ch.setAttribute("aria-hidden", "true");
+        ch.style.setProperty("--i", n++);
+        ch.textContent = c;
+        w.appendChild(ch);
+      });
+      el.appendChild(w);
+    });
+  });
+  function quizShow(step) {
+    qStep = step;
+    var w = Math.floor(step / 2), ans = step % 2 === 1;
+    qWords.forEach(function (q, i) {
+      q.classList.toggle("on", i === w);
+      q.classList.toggle("ans", i === w && ans);
+      q.classList.toggle("gone", i < w);
+    });
+    qDots.forEach(function (d, i) { d.classList.toggle("done", i < w || (i === w && ans)); d.classList.toggle("cur", i === w); });
+    if (quiz) quiz.style.setProperty("--hue", w);
+  }
+  function quizNext() {
+    if (!quiz || slides[current] !== quiz || qStep >= qLast) return false;
+    quizShow(qStep + 1);
+    return true;
+  }
+  function quizPrev() {
+    if (!quiz || slides[current] !== quiz || qStep <= 0) return false;
+    quizShow(qStep - 1);
+    return true;
+  }
+  if (quiz) quizShow(0);
 
   /* ------------------------------------------------------------
      Films: the first slide (This is Slovakia) and the Sport slide
