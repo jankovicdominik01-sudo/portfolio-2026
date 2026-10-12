@@ -11,13 +11,12 @@ any modern browser (Chrome or Edge recommended).
 
 ## Presenting
 
-The deck opens on three **films about Slovakia**: *Show me Slovakia* (SLOVAKFOLKLORE) large,
-and two films by Visit Slovakia. `→` plays the main film full screen; `→` again (or the end of
-the film) starts the presentation. Click another film to play it, `Esc` goes back to the films,
-`Space` pauses. The films stream from YouTube, so they need internet and the online version
-(erasmus.djweby.sk). From a USB copy, clicking a film opens it on YouTube instead — unless you put
-your own copies next to the deck as `media/films/show-me-slovakia.mp4`, `what-a-surprise.mp4`
-and `fall-in-love.mp4`; then they play inside the deck, offline.
+The deck opens on the film **This is Slovakia – top 30 places** (Hike The World, YouTube).
+`→` plays it full screen; `→` again (or the end of the film) starts the presentation. `Space`
+pauses, `Esc` goes back to the poster. The film streams from YouTube, so it needs internet and the
+online version (erasmus.djweby.sk). From a USB copy, clicking the poster opens the film on YouTube
+— unless you save a copy next to the deck as `media/films/this-is-slovakia.mp4`; then it plays
+inside the deck, offline.
 
 | Key | Action |
 | --- | --- |
