@@ -13,7 +13,9 @@ any modern browser (Chrome or Edge recommended).
 
 The deck opens on the film **This is Slovakia – top 30 places** (Hike The World, YouTube).
 `→` plays it full screen; `→` again (or the end of the film) starts the presentation. `Space`
-pauses, `Esc` goes back to the poster. The film streams from YouTube, so it needs internet and the
+pauses, `Esc` goes back to the poster. Some browsers (Safari above all) won't start a film with
+sound by themselves; the film then takes one click on its own ▶, after which the keyboard and
+clicker drive the deck again. The film streams from YouTube, so it needs internet and the
 online version (erasmus.djweby.sk). From a USB copy, clicking the poster opens the film on YouTube
 — unless you save a copy next to the deck as `media/films/this-is-slovakia.mp4`; then it plays
 inside the deck, offline.

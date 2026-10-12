@@ -797,6 +797,8 @@ kbd { font: 600 0.9em var(--f-body); padding: 3px 9px; border: 1px solid var(--l
 #intro .player .frame, #intro .player iframe, #intro .player video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 /* the deck keeps keyboard focus (clicker!), so the film itself never takes clicks */
 #intro .player iframe { pointer-events: none; }
+/* …except when the browser would not start it with sound: then its own ▶ takes the click */
+#intro .player.needs-click iframe { pointer-events: auto; }
 #intro.playing .films { opacity: 0; transition: opacity 0.6s 0.2s; }
 #intro .films.one { inset: 0; display: block; }
 #intro .films.one .film-card { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; box-shadow: none; transform: scale(1.03); }

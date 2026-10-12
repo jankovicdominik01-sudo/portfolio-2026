@@ -682,16 +682,9 @@
       frame.appendChild(localVid);
       localVid.play().catch(function () {});
     } else {
-      ytFrame = document.createElement("iframe");
-      ytFrame.allow = "autoplay; encrypted-media; picture-in-picture";
-      ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=" + encodeURIComponent(location.origin);
-      ytFrame.addEventListener("load", function () {
-        try {
-          ytFrame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
-          ytFrame.contentWindow.postMessage(JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"], id: 1, channel: "widget" }), "*");
-        } catch (e) { /* no API */ }
-      });
-      frame.appendChild(ytFrame);
+      var host = document.createElement("div");
+      frame.appendChild(host);
+      embedYouTube(host, id);
     }
     // grow out of the card to the full stage
     player.style.transition = "none";
@@ -705,23 +698,89 @@
     var frame = player && player.querySelector(".frame");
     if (!frame) return;
     if (localVid) { localVid.pause(); localVid = null; }
-    ytFrame = null;
+    if (ytPlayer && ytPlayer.destroy) { try { ytPlayer.destroy(); } catch (e) { /* gone */ } }
+    ytPlayer = null; ytFrame = null; clearTimeout(ytWatch);
+    player.classList.remove("needs-click");
     introState = "menu";
     intro.classList.remove("playing");
     player.classList.remove("on");
     setTimeout(function () { if (introState === "menu") frame.innerHTML = ""; }, instant ? 0 : 700);
   }
   function filmEnded() { if (slides[current] === intro && introState === "playing") go(current + 1); }
-  window.addEventListener("message", function (e) {
-    if (!ytFrame || e.source !== ytFrame.contentWindow) return;
-    var d; try { d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; } catch (x) { return; }
-    var st = d && (d.event === "onStateChange" ? d.info : d.info && d.info.playerState);
-    if (st === 0) filmEnded();
+
+  /* YouTube via its IFrame API. Browsers (Safari above all) may refuse to
+     start a film with sound on their own; the player then waits for a click
+     on its own ▶ button, so for that moment the film takes clicks. Once it
+     plays, the deck takes the keyboard back (clicker). */
+  var ytPlayer = null, ytWatch = 0, ytApi = null;
+  function loadYtApi(done) {
+    if (window.YT && window.YT.Player) { done(); return; }
+    if (!ytApi) {
+      ytApi = [];
+      var prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function () { if (prev) prev(); ytApi.forEach(function (f) { f(); }); ytApi = []; };
+      var s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      s.onerror = function () { ytApi.forEach(function (f) { f(true); }); ytApi = null; };
+      document.head.appendChild(s);
+    }
+    ytApi.push(done);
+  }
+  function needClick() { if (introState === "playing" && ytFrame) player.classList.add("needs-click"); }
+  function takeKeysBack() {
+    player.classList.remove("needs-click");
+    if (document.activeElement && document.activeElement.tagName === "IFRAME") document.activeElement.blur();
+    window.focus();
+  }
+  function embedYouTube(host, id) {
+    var token = {};
+    ytPlayer = token;
+    loadYtApi(function (failed) {
+      if (ytPlayer !== token) return; // stopped meanwhile
+      if (failed) { // no API: a plain embed that the presenter can click
+        ytFrame = document.createElement("iframe");
+        ytFrame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0&playsinline=1&iv_load_policy=3";
+        host.parentNode.replaceChild(ytFrame, host);
+        ytPlayer = null;
+        player.classList.add("needs-click");
+        return;
+      }
+      ytPlayer = new YT.Player(host, {
+        videoId: id,
+        host: "https://www.youtube-nocookie.com",
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1, iv_load_policy: 3, modestbranding: 1, origin: location.origin },
+        events: {
+          onReady: function (e) {
+            ytFrame = e.target.getIframe();
+            if (introState !== "playing") return;
+            if (paused) e.target.pauseVideo(); else e.target.playVideo();
+            clearTimeout(ytWatch);
+            ytWatch = setTimeout(function () {
+              var st = ytPlayer && ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+              if (st !== 1 && st !== 3 && !paused) needClick();
+            }, 2500);
+          },
+          onAutoplayBlocked: needClick,
+          onStateChange: function (e) {
+            if (e.data === 1) { clearTimeout(ytWatch); if (player.classList.contains("needs-click")) setTimeout(takeKeysBack, 300); }
+            if (e.data === 0) filmEnded();
+          },
+          onError: needClick
+        }
+      });
+      ytFrame = ytPlayer.getIframe ? ytPlayer.getIframe() : null;
+    });
+  }
+  // a click on the film's ▶ moves focus into YouTube; give it back to the deck once it plays
+  window.addEventListener("blur", function () {
+    if (!ytFrame || document.activeElement !== ytFrame || player.classList.contains("needs-click")) return;
+    setTimeout(takeKeysBack, 0);
   });
   function togglePause() {
     paused = !paused;
     if (localVid) { if (paused) localVid.pause(); else localVid.play(); }
-    if (ytFrame) ytFrame.contentWindow.postMessage(JSON.stringify({ event: "command", func: paused ? "pauseVideo" : "playVideo", args: [] }), "*");
+    if (ytPlayer && ytPlayer.pauseVideo) { if (paused) ytPlayer.pauseVideo(); else ytPlayer.playVideo(); }
   }
   function introEnter() { if (intro) stopFilm(true); }
   function introLeave() { if (intro) setTimeout(function () { if (slides[current] !== intro) stopFilm(true); }, 1000); }
