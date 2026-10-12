@@ -9,6 +9,7 @@
 
   var MAP = window.DECK_MAP;
   var CREDITS = window.DECK_CREDITS || [];
+  var PHOTOS = window.DECK_PHOTOS || [];
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   var stage = document.getElementById("stage");
@@ -22,12 +23,23 @@
   var credits = document.getElementById("credits");
   var hint = document.getElementById("hint");
 
+  // Chapters come from each slide's data-chapter, so slides can be added freely.
   var CHAPTERS = [
-    { roman: "I", name: "Slovakia", sub: "The country", start: 0, end: 4 },
-    { roman: "II", name: "Senica", sub: "Our town", start: 5, end: 7 },
-    { roman: "III", name: "Our School", sub: "Where we learn", start: 8, end: 10 },
-    { roman: "IV", name: "Erasmus+", sub: "Why we are here", start: 11, end: 13 }
+    { roman: "I", name: "Slovakia", sub: "The country" },
+    { roman: "II", name: "Senica", sub: "Our town" },
+    { roman: "III", name: "Our School", sub: "Where we learn" },
+    { roman: "IV", name: "Erasmus+", sub: "Why we are here" }
   ];
+  // The intro film (if present) is slide 0 and is not counted as a numbered slide.
+  var OFFSET = slides[0] && slides[0].id === "intro" ? 1 : 0;
+  CHAPTERS.forEach(function (C, c) {
+    slides.forEach(function (sl, i) {
+      if (i < OFFSET || parseInt(sl.getAttribute("data-chapter"), 10) !== c) return;
+      if (C.start === undefined) C.start = i;
+      C.end = i;
+    });
+  });
+  chapterBtns.forEach(function (b, c) { b.setAttribute("data-go", CHAPTERS[c].start); });
 
   /* ------------------------------------------------------------
      Fit the 1920×1080 stage to any screen
@@ -457,7 +469,7 @@
       var a = document.createElement("a");
       a.href = c.page; a.target = "_blank"; a.rel = "noopener"; a.textContent = c.title;
       li.appendChild(a);
-      li.appendChild(document.createTextNode(" — " + c.artist + ", " + c.license + " (slide " + c.slide + ")"));
+      li.appendChild(document.createTextNode(" — " + c.artist + ", " + c.license + " (" + creditWhere(c) + ")"));
       ol.appendChild(li);
     });
   })();
@@ -474,8 +486,8 @@
   }
 
   function updateChrome(i) {
-    chrome.classList.toggle("hidden", i === 0 || i === slides.length - 1);
-    counter.innerHTML = "<b>" + String(i + 1).padStart(2, "0") + "</b> / " + slides.length;
+    chrome.classList.toggle("hidden", i === OFFSET || i === slides.length - 1 || slides[i].getAttribute("data-chrome") === "off");
+    counter.innerHTML = "<b>" + String(Math.max(1, i - OFFSET + 1)).padStart(2, "0") + "</b> / " + (slides.length - OFFSET);
     var ch = chapterOf(i);
     chapterBtns.forEach(function (b, c) {
       var C = CHAPTERS[c];
@@ -485,6 +497,7 @@
       if (c === ch) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
     });
     notesText.textContent = slides[i].getAttribute("data-notes") || "";
+    presenterUpdate(i);
   }
 
   function playChapterCard(ch) {
@@ -531,13 +544,16 @@
       enterMapState(mapState, next, prev);
     }
     runCounters(next, baseDelay + (chapterChange && mapState !== "off" ? 0.65 : 0));
-    if (!opts.noHash) { try { history.replaceState(null, "", "#s" + (i + 1)); } catch (e) { /* sandboxed */ } }
+    if (!opts.noHash) { try { history.replaceState(null, "", "#s" + (i - OFFSET + 1)); } catch (e) { /* sandboxed */ } }
+    if (prev !== -1 && slides[prev].id === "intro") introLeave();
+    if (next.id === "intro") introEnter();
+    pauseMedia(prev);
     if (prev !== -1 && hint) hint.style.opacity = "0";
     busy = true;
     setTimeout(function () { busy = false; }, 350);
   }
 
-  function nextSlide() { if (!busy) go(current + 1); }
+  function nextSlide() { if (busy) return; if (slides[current].id === "intro" && introNext()) return; go(current + 1); }
   function prevSlide() { if (!busy) go(current - 1); }
 
   document.getElementById("next").addEventListener("click", function (e) { e.stopPropagation(); go(current + 1); });
@@ -563,6 +579,7 @@
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var k = e.key;
     keepAwake();
+    if (lightboxKey(e)) return;
     if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === " " || k === "Enter") { e.preventDefault(); nextSlide(); }
     else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") { e.preventDefault(); prevSlide(); }
     else if (k === "Home") { go(0); }
@@ -570,13 +587,14 @@
     else if (k === "f" || k === "F") { toggleFullscreen(); }
     else if (k === "n" || k === "N") { notes.classList.toggle("on"); }
     else if (k === "c" || k === "C") { credits.classList.toggle("on"); }
+    else if (k === "p" || k === "P") { openPresenter(); }
     else if (k === "Escape") { notes.classList.remove("on"); credits.classList.remove("on"); }
-    else if (/^[1-9]$/.test(k)) { go(parseInt(k, 10) - 1); }
+    else if (/^[1-9]$/.test(k)) { go(parseInt(k, 10) - 1 + OFFSET); }
   });
 
   stage.addEventListener("click", function (e) {
     keepAwake();
-    if (e.target.closest("a, button, #credits, #notes")) return;
+    if (e.target.closest("a, button, video, #credits, #notes, [data-zoom]")) return;
     var rect = stage.getBoundingClientRect();
     if (e.clientX - rect.left < rect.width * 0.25) prevSlide(); else nextSlide();
   });
@@ -605,9 +623,292 @@
     })();
   }
 
+
+  /* ------------------------------------------------------------
+     Photo credits: where each photo appears
+     ------------------------------------------------------------ */
+  function creditWhere(c) {
+    if (c.where) return c.where;
+    var ph = PHOTOS.filter(function (x) { return x.title === c.title; })[0];
+    if (ph) {
+      for (var i = 0; i < slides.length; i++) {
+        if (slides[i].querySelector('img[src="img/' + ph.name + '.webp"]')) return "slide " + (i - OFFSET + 1);
+      }
+    }
+    return "slide " + c.slide;
+  }
+
+  /* ------------------------------------------------------------
+     Intro film: first → plays it, → while playing skips; when it
+     ends, the deck cuts to the cover (the film's last frame is the
+     cover photo, so the hand-off is seamless).
+     ------------------------------------------------------------ */
+  var intro = document.getElementById("intro");
+  var film = intro ? intro.querySelector("video") : null;
+  var introState = "idle";
+  function filmBroken() { return !film || film.error || film.networkState === 3; }
+  function introEnter() {
+    if (!film) return;
+    introState = "idle";
+    intro.classList.remove("playing", "ending");
+    try { film.pause(); film.currentTime = 0; } catch (e) { /* not loaded yet */ }
+  }
+  function introLeave() {
+    if (!film) return;
+    // skipped mid-film: a soft push-in; ended naturally: hold still, the last frame is the cover
+    if (!film.ended) intro.classList.add("ending");
+    introState = "idle";
+    setTimeout(function () { if (slides[current] !== intro) film.pause(); }, 1400);
+  }
+  function introNext() {
+    if (filmBroken() || introState !== "idle") return false;
+    introState = "playing";
+    intro.classList.add("playing");
+    if (hint) hint.style.opacity = "0";
+    var pr = film.play();
+    if (pr && pr.catch) pr.catch(function () { film.muted = true; film.play().catch(function () {}); });
+    return true;
+  }
+  if (intro) intro.querySelector(".intro-play").addEventListener("click", function (e) { e.stopPropagation(); introNext(); });
+  if (film) {
+    film.addEventListener("ended", function () { if (slides[current] === intro) go(current + 1); });
+    film.addEventListener("error", function () { intro.classList.add("nofilm"); });
+    var fsrc = film.querySelector("source");
+    if (fsrc) fsrc.addEventListener("error", function () { intro.classList.add("nofilm"); });
+  }
+  function pauseMedia(i) {
+    if (i < 0 || !slides[i]) return;
+    Array.prototype.forEach.call(slides[i].querySelectorAll("video"), function (v) { if (v !== film) v.pause(); });
+  }
+
+  /* ------------------------------------------------------------
+     Hockey clip: plays media/hockey-2002.mp4 if you put it there,
+     otherwise offers the clip on YouTube.
+     ------------------------------------------------------------ */
+  Array.prototype.forEach.call(document.querySelectorAll(".clip"), function (box) {
+    var v = box.querySelector("video");
+    if (!v) return;
+    v.addEventListener("loadedmetadata", function () { box.classList.add("ready"); });
+    v.addEventListener("error", function () { box.classList.add("missing"); });
+    var src = v.querySelector("source");
+    if (src) src.addEventListener("error", function () { box.classList.add("missing"); });
+    box.querySelector(".clip-play").addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (box.classList.contains("missing")) return;
+      box.classList.add("playing");
+      v.controls = true;
+      v.play();
+    });
+  });
+
+  /* ------------------------------------------------------------
+     Lightbox: every photo opens full screen, growing out of its
+     own frame. ← → browse the photos of the slide, Esc closes.
+     ------------------------------------------------------------ */
+  var FULL = (window.DECK_MEDIA && window.DECK_MEDIA.full) || [];
+  var lb = document.createElement("div");
+  lb.id = "lightbox";
+  lb.innerHTML = '<div class="lb-bg"></div><div class="lb-box"><img alt=""></div>' +
+    '<div class="lb-cap"><b></b><span></span><em></em></div>' +
+    '<button type="button" class="lb-nav lb-prev" aria-label="Previous photo">‹</button>' +
+    '<button type="button" class="lb-nav lb-next" aria-label="Next photo">›</button>' +
+    '<button type="button" class="lb-close" aria-label="Close">×</button><div class="lb-count"></div>';
+  document.body.appendChild(lb);
+  var lbBox = lb.querySelector(".lb-box"), lbImg = lbBox.querySelector("img");
+  var lbList = [], lbIdx = 0, lbOpen = false;
+
+  function nameOf(img) { var m = /img\/([^\/]+)\.(webp|png|jpg)$/.exec(img.getAttribute("src") || ""); return m ? m[1] : ""; }
+  function captionOf(img) {
+    var host = img.closest("figure, .dish, .half, .local, .slide");
+    var t = "", d = "";
+    var cap = host && host.querySelector(".cap");
+    if (cap) {
+      var nm = cap.querySelector(".name, b");
+      t = nm ? nm.textContent : "";
+      var sub = cap.querySelector("p, span");
+      d = sub ? sub.textContent : "";
+    } else if (host && host.classList.contains("dish")) {
+      t = host.querySelector(".name").textContent;
+      var pp = host.querySelector("p"); d = pp ? pp.textContent : "";
+    }
+    if (!t) t = img.getAttribute("alt") || "";
+    var ph = PHOTOS.filter(function (x) { return x.name === nameOf(img); })[0];
+    var cr = ph ? "Photo: " + ph.artist + " · " + ph.license + " · Wikimedia Commons" : "Photo: SSOŠP Senica";
+    return [t, d, cr];
+  }
+  function zoomables(slide) {
+    return Array.prototype.slice.call(slide.querySelectorAll("[data-zoom]"));
+  }
+  // mark photos as zoomable; full-bleed backgrounds get a small zoom button
+  slides.forEach(function (sl) {
+    if (sl.id === "intro") return;
+    Array.prototype.forEach.call(sl.querySelectorAll("figure img, .ph img, .half img, .local img"), function (img) { img.setAttribute("data-zoom", ""); });
+    var bg = sl.querySelector(".bg img");
+    if (bg && sl.querySelectorAll("[data-zoom]").length === 0) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "zoom-bg"; b.setAttribute("aria-label", "View the photo");
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+      b.addEventListener("click", function (e) { e.stopPropagation(); openLightbox([bg], 0, bg); });
+      sl.appendChild(b);
+    }
+  });
+  document.addEventListener("click", function (e) {
+    var img = e.target.closest("[data-zoom]");
+    if (!img || lbOpen) return;
+    e.stopPropagation();
+    var list = zoomables(slides[current]);
+    openLightbox(list, Math.max(0, list.indexOf(img)), img);
+  }, true);
+
+  function fitBox(w, h) {
+    var mw = window.innerWidth * 0.9, mh = window.innerHeight * 0.8;
+    var k = Math.min(mw / w, mh / h);
+    var W = w * k, H = h * k;
+    return { left: (window.innerWidth - W) / 2, top: (window.innerHeight - H) / 2 - window.innerHeight * 0.04, width: W, height: H };
+  }
+  function place(r) { lbBox.style.left = r.left + "px"; lbBox.style.top = r.top + "px"; lbBox.style.width = r.width + "px"; lbBox.style.height = r.height + "px"; }
+  function showCaption(img) {
+    var c = captionOf(img);
+    lb.querySelector(".lb-cap b").textContent = c[0];
+    lb.querySelector(".lb-cap span").textContent = c[1];
+    lb.querySelector(".lb-cap em").textContent = c[2];
+    lb.querySelector(".lb-count").textContent = lbList.length > 1 ? (lbIdx + 1) + " / " + lbList.length : "";
+    lb.classList.toggle("single", lbList.length < 2);
+  }
+  function srcFor(img) { var n = nameOf(img); return FULL.indexOf(n) !== -1 ? "img/full/" + n + ".webp" : img.getAttribute("src"); }
+  function openLightbox(list, idx, from) {
+    lbList = list; lbIdx = idx; lbOpen = true;
+    var r = from.getBoundingClientRect();
+    lbImg.src = from.currentSrc || from.src;
+    lb.classList.add("on");
+    lbBox.style.transition = "none";
+    place(r);
+    showCaption(from);
+    void lbBox.offsetWidth;
+    var w = from.naturalWidth || r.width, h = from.naturalHeight || r.height;
+    lbBox.style.transition = "";
+    requestAnimationFrame(function () { lb.classList.add("open"); place(fitBox(w, h)); });
+    var hi = srcFor(from);
+    if (hi !== from.getAttribute("src")) { var pre = new Image(); pre.onload = function () { if (lbList[lbIdx] === from) lbImg.src = hi; }; pre.src = hi; }
+  }
+  function stepLightbox(d) {
+    if (lbList.length < 2) return;
+    lbIdx = (lbIdx + d + lbList.length) % lbList.length;
+    var img = lbList[lbIdx];
+    lb.classList.add("swap");
+    setTimeout(function () {
+      lbImg.src = img.currentSrc || img.src;
+      place(fitBox(img.naturalWidth || 4, img.naturalHeight || 3));
+      showCaption(img);
+      lb.classList.remove("swap");
+      var hi = srcFor(img);
+      if (hi !== img.getAttribute("src")) { var pre = new Image(); pre.onload = function () { if (lbList[lbIdx] === img) lbImg.src = hi; }; pre.src = hi; }
+    }, reduced ? 0 : 220);
+  }
+  function closeLightbox() {
+    if (!lbOpen) return;
+    var img = lbList[lbIdx];
+    lb.classList.remove("open");
+    if (img && img.offsetParent && !reduced) place(img.getBoundingClientRect());
+    setTimeout(function () { lb.classList.remove("on"); lbOpen = false; }, reduced ? 0 : 520);
+  }
+  lb.querySelector(".lb-prev").addEventListener("click", function (e) { e.stopPropagation(); stepLightbox(-1); });
+  lb.querySelector(".lb-next").addEventListener("click", function (e) { e.stopPropagation(); stepLightbox(1); });
+  lb.addEventListener("click", function () { closeLightbox(); });
+  function lightboxKey(e) {
+    if (!lbOpen) return false;
+    var k = e.key;
+    if (k === "ArrowRight" || k === "PageDown" || k === " ") { e.preventDefault(); stepLightbox(1); }
+    else if (k === "ArrowLeft" || k === "PageUp") { e.preventDefault(); stepLightbox(-1); }
+    else if (k === "Escape" || k === "Enter" || k === "ArrowUp" || k === "ArrowDown" || k === "Backspace") { e.preventDefault(); closeLightbox(); }
+    else if (k === "f" || k === "F") { toggleFullscreen(); }
+    return true;
+  }
+
+  /* ------------------------------------------------------------
+     Presenter view (P): a second window with the speaker notes,
+     the next slide and a timer. Put the deck on the projector and
+     keep this window on the laptop. It also drives the deck.
+     ------------------------------------------------------------ */
+  var pres = null, presT0 = 0, presTick = 0;
+  function titleOf(sl) {
+    if (!sl) return "—";
+    if (sl.getAttribute("data-title")) return sl.getAttribute("data-title");
+    var h = sl.querySelector("h1, h2, .h1, .h2, .mega");
+    return h ? h.textContent.replace(/\s+/g, " ").trim() : sl.id;
+  }
+  function thumbOf(sl) {
+    if (!sl) return "";
+    var v = sl.querySelector("video[poster]");
+    var img = sl.querySelector(".bg img, figure img, .ph img, .half img");
+    var src = img ? img.getAttribute("src") : v ? v.getAttribute("poster") : "";
+    try { return src ? new URL(src, location.href).href : ""; } catch (e) { return ""; }
+  }
+  var PRES_CSS = "*{box-sizing:border-box}html,body{margin:0;height:100%;background:#080d19;color:#eef2f8;font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif}" +
+    "body{display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 1fr auto;gap:18px;padding:22px}" +
+    "header{grid-column:1/3;display:flex;justify-content:space-between;align-items:center;font:600 14px/1 'Segoe UI',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:rgba(238,242,248,.55)}" +
+    "#timer{font:700 40px/1 'Segoe UI',sans-serif;letter-spacing:0;color:#eef2f8;font-variant-numeric:tabular-nums}#clock{font-variant-numeric:tabular-nums}" +
+    ".now,.next{background:#0d1528;border:1px solid rgba(214,226,255,.16);border-radius:16px;padding:22px;overflow:auto}" +
+    ".lab{font:600 13px/1 'Segoe UI',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:rgba(238,242,248,.5);margin-bottom:10px}" +
+    "h1{font:800 34px/1.1 'Segoe UI',sans-serif;margin:0 0 16px}#notes{font:400 28px/1.5 Inter,'Segoe UI',sans-serif;color:#eef2f8}" +
+    ".next h2{font:700 24px/1.2 'Segoe UI',sans-serif;margin:8px 0 12px}.next p{font:400 18px/1.45 Inter,sans-serif;color:rgba(238,242,248,.7)}" +
+    ".thumb{width:100%;aspect-ratio:16/9;border-radius:10px;background:#142039 center/cover no-repeat;margin-bottom:10px}" +
+    "footer{grid-column:1/3;display:flex;gap:12px;align-items:center}button{font:600 18px/1 'Segoe UI',sans-serif;color:#eef2f8;background:#142039;border:1px solid rgba(214,226,255,.25);border-radius:999px;padding:14px 26px;cursor:pointer}" +
+    "#notes-sk{display:none;margin-top:22px;padding-top:18px;border-top:1px solid rgba(214,226,255,.16);font:400 20px/1.5 Inter,sans-serif;color:rgba(238,242,248,.6)}body.sk #notes-sk{display:block}body.sk #b-sk{background:#2450b0}" +
+    "button:hover{background:#1d2c4f}#count{margin-left:auto;font:700 22px/1 'Segoe UI',sans-serif;font-variant-numeric:tabular-nums}.tip{color:rgba(238,242,248,.45);font-size:14px}";
+  var PRES_HTML = "<!doctype html><html lang='en'><head><meta charset='utf-8'><title>Presenter · Slovakia</title><style>" + PRES_CSS + "</style></head><body>" +
+    "<header><span>Presenter view · Slovakia &amp; Senica</span><span id='clock'></span><span id='timer'>00:00</span></header>" +
+    "<section class='now'><div class='lab' id='now-n'>Now</div><h1 id='now-t'></h1><div id='notes'></div><div id='notes-sk'></div></section>" +
+    "<section class='next'><div class='lab'>Next</div><div class='thumb' id='next-img'></div><h2 id='next-t'></h2><p id='next-notes'></p></section>" +
+    "<footer><button id='b-prev'>‹ Back</button><button id='b-next'>Next ›</button><button id='b-reset'>Reset timer</button><button id='b-sk'>SK preklad</button><span class='tip'>Keys in this window: → ← · R resets the timer</span><span id='count'></span></footer><\/body><\/html>";
+  function fmtTime(ms) { var s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+  function openPresenter() {
+    if (pres && !pres.closed) { pres.focus(); return; }
+    pres = window.open("", "svk-presenter", "width=1180,height=760");
+    if (!pres) { alert("Please allow pop-ups for this page to open the presenter view."); return; }
+    pres.document.open(); pres.document.write(PRES_HTML); pres.document.close();
+    presT0 = Date.now();
+    var d = pres.document;
+    d.getElementById("b-next").onclick = function () { nextSlide(); };
+    d.getElementById("b-prev").onclick = function () { prevSlide(); };
+    d.getElementById("b-reset").onclick = function () { presT0 = Date.now(); };
+    d.getElementById("b-sk").onclick = function () { d.body.classList.toggle("sk"); };
+    d.addEventListener("keydown", function (e) {
+      var k = e.key;
+      if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === " " || k === "Enter") { e.preventDefault(); nextSlide(); }
+      else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") { e.preventDefault(); prevSlide(); }
+      else if (k === "Home") go(0);
+      else if (k === "End") go(slides.length - 1);
+      else if (k === "r" || k === "R") presT0 = Date.now();
+    });
+    clearInterval(presTick);
+    presTick = setInterval(function () {
+      if (!pres || pres.closed) { clearInterval(presTick); return; }
+      pres.document.getElementById("timer").textContent = fmtTime(Date.now() - presT0);
+      var now = new Date();
+      pres.document.getElementById("clock").textContent = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    }, 500);
+    presenterUpdate(current);
+  }
+  function presenterUpdate(i) {
+    if (!pres || pres.closed || i < 0) return;
+    var d = pres.document, sl = slides[i], nx = slides[i + 1];
+    var num = i < OFFSET ? "Intro" : "Slide " + (i - OFFSET + 1) + " of " + (slides.length - OFFSET);
+    d.getElementById("now-n").textContent = "Now · " + num;
+    d.getElementById("now-t").textContent = titleOf(sl);
+    d.getElementById("notes").textContent = sl.getAttribute("data-notes") || "";
+    d.getElementById("notes-sk").textContent = sl.getAttribute("data-notes-sk") || "";
+    d.getElementById("next-t").textContent = nx ? titleOf(nx) : "End of the presentation";
+    d.getElementById("next-notes").textContent = nx ? (nx.getAttribute("data-notes") || "").split(/(?<=[.!?])\s/)[0] : "";
+    var th = thumbOf(nx);
+    d.getElementById("next-img").style.backgroundImage = th ? "url('" + th + "')" : "none";
+    d.getElementById("count").textContent = num;
+  }
+  window.addEventListener("beforeunload", function () { if (pres && !pres.closed) pres.close(); });
+
   var start = 0;
   var m = /^#s(\d+)$/.exec(location.hash || "");
-  if (m) start = Math.min(slides.length - 1, Math.max(0, parseInt(m[1], 10) - 1));
+  if (m) start = Math.min(slides.length - 1, Math.max(0, parseInt(m[1], 10) - 1 + OFFSET));
   applyCam();
   go(start, { noHash: true });
 })();

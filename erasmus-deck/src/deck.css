@@ -769,3 +769,99 @@ figure { margin: 0; }
   .bg img, .tile img, #s13 .half img { transform: none !important; }
   .plx { transform: none !important; }
 }
+
+/* ============================================================
+   INTRO FILM
+   ============================================================ */
+#intro { background: #000; }
+#intro .film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; transition: transform 1.4s var(--ease), filter 1.2s var(--ease), opacity 1.2s var(--ease); }
+#intro::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.45)); transition: opacity 1s; }
+#intro.playing::after { opacity: 0; }
+.intro-start { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; text-align: center; background: radial-gradient(70% 60% at 50% 50%, rgba(8, 13, 25, 0.62), rgba(8, 13, 25, 0.9)); transition: opacity 0.9s var(--ease), transform 1.2s var(--ease); }
+.intro-title { font: 800 120px/0.95 var(--f-display); letter-spacing: -0.045em; }
+.intro-title .serif { font-weight: 400; letter-spacing: -0.02em; color: var(--frost-2); }
+.intro-play { width: 132px; height: 132px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.1); color: #fff; display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: transform 0.4s var(--ease), background 0.3s; animation: pulse 2.4s var(--ease) infinite; }
+.intro-play svg { width: 48px; height: 48px; margin-left: 6px; }
+.intro-play:hover { transform: scale(1.06); background: rgba(255, 255, 255, 0.2); }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.28); } 50% { box-shadow: 0 0 0 26px rgba(255, 255, 255, 0); } }
+kbd { font: 600 0.9em var(--f-body); padding: 3px 9px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255, 255, 255, 0.06); }
+.intro-skip { position: absolute; right: 56px; bottom: 48px; opacity: 0; transition: opacity 0.6s 2s; }
+.intro-credit { position: absolute; left: 56px; bottom: 44px; max-width: 1100px; font: 400 14px/1.4 var(--f-body); color: rgba(238, 242, 248, 0.45); transition: opacity 0.8s; }
+#intro.playing .intro-start { opacity: 0; transform: scale(1.06); pointer-events: none; }
+#intro.playing .intro-skip { opacity: 0.55; }
+#intro.playing .intro-credit { opacity: 0; }
+#intro.ending .film { transform: scale(1.03); }
+#intro.nofilm .intro-play { display: none; }
+#intro.nofilm .intro-start .label { visibility: hidden; }
+
+/* ============================================================
+   HOCKEY 2002
+   ============================================================ */
+#hockey { background: radial-gradient(90% 80% at 75% 35%, #16305e 0%, #0b1530 45%, var(--ink) 100%); }
+#hockey .ice { position: absolute; inset: 0; overflow: hidden; }
+#hockey .rink { position: absolute; left: -10%; right: -10%; bottom: -46%; height: 90%; border-radius: 50%; border: 2px solid rgba(160, 200, 255, 0.12); box-shadow: inset 0 0 180px rgba(120, 170, 255, 0.08); }
+#hockey .rink::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; background: rgba(217, 83, 74, 0.28); }
+#hockey .glow { position: absolute; right: 14%; top: 18%; width: 620px; height: 620px; border-radius: 50%; background: radial-gradient(circle, rgba(232, 190, 90, 0.22), transparent 65%); }
+#hockey .big2002 { position: absolute; left: 70px; bottom: -70px; font: 800 470px/0.8 var(--f-display); letter-spacing: -0.06em; color: transparent; -webkit-text-stroke: 2px rgba(232, 190, 90, 0.2); pointer-events: none; }
+#hockey .head { position: absolute; left: 110px; top: 128px; width: 780px; }
+#hockey .h2 { font-size: 104px; background: linear-gradient(180deg, #fff3cf, #e8be5a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#hockey .lead { margin-top: 18px; font-size: 26px; max-width: 36ch; }
+#hockey .score { position: absolute; left: 110px; top: 520px; width: 760px; height: 170px; border-radius: 28px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 34px; }
+#hockey .team { display: flex; align-items: center; gap: 16px; font: 700 28px/1 var(--f-display); }
+#hockey .team:last-of-type { justify-content: flex-end; flex-direction: row-reverse; }
+#hockey .team svg, #hockey .rus { width: 60px; height: 40px; border-radius: 4px; flex: none; }
+#hockey .rus { display: flex; flex-direction: column; overflow: hidden; }
+#hockey .rus i { flex: 1; } #hockey .rus i:nth-child(1) { background: #fff; } #hockey .rus i:nth-child(2) { background: #1c57a5; } #hockey .rus i:nth-child(3) { background: #d52b1e; }
+#hockey .res { font: 800 104px/1 var(--f-display); letter-spacing: -0.04em; display: flex; gap: 18px; align-items: center; color: #fff3cf; }
+#hockey .res i { font-style: normal; color: var(--frost-3); transform: translateY(-6px); }
+#hockey .score .lbl { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); color: #e8be5a; }
+#hockey .final-line { position: absolute; left: 110px; top: 728px; width: 760px; margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+#hockey .final-line li { border-top: 2px solid var(--line); padding-top: 12px; }
+#hockey .final-line b { display: block; font: 800 34px/1 var(--f-display); }
+#hockey .final-line span { display: block; margin-top: 6px; font: 400 16px/1.3 var(--f-body); color: var(--frost-3); }
+#hockey .final-line .gold { border-color: #e8be5a; }
+#hockey .final-line .gold b { color: #e8be5a; }
+#hockey .hk-fact { position: absolute; left: 110px; top: 850px; width: 760px; }
+#hockey .hk-fact b { color: #fff3cf; }
+#hockey .clip { position: absolute; left: 960px; top: 230px; width: 860px; height: 484px; border-radius: 28px; overflow: hidden; background: #050913; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(232, 190, 90, 0.25); }
+#hockey .clip video { width: 100%; height: 100%; object-fit: cover; display: block; }
+#hockey .clip-play { position: absolute; inset: 0; border: 0; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: radial-gradient(60% 60% at 50% 45%, rgba(232, 190, 90, 0.18), rgba(5, 9, 19, 0.75)); font: 700 26px/1 var(--f-display); letter-spacing: -0.01em; transition: opacity 0.5s; }
+#hockey .clip-play .pb { width: 110px; height: 110px; border-radius: 50%; display: grid; place-items: center; background: #e8be5a; color: #0b1530; box-shadow: 0 0 0 0 rgba(232, 190, 90, 0.5); animation: pulse 2.4s var(--ease) infinite; }
+#hockey .clip-play .pb svg { width: 44px; height: 44px; margin-left: 6px; }
+#hockey .clip.playing .clip-play { opacity: 0; pointer-events: none; }
+#hockey .clip-missing { display: none; position: absolute; inset: 0; padding: 60px; flex-direction: column; justify-content: center; gap: 16px; background: linear-gradient(160deg, #13274f, #070c1a); }
+#hockey .clip.missing .clip-missing { display: flex; }
+#hockey .clip.missing .clip-play, #hockey .clip.missing video { display: none; }
+#hockey .clip-missing .t { font: 800 40px/1.1 var(--f-display); color: #fff3cf; }
+#hockey .clip-missing p { margin: 0; font: 400 22px/1.45 var(--f-body); color: var(--frost-2); max-width: 34ch; }
+#hockey .clip-missing a { align-self: flex-start; margin-top: 10px; font: 700 20px/1 var(--f-display); color: #0b1530; background: #e8be5a; padding: 16px 24px; border-radius: 999px; text-decoration: none; }
+
+/* ============================================================
+   LIGHTBOX
+   ============================================================ */
+[data-zoom] { cursor: zoom-in; }
+.zoom-bg { position: absolute; right: 48px; top: 128px; z-index: 6; width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); background: rgba(8, 13, 25, 0.45); color: #fff; display: grid; place-items: center; cursor: zoom-in; opacity: 0.55; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: opacity 0.3s; }
+.zoom-bg:hover { opacity: 1; }
+.zoom-bg svg { width: 24px; height: 24px; }
+#lightbox { position: fixed; inset: 0; z-index: 1000; visibility: hidden; }
+#lightbox.on { visibility: visible; }
+#lightbox .lb-bg { position: absolute; inset: 0; background: rgba(4, 7, 14, 0.94); opacity: 0; transition: opacity 0.45s var(--ease); }
+#lightbox.open .lb-bg { opacity: 1; }
+#lightbox .lb-box { position: absolute; overflow: hidden; border-radius: 22px; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6); transition: left 0.6s var(--ease), top 0.6s var(--ease), width 0.6s var(--ease), height 0.6s var(--ease), border-radius 0.6s var(--ease), opacity 0.22s; }
+#lightbox.open .lb-box { border-radius: 8px; }
+#lightbox.swap .lb-box { opacity: 0; }
+#lightbox .lb-box img { width: 100%; height: 100%; object-fit: cover; }
+#lightbox .lb-cap { position: absolute; left: 0; right: 0; bottom: 3.5vh; text-align: center; opacity: 0; transition: opacity 0.4s 0.25s; font-family: var(--f-body); }
+#lightbox.open .lb-cap { opacity: 1; }
+#lightbox .lb-cap b { font: 700 clamp(18px, 1.6vw, 28px)/1.2 var(--f-display); color: var(--frost); }
+#lightbox .lb-cap span { display: block; font-size: clamp(14px, 1.05vw, 19px); color: var(--frost-2); margin-top: 6px; }
+#lightbox .lb-cap em { display: block; font-style: normal; font-size: clamp(11px, 0.8vw, 14px); color: var(--frost-3); margin-top: 6px; }
+#lightbox button { position: absolute; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06); color: #fff; border-radius: 50%; cursor: pointer; opacity: 0; transition: opacity 0.4s 0.2s, background 0.2s; }
+#lightbox.open button { opacity: 1; }
+#lightbox button:hover { background: rgba(255, 255, 255, 0.16); }
+#lightbox .lb-nav { top: 50%; width: 64px; height: 64px; margin-top: -32px; font-size: 34px; line-height: 1; }
+#lightbox .lb-prev { left: 2vw; } #lightbox .lb-next { right: 2vw; }
+#lightbox.single .lb-nav { display: none; }
+#lightbox .lb-close { right: 2vw; top: 2.5vh; width: 52px; height: 52px; font-size: 30px; line-height: 1; }
+#lightbox .lb-count { position: absolute; left: 2.2vw; top: 3.2vh; font: 600 15px/1 var(--f-display); letter-spacing: 0.2em; color: var(--frost-3); }
+@media (prefers-reduced-motion: reduce) { #lightbox .lb-box { transition: none; } }

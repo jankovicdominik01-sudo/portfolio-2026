@@ -6,7 +6,7 @@
 //   node erasmus-deck/build.mjs --fragment f    -> also writes a body-only copy to f
 // The Erasmus site build (erasmus-site/build.mjs) calls this with --out dist/slovakia.
 
-import { readFileSync, writeFileSync, mkdirSync, cpSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,9 +36,15 @@ const fontCss = faces
   })
   .join("\n");
 
+// photo metadata for lightbox captions; hi-res copies in img/full are used when present
+const photos = JSON.parse(readFileSync(join(here, "tools", "photos.json"), "utf8")).map(({ name, title, artist, license }) => ({ name, title, artist, license }));
+const fullDir = join(here, "img", "full");
+const fullNames = existsSync(fullDir) ? readdirSync(fullDir).filter((f) => f.endsWith(".webp")).map((f) => f.replace(/\.webp$/, "")) : [];
 const data =
   `window.DECK_MAP=${read("map-data.json").trim()};\n` +
-  `window.DECK_CREDITS=${JSON.stringify(JSON.parse(read("credits.json")))};`;
+  `window.DECK_CREDITS=${JSON.stringify(JSON.parse(read("credits.json")))};\n` +
+  `window.DECK_PHOTOS=${JSON.stringify(photos)};\n` +
+  `window.DECK_MEDIA=${JSON.stringify({ full: fullNames })};`;
 
 const body = read("index.html")
   .replace("/*@FONTS@*/", () => fontCss)
@@ -74,6 +80,8 @@ const outDir = o !== -1 && process.argv[o + 1] ? process.argv[o + 1] : join(here
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, "index.html"), full);
 cpSync(join(here, "img"), join(outDir, "img"), { recursive: true });
+// films: media/intro.mp4 (+ poster) and, if you add it, media/hockey-2002.mp4
+if (existsSync(join(here, "media"))) cpSync(join(here, "media"), join(outDir, "media"), { recursive: true });
 console.log(`slovakia/index.html      ${(full.length / 1024).toFixed(0)} KB`);
 
 const i = process.argv.indexOf("--fragment");

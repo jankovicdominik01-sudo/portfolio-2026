@@ -11,19 +11,33 @@ any modern browser (Chrome or Edge recommended).
 
 ## Presenting
 
+The deck opens on a one-minute **intro film** (Spiš Castle from the air, the High Tatras,
+Bratislava on the Danube, folk traditions — with fujara music). Press `→` or click to play it
+with sound; `→` again skips it. When it ends, the deck cuts straight to the cover: the film's
+last frame is the cover photo.
+
 | Key | Action |
 | --- | --- |
 | `→` `Space` `PageDown` (clicker) | next slide |
 | `←` `PageUp` | previous slide |
 | `F` | fullscreen |
-| `N` | speaker notes (simple English, one per slide) |
-| `C` | photo credits |
+| `P` | **presenter view**: a second window with the speaker notes (with a Slovak translation on request), the next slide and a timer. Put the deck on the projector, keep this window on the laptop; its buttons and arrow keys drive the deck. |
+| `N` | speaker notes on the main screen |
+| `C` | photo and film credits |
 | `1`–`9`, `Home`, `End` | jump |
 
-Clicking the right side of the screen also advances; the chapter names at the top are clickable.
-Slide 6 plays a short map zoom (Europe → Slovakia → Trnava Region → Senica); wait ~5 s before moving on.
+**Photos:** click any photo to open it full screen (sharper copies from `img/full/` are used
+when available); `←` `→` browse the photos of that slide, `Esc` closes. Full-screen background
+photos have a small ⤢ button in the top-right corner.
 
-**Host city:** the final route ends at Istanbul and is labelled "Turkey". To point it at your
+Slide 7 (Senica) plays a short map zoom (Europe → Slovakia → Trnava Region → Senica); wait ~5 s before moving on.
+
+**Hockey 2002 (slide 6):** the slide plays `media/hockey-2002.mp4` if that file exists — save
+the clip of the final under exactly that name and it plays inside the deck, offline. Without
+it, the slide offers a "Find it on YouTube" button (needs internet). Broadcast footage is
+copyrighted, so it is not included here.
+
+**Host city:** the route on the map ends at Istanbul and is labelled "Turkey". To point it at your
 actual host city, edit `DESTINATION` at the top of `src/deck.js` and rebuild.
 
 ## Editing
@@ -34,7 +48,9 @@ erasmus-deck/src/deck.css     design tokens and layout
 erasmus-deck/src/deck.js      navigation, map camera, animations
 erasmus-deck/src/credits.json photo credits shown with C
 node erasmus-deck/build.mjs   rebuilds erasmus-site/dist/slovakia (or pass --out <dir>)
-erasmus-deck/img/             photos
+erasmus-deck/img/             photos (img/full/: sharper copies for the lightbox)
+erasmus-deck/media/           intro.mp4 + intro-poster.jpg (the film), hockey-2002.mp4 (optional)
+python3 erasmus-deck/tools/make_intro.py <raw> <fonts>   re-renders the intro film (see the script)
 ```
 
 `tools/build_map.py` regenerates `src/map-data.json` from Natural Earth data;

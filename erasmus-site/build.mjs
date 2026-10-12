@@ -96,7 +96,9 @@ const slovakDir = join(dist, "slovakia");
 execFileSync(process.execPath, [join(here, "..", "erasmus-deck", "build.mjs"), "--out", slovakDir], { stdio: "inherit" });
 const nav = read("src/hub/deck-nav.html");
 const slovakPath = join(slovakDir, "index.html");
-writeFileSync(slovakPath, readFileSync(slovakPath, "utf8").replace("</body>", () => nav + "\n</body>"));
+const slovakHtml = readFileSync(slovakPath, "utf8");
+const end = slovakHtml.lastIndexOf("</body>"); // the real one, not a string inside the deck's script
+writeFileSync(slovakPath, slovakHtml.slice(0, end) + nav + "\n" + slovakHtml.slice(end));
 
 // ---------- hub ----------
 const hubHtml = read("src/hub/index.html").replace("/*FONTS*/", () => hubFontCss);
