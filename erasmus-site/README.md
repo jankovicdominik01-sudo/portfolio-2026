@@ -24,53 +24,50 @@ links to the others with relative paths, so it works fully offline.
 
 ## Presenting the agriculture deck
 
+22 scenes (+2 backup scenes in the menu), ~23 min of speaking. Four presenters:
+Dominik, Adam, Sara, Karolína. **Print `agriculture/script.html`** (menu → *Speaker script*):
+presenter map, timings, and step-by-step notes for every scene.
+
 | Key | Action |
 | --- | --- |
-| `→` `Space` `PageDown` `Enter` (clicker) | next step / scene |
-| `←` `PageUp` | back (a scene you go back into shows its final state) |
-| `F` | fullscreen |
-| `N` | presenter note for the current scene |
-| `S` | all sources, grouped A–E |
-| `M` / `Esc` | menu: jump to any scene, switch presentation (asks twice), back to the hub |
-| `Home` `End` | first / last scene · `#s7` in the URL opens scene 7 |
+| `→` `Space` `PageDown` `Enter` (clicker), wheel / touchpad | next step (one gesture = one step, never two) |
+| `←` `PageUp` | back |
+| `P` | **presenter window**: notes for the current step, timers, next scene, buttons (works offline too) |
+| `F` | fullscreen · `B` black screen · `G` scene overview · `12` `Enter` go to scene 12 |
+| `S` | our research: all sources by level + photo log · `N` notes on the projector (avoid) |
+| `M` / `Esc` | menu · `Home` `End` first / last scene · `#s7.2` in the URL = scene 7, step 2 (a refresh resumes) |
 
-Every coloured pill opens that source: who says it, when, the context, what we use it for and
-what we do **not** claim. Shape and colour show the level: ● our own research · ■ official or
-peer-reviewed · ◆ journalism · ▲ industry view · ○ explainers, blogs and team notes.
+Source pills: ● our field visit · ◉ interview / operator data · ■ official · ◆ journalism · ▲ industry · ○ explainer.
+Photo labels: ● confirmed in writing · ○ in our photo · ◌ our interpretation · ? unknown.
 
-Click any photo for the full-screen view. Scenes with simulations say so on screen
-("illustration", "visualisation — not a time-lapse").
+## Our field material
 
-## Adding our own photos (no code changes)
-
-| Folder | Appears in |
+| Folder | What |
 | --- | --- |
-| `assets/agriculture/ecofarm/` | scene 09, Family EcoFarm No. 5 (from the farm's Facebook, used with permission) |
-| `assets/agriculture/field/` | scene 19, our visit to the Senica composting plant on 30 September |
+| `assets/agriculture/field/` | Senica composting plant, 30 Sep 2026 (photos by our teacher Martin Woznica, from the team chat) |
+| `assets/agriculture/coop/` | photos + captions shared by the farming cooperative in Senica (2 Oct 2026) |
 
-Drop `.jpg`/`.webp` files in (they are used in file-name order; for scene 19 the slots are:
-reception, shredder, hygienisation container, EWA fermenter, windrow, thermometer, turner,
-screen, compost in a hand, what they sort out). Optional `captions.json` next to them:
+`tools/prepare_photos.py` converts raw copies into these WebP files. `docs/01-AUDIT-A-PLAN.md`
+has the audit, evidence inventory and fact check.
 
-```json
-{ "01-reception.jpg": { "caption": "Weighing the trucks at the gate", "credit": "Photo: our team" } }
+## QA
+
 ```
-
-Then `npm run build` again. Keep photos under ~2000 px wide.
+python3 tools/qa_shots.py http://localhost:4173 /tmp/shots [--engine webkit]   # every step, final state
+python3 tools/qa_nav.py   http://localhost:4173 /tmp/shots /tmp/nav            # hammering, wheel, back, refresh
+```
 
 ## Code map
 
 ```
 src/hub/index.html              hub page (fonts inlined at build)
-src/hub/deck-nav.html           the small hub control added to /slovakia
-src/agriculture/index.html      stage skeleton and overlays
-src/agriculture/engine.js       navigation, steps, source drawer, menu, lightbox, notes
+src/agriculture/engine.js       navigation, presenter link, sources, menu, overview, lightbox
+src/agriculture/notes.js        speaker script (presenter, time, level, notes per step)
 src/agriculture/sources.js      every source, its level and what we do / don't claim
-src/agriculture/scenes/act1-5   the 21 scenes (HTML + GSAP timelines per step)
-src/agriculture/lib/            soil & landscape canvases, Three.js digester, helpers
-assets/agriculture/img/         photos (Wikimedia Commons, credits.json) and Sentinel-2 crops
+src/agriculture/evidence.js     photo log
+src/agriculture/scenes/act1-5   the 22 scenes · scenes/backup.js the 2 backup scenes
+src/agriculture/lib/photo.js    annotated photos: camera moves, labels with evidence status, loupes
+src/agriculture/lib/rail.js     the "follow one load" station rail
+src/agriculture/presenter.html  presenter window
+tools/render-script.mjs         printable speaker script + presenter map
 ```
-
-Libraries: GSAP 3 (with MotionPath, MorphSVG, DrawSVG), Three.js (scene 15 only), fonts
-Fraunces and IBM Plex. Satellite images: Sentinel-2 cloudless by EOX (contains modified
-Copernicus Sentinel data).

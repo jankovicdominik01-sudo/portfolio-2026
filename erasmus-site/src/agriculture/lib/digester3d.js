@@ -186,7 +186,7 @@ export function createDigester(canvas, labels, { quality = "high", getScale = ()
   // ---- label anchors (projected every frame) ----
   const anchors = {
     inlet: new Vector3(-6.2, 1.0, 1.5), heat: new Vector3(-1.6, -0.9, 1.6), gas: new Vector3(0, 2.9, 0.5),
-    chp: new Vector3(7.1, 0.5, -1.8), upg: new Vector3(4.7, 1.9, -4.8), store: new Vector3(8.4, -0.4, 2.6)
+    chp: new Vector3(6.4, 1.2, -1.8), upg: new Vector3(4.7, 1.9, -4.8), store: new Vector3(8.4, -0.4, 2.6)
   };
   const labelEls = [...labels.querySelectorAll("[data-anchor]")];
   const pv = new Vector3();

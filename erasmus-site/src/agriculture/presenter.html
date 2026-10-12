@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter · Back to Soil?</title>
+<style>
+/*FONTS*/
+:root { color-scheme: dark; --bg: #100d0a; --bg2: #1a1510; --ink: #ece5d8; --ink2: rgba(236,229,216,.72); --ink3: rgba(236,229,216,.45); --line: rgba(236,229,216,.14); --leaf: #a7c96f; --straw: #dcb45c; --rust: #e0703f;
+  --p-dominik: #dcb45c; --p-adam: #7fb2ff; --p-sara: #a7c96f; --p-karolina: #e59a7a; --p-x: #8c8170; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+#app { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+header { display: flex; align-items: center; gap: 18px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--bg2); }
+.num { font: 500 15px/1 "IBM Plex Mono", monospace; color: var(--ink3); letter-spacing: .1em; }
+.title { font: 400 26px/1.15 Fraunces, Georgia, serif; flex: 1; min-width: 0; }
+.chip { font: 500 13px/1 "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; padding: 8px 12px; border-radius: 30px; color: #14100c; background: var(--c, var(--p-x)); white-space: nowrap; }
+.timers { display: flex; gap: 18px; align-items: baseline; font-family: "IBM Plex Mono", monospace; }
+.timers b { font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.timers small { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+.timers .over b { color: var(--rust); }
+main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); min-height: 0; }
+.say { padding: 22px 28px; overflow: auto; border-right: 1px solid var(--line); }
+.steps { display: flex; gap: 6px; margin-bottom: 14px; }
+.steps i { width: 26px; height: 6px; border-radius: 3px; background: var(--line); }
+.steps i.done { background: var(--ink3); } .steps i.now { background: var(--c, var(--leaf)); }
+.msg { font: italic 400 19px/1.35 Fraunces, Georgia, serif; color: var(--ink2); margin: 0 0 16px; }
+.lines p { margin: 0 0 14px; font-size: 20px; line-height: 1.5; color: var(--ink3); padding-left: 16px; border-left: 3px solid transparent; }
+.lines p.now { font-size: 27px; line-height: 1.45; color: var(--ink); border-left-color: var(--c, var(--leaf)); }
+.lines p .k { display: block; font: 500 11px/1 "IBM Plex Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; }
+.box { margin-top: 18px; padding: 14px 16px; background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; font-size: 17px; line-height: 1.45; color: var(--ink2); }
+.box b { display: block; font: 500 11px/1 "IBM Plex Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--straw); margin-bottom: 8px; }
+.box.tr b { color: var(--leaf); }
+aside { padding: 18px 20px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+.next { padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg2); border-top: 4px solid var(--nc, var(--p-x)); }
+.next .k { font: 500 11px/1 "IBM Plex Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+.next h3 { font: 400 22px/1.2 Fraunces, Georgia, serif; margin: 8px 0 6px; }
+.next p { margin: 0; font-size: 15px; color: var(--ink2); line-height: 1.4; }
+.list { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.list li button { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--ink2); padding: 8px 2px; cursor: pointer; font: inherit; }
+.list li button:hover { color: var(--ink); }
+.list li.cur button { color: var(--ink); background: rgba(236,229,216,.06); }
+.list .n { font-family: "IBM Plex Mono", monospace; color: var(--ink3); }
+.list .p { font: 500 11px/1.4 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+.list .bk { color: var(--ink3); font-size: 12px; padding: 12px 0 4px; letter-spacing: .12em; text-transform: uppercase; font-family: "IBM Plex Mono", monospace; }
+footer { display: flex; gap: 10px; align-items: center; padding: 12px 22px; border-top: 1px solid var(--line); background: var(--bg2); }
+footer button { font: 500 15px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; padding: 14px 18px; border-radius: 4px; border: 1px solid var(--line); background: #241d16; color: var(--ink); cursor: pointer; }
+footer button.big { flex: 1; background: #2b3a1c; border-color: rgba(167,201,111,.5); }
+footer .status { font: 500 12px/1.3 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); max-width: 280px; }
+footer .status.ok { color: var(--leaf); } footer .status.bad { color: var(--rust); }
+.help { font-size: 12px; color: var(--ink3); font-family: "IBM Plex Mono", monospace; }
+.p-dominik { color: var(--p-dominik); } .p-adam { color: var(--p-adam); } .p-sara { color: var(--p-sara); } .p-karolina { color: var(--p-karolina); }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="num" id="num">— / —</span>
+    <span class="title" id="title">Waiting for the slides…</span>
+    <span class="chip" id="who">—</span>
+    <div class="timers"><div id="tScene"><small>this scene</small><b>0:00</b></div><div id="tTotal"><small>total</small><b>0:00</b></div><div><small>clock</small><b id="clock">--:--</b></div></div>
+  </header>
+  <main>
+    <section class="say">
+      <div class="steps" id="steps"></div>
+      <p class="msg" id="msg"></p>
+      <div class="lines" id="lines"><p class="now">Open the presentation and press <b>P</b> — or keep this window open; it connects automatically.</p></div>
+      <div class="box" id="screen" hidden><b>On the screen</b><span></span></div>
+      <div class="box" id="point" hidden><b>Point at</b><span></span></div>
+      <div class="box tr" id="trans" hidden><b>Transition</b><span></span></div>
+    </section>
+    <aside>
+      <div class="next" id="next"><span class="k">Next scene</span><h3>—</h3><p></p></div>
+      <ul class="list" id="list"></ul>
+    </aside>
+  </main>
+  <footer>
+    <button id="prev" title="← / PageUp">◀ Back</button>
+    <button id="nextBtn" class="big" title="→ / Space / PageDown">Next ▶</button>
+    <button id="black" title="B">Black screen</button>
+    <button id="reset" title="Restart the timers">Reset timer</button>
+    <span class="status" id="status">not connected</span>
+  </footer>
+</div>
+<script>
+(function () {
+  var CHANNEL = "back-to-soil-presenter";
+  var scenes = null, state = null, connected = false, bc = null, lastMsg = 0;
+  var t0 = Date.now(), sceneStart = Date.now(), lastScene = -1;
+  var $ = function (id) { return document.getElementById(id); };
+  var slug = function (s) { return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); };
+  var fmt = function (ms) { var s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  var seq = 0, me = Math.random().toString(36).slice(2);
+  function send(msg) {
+    msg.bts = true; msg.from = "presenter"; msg.id = me + ":" + (++seq); // the slides drop duplicates (two channels)
+    try { if (window.opener && !window.opener.closed) window.opener.postMessage(msg, "*"); } catch (e) {}
+    try { bc && bc.postMessage(msg); } catch (e) {}
+  }
+  try { bc = new BroadcastChannel(CHANNEL); bc.onmessage = function (e) { onMsg(e.data); }; } catch (e) { bc = null; }
+  window.addEventListener("message", function (e) { onMsg(e.data); });
+  function onMsg(m) {
+    if (!m || !m.bts || m.from === "presenter" || m.type !== "state") return;
+    lastMsg = Date.now();
+    if (m.scenes) scenes = m.scenes;
+    if (!scenes) { send({ type: "hello" }); return; }
+    state = m; connected = true;
+    if (m.current !== lastScene) { sceneStart = Date.now(); lastScene = m.current; }
+    render();
+  }
+  function render() {
+    var sc = scenes[state.current], n = sc.note || { presenter: "—", say: [], time: 0 };
+    var c = "var(--p-" + slug(n.presenter) + ", var(--p-x))";
+    document.documentElement.style.setProperty("--c", c);
+    $("num").textContent = sc.backup ? "Backup" : String(state.current + 1).padStart(2, "0") + " / " + state.mainCount;
+    $("title").textContent = sc.title;
+    $("who").textContent = n.presenter + " · " + (n.level || "") + " · ~" + fmt((n.time || 0) * 1000);
+    $("who").style.setProperty("--c", c);
+    var st = ""; for (var i = 0; i < sc.steps; i++) st += '<i class="' + (i < state.step ? "done" : i === state.step ? "now" : "") + '"></i>';
+    $("steps").innerHTML = st;
+    $("msg").textContent = n.message || "";
+    $("lines").innerHTML = (n.say || []).map(function (t, i) { return '<p class="' + (i === state.step ? "now" : "") + '"><span class="k">step ' + (i + 1) + (i === state.step ? " · now" : "") + '</span>' + t + "</p>"; }).join("");
+    var nowEl = document.querySelector("#lines p.now"); if (nowEl) nowEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    box("screen", n.screen); box("point", n.point); box("trans", n.transition);
+    var nx = scenes[state.current + 1];
+    var nxt = $("next");
+    if (nx && !(sc.backup === false && nx.backup)) {
+      var nn = nx.note || { presenter: "—", say: [""] };
+      nxt.style.setProperty("--nc", "var(--p-" + slug(nn.presenter) + ", var(--p-x))");
+      nxt.querySelector("h3").textContent = String(nx.i + 1).padStart(2, "0") + " · " + nx.title;
+      nxt.querySelector("p").innerHTML = '<b class="p-' + slug(nn.presenter) + '">' + nn.presenter + "</b> — " + (nn.say[0] || "").slice(0, 140) + "…";
+    } else { nxt.querySelector("h3").textContent = "End of the presentation"; nxt.querySelector("p").textContent = "Questions → press S on the slides for Our research."; }
+    var html = "", backupShown = false;
+    scenes.forEach(function (s) {
+      if (s.backup && !backupShown) { html += '<li class="bk">Backup — only if asked</li>'; backupShown = true; }
+      var p = s.note ? s.note.presenter : "";
+      html += '<li class="' + (s.i === state.current ? "cur" : "") + '"><button data-i="' + s.i + '"><span class="n">' + (s.backup ? "B" : String(s.i + 1).padStart(2, "0")) + '</span><span>' + s.title + '</span><span class="p p-' + slug(p) + '">' + p + "</span></button></li>";
+    });
+    $("list").innerHTML = html;
+    [].forEach.call(document.querySelectorAll("#list button"), function (b) { b.onclick = function () { send({ type: "cmd", cmd: "goto", i: +b.dataset.i }); }; });
+    var stEl = $("status"); stEl.textContent = "connected to the slides"; stEl.className = "status ok";
+  }
+  function box(id, text) { var b = $(id); b.hidden = !text; b.querySelector("span").textContent = text || ""; }
+  function tick() {
+    $("clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    $("tTotal").querySelector("b").textContent = fmt(Date.now() - t0);
+    var ts = $("tScene"), el = Date.now() - sceneStart;
+    ts.querySelector("b").textContent = fmt(el);
+    var target = state && scenes && scenes[state.current].note ? scenes[state.current].note.time * 1000 : 0;
+    ts.classList.toggle("over", target > 0 && el > target + 15000);
+    var stale = Date.now() - lastMsg > 5000;
+    if (connected && stale) { connected = false; var s = $("status"); s.textContent = window.opener && window.opener.closed ? "slides window closed" : "waiting for the slides…"; s.className = "status bad"; }
+  }
+  setInterval(tick, 500); tick();
+  $("prev").onclick = function () { send({ type: "cmd", cmd: "prev" }); };
+  $("nextBtn").onclick = function () { send({ type: "cmd", cmd: "next" }); };
+  $("black").onclick = function () { send({ type: "cmd", cmd: "blackout" }); };
+  $("reset").onclick = function () { t0 = Date.now(); sceneStart = Date.now(); };
+  window.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key;
+    if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].indexOf(k) >= 0) { e.preventDefault(); if (!e.repeat) send({ type: "cmd", cmd: "next" }); }
+    else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].indexOf(k) >= 0) { e.preventDefault(); if (!e.repeat) send({ type: "cmd", cmd: "prev" }); }
+    else if (k === "b" || k === "B" || k === ".") send({ type: "cmd", cmd: "blackout" });
+  });
+  // keep in touch: if the slides were reloaded they forget this window until it says hello
+  send({ type: "hello" });
+  setInterval(function () { if (Date.now() - lastMsg > 2500) send({ type: "hello" }); }, 1500);
+})();
+</script>
+</body>
+</html>
