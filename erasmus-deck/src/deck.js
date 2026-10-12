@@ -580,6 +580,7 @@
     var k = e.key;
     keepAwake();
     if (lightboxKey(e)) return;
+    if (introKey(e)) return;
     if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === " " || k === "Enter") { e.preventDefault(); nextSlide(); }
     else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") { e.preventDefault(); prevSlide(); }
     else if (k === "Home") { go(0); }
@@ -639,46 +640,107 @@
   }
 
   /* ------------------------------------------------------------
-     Intro film: first → plays it, → while playing skips; when it
-     ends, the deck cuts to the cover (the film's last frame is the
-     cover photo, so the hand-off is seamless).
+     Films (first slide): → plays the main film full screen; → again
+     (or the film ending) moves on to the cover. Other cards play on
+     click, Esc returns to the cards, Space pauses.
+     Source per film: a local copy (data-local) if it exists, else the
+     YouTube embed (needs internet and http(s); from a USB copy the
+     film opens on YouTube instead).
      ------------------------------------------------------------ */
   var intro = document.getElementById("intro");
-  var film = intro ? intro.querySelector("video") : null;
-  var introState = "idle";
-  function filmBroken() { return !film || film.error || film.networkState === 3; }
-  function introEnter() {
-    if (!film) return;
-    introState = "idle";
-    intro.classList.remove("playing", "ending");
-    try { film.pause(); film.currentTime = 0; } catch (e) { /* not loaded yet */ }
+  var player = intro ? intro.querySelector(".player") : null;
+  var cards = intro ? Array.prototype.slice.call(intro.querySelectorAll(".film-card")) : [];
+  var introState = "menu", ytFrame = null, localVid = null, paused = false;
+  var canEmbed = /^https?:$/.test(location.protocol);
+  // probe local copies once
+  cards.forEach(function (c) {
+    var v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true;
+    v.addEventListener("loadedmetadata", function () { c.setAttribute("data-has-local", ""); });
+    v.src = c.getAttribute("data-local");
+  });
+  function stageRect(el) {
+    var r = el.getBoundingClientRect(), s = stage.getBoundingClientRect(), k = s.width / 1920;
+    return { left: (r.left - s.left) / k, top: (r.top - s.top) / k, width: r.width / k, height: r.height / k };
   }
-  function introLeave() {
-    if (!film) return;
-    // skipped mid-film: a soft push-in; ended naturally: hold still, the last frame is the cover
-    if (!film.ended) intro.classList.add("ending");
-    introState = "idle";
-    setTimeout(function () { if (slides[current] !== intro) film.pause(); }, 1400);
-  }
-  function introNext() {
-    if (filmBroken() || introState !== "idle") return false;
-    introState = "playing";
+  function setBox(r) { player.style.left = r.left + "px"; player.style.top = r.top + "px"; player.style.width = r.width + "px"; player.style.height = r.height + "px"; }
+  function playFilm(card) {
+    var id = card.getAttribute("data-yt");
+    if (!card.hasAttribute("data-has-local") && !canEmbed) {
+      window.open("https://www.youtube.com/watch?v=" + id, "_blank", "noopener");
+      return;
+    }
+    stopFilm(true);
+    introState = "playing"; paused = false;
     intro.classList.add("playing");
-    if (hint) hint.style.opacity = "0";
-    var pr = film.play();
-    if (pr && pr.catch) pr.catch(function () { film.muted = true; film.play().catch(function () {}); });
-    return true;
+    var frame = player.querySelector(".frame");
+    if (card.hasAttribute("data-has-local")) {
+      localVid = document.createElement("video");
+      localVid.src = card.getAttribute("data-local");
+      localVid.autoplay = true; localVid.playsInline = true;
+      localVid.addEventListener("ended", filmEnded);
+      frame.appendChild(localVid);
+      localVid.play().catch(function () {});
+    } else {
+      ytFrame = document.createElement("iframe");
+      ytFrame.allow = "autoplay; encrypted-media; picture-in-picture";
+      ytFrame.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=" + encodeURIComponent(location.origin);
+      ytFrame.addEventListener("load", function () {
+        try {
+          ytFrame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
+          ytFrame.contentWindow.postMessage(JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"], id: 1, channel: "widget" }), "*");
+        } catch (e) { /* no API */ }
+      });
+      frame.appendChild(ytFrame);
+    }
+    // grow out of the card to the full stage
+    player.style.transition = "none";
+    setBox(stageRect(card));
+    player.classList.add("on");
+    void player.offsetWidth;
+    player.style.transition = "";
+    requestAnimationFrame(function () { setBox({ left: 0, top: 0, width: 1920, height: 1080 }); });
   }
-  if (intro) intro.querySelector(".intro-play").addEventListener("click", function (e) { e.stopPropagation(); introNext(); });
-  if (film) {
-    film.addEventListener("ended", function () { if (slides[current] === intro) go(current + 1); });
-    film.addEventListener("error", function () { intro.classList.add("nofilm"); });
-    var fsrc = film.querySelector("source");
-    if (fsrc) fsrc.addEventListener("error", function () { intro.classList.add("nofilm"); });
+  function stopFilm(instant) {
+    var frame = player && player.querySelector(".frame");
+    if (!frame) return;
+    if (localVid) { localVid.pause(); localVid = null; }
+    ytFrame = null;
+    introState = "menu";
+    intro.classList.remove("playing");
+    player.classList.remove("on");
+    setTimeout(function () { if (introState === "menu") frame.innerHTML = ""; }, instant ? 0 : 700);
   }
+  function filmEnded() { if (slides[current] === intro && introState === "playing") go(current + 1); }
+  window.addEventListener("message", function (e) {
+    if (!ytFrame || e.source !== ytFrame.contentWindow) return;
+    var d; try { d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; } catch (x) { return; }
+    var st = d && (d.event === "onStateChange" ? d.info : d.info && d.info.playerState);
+    if (st === 0) filmEnded();
+  });
+  function togglePause() {
+    paused = !paused;
+    if (localVid) { if (paused) localVid.pause(); else localVid.play(); }
+    if (ytFrame) ytFrame.contentWindow.postMessage(JSON.stringify({ event: "command", func: paused ? "pauseVideo" : "playVideo", args: [] }), "*");
+  }
+  function introEnter() { if (intro) stopFilm(true); }
+  function introLeave() { if (intro) setTimeout(function () { if (slides[current] !== intro) stopFilm(true); }, 1000); }
+  function introNext() {
+    if (introState === "menu" && cards[0] && (canEmbed || cards[0].hasAttribute("data-has-local"))) { playFilm(cards[0]); return true; }
+    return false; // playing: → moves on to the cover
+  }
+  function introKey(e) {
+    if (!intro || slides[current] !== intro || introState !== "playing") return false;
+    var k = e.key;
+    if (k === "Escape" || k === "ArrowLeft" || k === "PageUp" || k === "Backspace") { e.preventDefault(); stopFilm(); return true; }
+    if (k === " " || k === "k" || k === "K") { e.preventDefault(); togglePause(); return true; }
+    return false;
+  }
+  cards.forEach(function (c) { c.addEventListener("click", function (e) { e.stopPropagation(); playFilm(c); }); });
+
   function pauseMedia(i) {
     if (i < 0 || !slides[i]) return;
-    Array.prototype.forEach.call(slides[i].querySelectorAll("video"), function (v) { if (v !== film) v.pause(); });
+    Array.prototype.forEach.call(slides[i].querySelectorAll("video"), function (v) { v.pause(); });
   }
 
   /* ------------------------------------------------------------

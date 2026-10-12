@@ -11,10 +11,13 @@ any modern browser (Chrome or Edge recommended).
 
 ## Presenting
 
-The deck opens on a one-minute **intro film** (Spiš Castle from the air, the High Tatras,
-Bratislava on the Danube, folk traditions — with fujara music). Press `→` or click to play it
-with sound; `→` again skips it. When it ends, the deck cuts straight to the cover: the film's
-last frame is the cover photo.
+The deck opens on three **films about Slovakia**: *Show me Slovakia* (SLOVAKFOLKLORE) large,
+and two films by Visit Slovakia. `→` plays the main film full screen; `→` again (or the end of
+the film) starts the presentation. Click another film to play it, `Esc` goes back to the films,
+`Space` pauses. The films stream from YouTube, so they need internet and the online version
+(erasmus.djweby.sk). From a USB copy, clicking a film opens it on YouTube instead — unless you put
+your own copies next to the deck as `media/films/show-me-slovakia.mp4`, `what-a-surprise.mp4`
+and `fall-in-love.mp4`; then they play inside the deck, offline.
 
 | Key | Action |
 | --- | --- |
@@ -32,7 +35,7 @@ photos have a small ⤢ button in the top-right corner.
 
 Slide 7 (Senica) plays a short map zoom (Europe → Slovakia → Trnava Region → Senica); wait ~5 s before moving on.
 
-**Hockey 2002 (slide 6):** the slide plays `media/hockey-2002.mp4` if that file exists — save
+**Sport (slide 6):** the slide plays `media/hockey-2002.mp4` if that file exists — save
 the clip of the final under exactly that name and it plays inside the deck, offline. Without
 it, the slide offers a "Find it on YouTube" button (needs internet). Broadcast footage is
 copyrighted, so it is not included here.
@@ -49,8 +52,7 @@ erasmus-deck/src/deck.js      navigation, map camera, animations
 erasmus-deck/src/credits.json photo credits shown with C
 node erasmus-deck/build.mjs   rebuilds erasmus-site/dist/slovakia (or pass --out <dir>)
 erasmus-deck/img/             photos (img/full/: sharper copies for the lightbox)
-erasmus-deck/media/           intro.mp4 + intro-poster.jpg (the film), hockey-2002.mp4 (optional)
-python3 erasmus-deck/tools/make_intro.py <raw> <fonts>   re-renders the intro film (see the script)
+erasmus-deck/media/           optional local films (media/films/*.mp4) and hockey-2002.mp4
 ```
 
 `tools/build_map.py` regenerates `src/map-data.json` from Natural Earth data;

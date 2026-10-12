@@ -62,42 +62,42 @@
     <div id="map-overlay"></div>
   </div>
 
-  <!-- ========================= 00 INTRO FILM ========================= -->
-  <section class="slide" id="intro" data-chapter="0" data-map="off" data-chrome="off" data-title="Intro film · Slovakia in one minute" data-notes-sk="(Zatiaľ nehovor.) Stlač → a spustí sa film. Trvá asi minútu, hrá v ňom fujara. Ak treba, ďalším → ho preskočíš. Keď film skončí, prezentácia sama prejde na prvý slajd." data-notes="(Don't talk yet.) Press → to start the film. It is about one minute long, with fujara music. If you need to, press → again to skip. When the film ends, the presentation starts by itself on the first slide.">
-    <video class="film" preload="auto" playsinline poster="media/intro-poster.jpg"><source src="media/intro.mp4" type="video/mp4"></video>
-    <div class="intro-start">
-      <div class="eyebrow plain">Erasmus+ · Mezitli / Mersin 2026</div>
-      <div class="intro-title">Slovakia <span class="serif">in one minute</span></div>
-      <button type="button" class="intro-play" aria-label="Play the film"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></button>
-      <div class="label">Press <kbd>→</kbd> or click to start the film · sound on</div>
+  <!-- ========================= 00 FILMS ========================= -->
+  <section class="slide" id="intro" data-chapter="0" data-map="off" data-chrome="off" data-title="Films about Slovakia" data-notes-sk="(Zatiaľ nehovor.) → spustí hlavný film Show me Slovakia na celú obrazovku. Ďalšie → ho ukončí a prezentácia prejde na prvý slajd. Ostatné dva filmy spustíš kliknutím na ich kartu, Esc sa vráti sem. Medzerník pozastaví film. Na prehrávanie z YouTube treba internet." data-notes="(Don't talk yet.) Press → to play the main film, Show me Slovakia, full screen. Press → again to stop it and start the presentation. Click one of the other two films to play it; Esc returns here. Space pauses. The films stream from YouTube, so you need internet.">
+    <div class="films">
+      <button type="button" class="film-card main" data-yt="-3FyL4a3eEo" data-local="media/films/show-me-slovakia.mp4">
+        <img src="img/folk-dancers.webp" alt="">
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+        <span class="t"><b>Show me Slovakia</b><em>SLOVAKFOLKLORE</em></span>
+      </button>
+      <button type="button" class="film-card" data-yt="P9Hp9Uy2c4o" data-local="media/films/what-a-surprise.mp4">
+        <img src="img/full/spis-castle.webp" alt="">
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+        <span class="t"><b>Slovakia — what a surprise</b><em>Visit Slovakia</em></span>
+      </button>
+      <button type="button" class="film-card" data-yt="wl16EqSi7TE" data-local="media/films/fall-in-love.mp4">
+        <img src="img/full/tatras.webp" alt="">
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+        <span class="t"><b>You will simply fall in love</b><em>Visit Slovakia</em></span>
+      </button>
     </div>
-    <div class="intro-skip label"><kbd>→</kbd> skip</div>
-    <div class="intro-credit">Footage: Hendric Stattmann (Spiš Castle), Spasimir Pilev (Bratislava) · Music: Ľubomír Párička, fujara, recorded by Mariusz Raniszewski · CC BY-SA · Wikimedia Commons</div>
+    <div class="player" aria-hidden="true"><div class="frame"></div></div>
   </section>
 
   <!-- ========================= 01 COVER ========================= -->
   <section class="slide" id="s1" data-chapter="0" data-map="off" data-notes-sk="Ahojte všetci! Sme študenti zo Senice, mesta na západnom Slovensku. Vezmeme vás na krátky výlet: najprv Slovensko, potom naše mesto a nakoniec naša škola." data-notes="Hello everyone! We are students from Senica, a town in western Slovakia. Today we will take you on a short trip: first Slovakia, then our town, then our school.">
     <div class="bg"><img src="img/cover-strbske-pleso.webp" alt="Štrbské pleso lake with the peaks of the High Tatras behind it"><div class="shade"></div></div>
-    <div class="meta" data-a="down" style="--d:.2s">
-      <span class="chip"><i></i>Erasmus+ project</span>
-      <span class="chip"><svg width="26" height="17" style="border-radius:3px"><use href="#flag-sk"/></svg>Slovakia&nbsp;→&nbsp;Turkey<svg width="26" height="17" style="border-radius:3px"><use href="#flag-tr"/></svg></span>
-    </div>
     <div class="outline plx" style="--depth:-14" data-a="fade" data-outline></div>
     <div class="title-panel glass" data-a="blur" style="--d:.35s">
       <div class="flagrule"><i style="background:#fff"></i><i style="background:#0b4ea2"></i><i style="background:#ee1c25"></i></div>
       <h1 class="mega split" data-split style="--d:.55s">SLOVAKIA <svg class="flag" viewBox="0 0 900 600" role="img" aria-label="Flag of Slovakia"><use href="#flag-sk"/></svg></h1>
       <div class="subtitle" data-a="up" style="--d:1.15s">A small country with a lot to discover</div>
     </div>
-    <div class="photo-cred" data-a="fade" style="--d:1.6s">
-      <span class="label">On screen</span>
-      <span>Štrbské pleso, High Tatras · 1,346 m</span>
-    </div>
   </section>
 
   <!-- ========================= 02 WHERE ========================= -->
   <section class="slide" id="s2" data-chapter="0" data-map="europe" data-notes-sk="Slovensko leží v strede Európy. Má päť susedov: Česko, Poľsko, Ukrajinu, Maďarsko a Rakúsko. Bratislava je jediné hlavné mesto na svete, ktoré hraničí s dvoma štátmi. Zo Senice do Istanbulu je to asi 1 250 km." data-notes="Slovakia is in the middle of Europe. It has five neighbours: Czechia, Poland, Ukraine, Hungary and Austria. Our capital, Bratislava, is the only capital in the world that borders two countries. From Senica to Istanbul it is about 1,250 kilometres.">
     <div class="intro">
-      <div class="eyebrow" data-a="up">Chapter I · Slovakia</div>
       <h2 class="h2 split" data-split style="--d:.1s">Where is Slovakia?</h2>
       <p class="body" data-a="up" style="--d:.5s">In the heart of Europe, with five neighbours and no sea. Bratislava is the only capital that borders two countries.</p>
     </div>
@@ -115,7 +115,6 @@
   <!-- ========================= 03 CONTRASTS ========================= -->
   <section class="slide" id="s3" data-chapter="0" data-map="off" data-notes-sk="Slovensko je malé, ale každý región je iný. Na severe máme skutočné veľhory – Vysoké Tatry. Na východe obrovské hrady ako Spišský hrad. A Bratislava je moderné mesto na Dunaji. Slovensko vyrába najviac áut na obyvateľa na svete." data-notes="Slovakia is small, but very different from region to region. In the north we have real mountains, the High Tatras. In the east, huge castles like Spiš Castle. And in Bratislava, a modern city on the Danube. Slovakia also makes more cars per person than any other country in the world.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter I · Slovakia</div>
       <h2 class="h2 split" data-split style="--d:.1s">A country of contrasts</h2>
       <div class="equation" data-a="up" style="--d:.5s">
         <span class="term">nature</span><span class="op">+</span><span class="term">history</span><span class="op">+</span><span class="term">culture</span><span class="op">+</span><span class="term">modern Europe</span>
@@ -138,7 +137,6 @@
   <section class="slide" id="s4" data-chapter="0" data-map="off" data-notes-sk="Ľudová kultúra na Slovensku stále žije. Mnohé dediny majú vlastný kroj. Fujara je pastierska píšťala, takmer dvojmetrová, a je na zozname UNESCO. Na Vianoce jeme oblátky s medom." data-notes="Folk culture is still alive in Slovakia. Many villages have their own folk costume, called kroj. The fujara is a shepherd's flute, almost two metres long, and it is on the UNESCO list. At Christmas we eat oplátky, thin wafers with honey.">
     <div class="bg"><img src="img/folk-dancers.webp" alt="Two dancers in Slovak folk costumes spinning on a green hillside"><div class="shade"></div></div>
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter I · Slovakia</div>
       <h2 class="h2 split" data-split style="--d:.1s">Our culture</h2>
       <p class="lead" data-a="up" style="--d:.5s">Folk traditions are not only for museums. You still see them at festivals, weddings and on Christmas Eve.</p>
     </div>
@@ -165,13 +163,11 @@
   <!-- ========================= 05 FOOD ========================= -->
   <section class="slide" id="s5" data-chapter="0" data-map="off" data-notes-sk="Toto je naše národné jedlo, bryndzové halušky: malé zemiakové halušky s ovčím syrom a slaninou. Kapustnicu jeme na Štedrý večer. Lokše sú zemiakové placky. A neďaleko Senice, v Skalici, pečú sladký trdelník." data-notes="This is our national dish, bryndzové halušky: small potato dumplings with sheep's cheese and bacon. Kapustnica is a sauerkraut soup we eat on Christmas Eve. Lokše are potato pancakes. And near Senica, in Skalica, they make a sweet pastry called trdelník.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter I · Slovakia</div>
       <h2 class="h2 split" data-split style="--d:.1s">Taste of Slovakia</h2>
       <p class="lead" data-a="up" style="--d:.5s">Potatoes, sheep's cheese, cabbage and a lot of patience.</p>
     </div>
     <figure class="tile hero" data-a="mask" style="--d:.25s">
       <img src="img/halusky.webp" alt="Bryndzové halušky with bacon on a wooden plate">
-      <span class="badge chip" data-a="fade" style="--d:1s"><i style="background:var(--sk-red)"></i>National dish</span>
       <div class="cap"><div class="name">Bryndzové halušky</div><p>Potato dumplings with bryndza, a soft sheep's cheese, and crispy bacon.</p></div>
     </figure>
     <div class="dish d2" data-a="up" style="--d:.6s">
@@ -193,19 +189,18 @@
   </section>
 
   <!-- ========================= HOCKEY 2002 ========================= -->
-  <section class="slide" id="hockey" data-chapter="0" data-map="off" data-title="World champions 2002" data-notes-sk="Hokej je náš šport číslo jeden. 11. mája 2002 v švédskom Göteborgu hralo Slovensko finále majstrovstiev sveta proti Rusku. Bolo 3:3 a potom Peter Bondra skóroval 100 sekúnd pred koncom. Vyhrali sme 4:3 a prvýkrát sme boli majstri sveta. Naši rodičia si dodnes pamätajú, kde vtedy boli! (Kliknutím spustíš video.)" data-notes="Ice hockey is our number one sport. On 11 May 2002, in Gothenburg in Sweden, Slovakia played Russia in the World Championship final. It was 3–3, and then Peter Bondra scored with only 100 seconds left. We won 4–3 and became world champions for the first time. Our parents still remember where they were! (Click the video to play the clip.)">
+  <section class="slide" id="hockey" data-chapter="0" data-map="off" data-title="Sport · ice hockey 2002" data-notes-sk="Hokej je náš šport číslo jeden. 11. mája 2002 v švédskom Göteborgu hralo Slovensko finále majstrovstiev sveta proti Rusku. Bolo 3:3 a potom Peter Bondra skóroval 100 sekúnd pred koncom. Vyhrali sme 4:3 a prvýkrát sme boli majstri sveta. Naši rodičia si dodnes pamätajú, kde vtedy boli! (Kliknutím spustíš video.)" data-notes="Ice hockey is our number one sport. On 11 May 2002, in Gothenburg in Sweden, Slovakia played Russia in the World Championship final. It was 3–3, and then Peter Bondra scored with only 100 seconds left. We won 4–3 and became world champions for the first time. Our parents still remember where they were! (Click the video to play the clip.)">
     <div class="ice" aria-hidden="true"><i class="rink"></i><i class="glow"></i></div>
     <div class="big2002" data-a="fade" style="--d:.1s" aria-hidden="true">2002</div>
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter I · Slovakia</div>
-      <h2 class="h2 split" data-split style="--d:.1s">World champions</h2>
-      <p class="lead" data-a="up" style="--d:.5s">Ice hockey World Championship · Gothenburg, Sweden · 11 May 2002</p>
+      <h2 class="h2 split" data-split style="--d:.1s">Sport</h2>
+      <p class="lead" data-a="up" style="--d:.5s">Ice hockey is our number one. Our greatest day: the 2002 World Championship final in Gothenburg.</p>
     </div>
     <div class="score glass" data-a="scale" style="--d:.6s">
       <div class="team"><svg viewBox="0 0 900 600" aria-hidden="true"><use href="#flag-sk"/></svg><span>Slovakia</span></div>
       <div class="res num"><span data-count="4" data-dec="0">0</span><i>:</i><span data-count="3" data-dec="0">0</span></div>
       <div class="team"><span class="rus" aria-hidden="true"><i></i><i></i><i></i></span><span>Russia</span></div>
-      <div class="lbl label">Final</div>
+      <div class="lbl label">Final · 11 May 2002</div>
     </div>
     <ol class="final-line" data-a="up" style="--d:1s">
       <li><b>2 : 0</b><span>after the 1st period</span></li>
@@ -213,22 +208,21 @@
       <li><b>3 : 3</b><span>Russia comes back</span></li>
       <li class="gold"><b>4 : 3</b><span>58:20 · Peter Bondra</span></li>
     </ol>
-    <p class="hk-fact body" data-a="up" style="--d:1.2s"><b>100 seconds</b> before the end, Peter Bondra scored the winning goal. Slovakia's first world title, with coach Ján Filc.</p>
+    <p class="hk-fact body" data-a="up" style="--d:1.2s"><b>100 seconds</b> before the end, Peter Bondra scored the winning goal. Slovakia became world champions for the first time.</p>
     <div class="clip" data-a="mask" style="--d:.4s">
       <video preload="metadata" playsinline><source src="media/hockey-2002.mp4" type="video/mp4"></video>
       <button type="button" class="clip-play"><span class="pb"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span><span class="t">Watch the winning goal</span></button>
-      <div class="clip-missing">
-        <div class="t">The clip is not in this copy</div>
-        <p>Save the video as <b>media/hockey-2002.mp4</b> next to this page — it will play here, even offline.</p>
-        <a href="https://www.youtube.com/results?search_query=Slovakia+Russia+2002+world+championship+final+Bondra+goal" target="_blank" rel="noopener">Find it on YouTube ↗</a>
-      </div>
+      <a class="clip-missing" href="https://www.youtube.com/results?search_query=Slovakia+Russia+2002+world+championship+final+Bondra+goal" target="_blank" rel="noopener">
+        <span class="pb"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+        <span class="t">Watch the winning goal</span>
+        <span class="s">opens on YouTube</span>
+      </a>
     </div>
   </section>
 
   <!-- ========================= 06 MEET SENICA ========================= -->
   <section class="slide" id="s6" data-chapter="1" data-map="journey" data-notes-sk="Teraz priblížime. Senica má asi devätnásťtisíc obyvateľov, leží na západnom Slovensku v Trnavskom kraji. Z Bratislavy je to asi hodina autom a sme blízko českej hranice." data-notes="Now let's zoom in. Senica is a town of about nineteen thousand people in western Slovakia, in the Trnava Region. It is about an hour's drive from Bratislava and very close to the Czech border.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter II · Senica</div>
       <h2 class="h2 split" data-split style="--d:.1s">Meet Senica</h2>
       <p class="lead" data-a="up" style="--d:.5s">A town in western Slovakia, in the Trnava Region.</p>
       <div class="crumbs" data-a="up" style="--d:.7s"><span data-step="0">Europe</span><i>→</i><span data-step="1">Slovakia</span><i>→</i><span data-step="2">Trnava Region</span><i>→</i><span data-step="3">Senica</span></div>
@@ -251,7 +245,6 @@
   <!-- ========================= 07 MORE THAN A DOT ========================= -->
   <section class="slide" id="s7" data-chapter="1" data-map="area" data-notes-sk="Senica je malá, ale okolo nej je toho veľa. Tri kilometre od mesta je Kunovská priehrada. V kopcoch je zrúcanina hradu Branč z 13. storočia. V Šaštíne je národná svätyňa Slovenska a v Holíči bývalé letné sídlo Habsburgovcov." data-notes="Senica is small, but there is a lot around it. Three kilometres away is the Kunov lake. In the hills there is the ruin of Branč Castle from the 13th century. In Šaštín there is the national shrine of Slovakia, and in Holíč a former summer residence of the Habsburgs.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter II · Senica</div>
       <h2 class="h2 split" data-split style="--d:.1s">Senica</h2>
       <div class="h2" data-a="up" style="--d:.35s"><span class="serif">more than a dot on the map</span></div>
     </div>
@@ -276,7 +269,6 @@
   <!-- ========================= 08 LIFE IN SENICA ========================= -->
   <section class="slide" id="s8" data-chapter="1" data-map="off" data-notes-sk="Toto je náš bežný život. Učíme sa, športujeme, stretávame sa v parku a na akciách v meste. Každý rok je na radnici Deň študentov a mesto podporuje školský šport, napríklad florbal." data-notes="This is our everyday life. We study, we do sport, we meet at the park and at events in town. Every year there is a Students' Day at the town hall, and the town supports school sport like floorball.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter II · Senica</div>
       <h2 class="h2 split" data-split style="--d:.1s">Life in Senica</h2>
       <p class="lead" data-a="up" style="--d:.5s">Small enough to know everyone. Big enough to always have something going on.</p>
     </div>
@@ -292,17 +284,9 @@
   <section class="slide" id="s9" data-chapter="2" data-map="off" data-notes-sk="Toto je naša škola. Názov znamená Súkromná stredná odborná škola podnikania. Otvorili ju v roku 1999. Štúdium trvá štyri roky a končí maturitou, doteraz ju ukončilo viac ako 1 600 študentov." data-notes="This is our school. The name means Private Secondary Vocational School of Entrepreneurship. It opened in 1999. Study takes four years and ends with the maturita exam, and more than 1,600 students have graduated so far.">
     <div class="bg"><img src="img/school-lab.webp" alt="Students in one of the school's computer classrooms"><div class="shade"></div></div>
     <div class="content">
-      <div class="logo-wrap glass soft" data-a="up"><img src="img/logo-ssosp.png" alt="SSOŠP Senica logo"><span class="label">Chapter III · Our school</span></div>
+      <div class="logo-wrap glass soft" data-a="up"><img src="img/logo-ssosp.png" alt="SSOŠP Senica logo"></div>
       <div class="schoolname split" data-split style="--d:.2s">Súkromná stredná odborná škola podnikania</div>
       <div class="en" data-a="up" style="--d:.8s">Private Secondary Vocational School of Entrepreneurship</div>
-      <div class="pillars">
-        <span class="chip" data-a="up" style="--d:1s"><i></i>Entrepreneurship</span>
-        <span class="chip" data-a="up" style="--d:1.05s"><i></i>Business education</span>
-        <span class="chip" data-a="up" style="--d:1.1s"><i></i>Practical skills</span>
-        <span class="chip" data-a="up" style="--d:1.15s"><i style="background:var(--teal)"></i>Creativity</span>
-        <span class="chip" data-a="up" style="--d:1.2s"><i style="background:var(--teal)"></i>Communication</span>
-        <span class="chip" data-a="up" style="--d:1.25s"><i style="background:var(--sk-red)"></i>Ready for real life and work</span>
-      </div>
     </div>
     <div class="stats">
       <div class="stat glass" data-a="up" style="--d:1.3s"><div class="v num"><span data-count="1999" data-dec="0" data-plain>0</span></div><div class="k label">Founded</div></div>
@@ -315,7 +299,6 @@
   <!-- ========================= 10 WHAT WE LEARN ========================= -->
   <section class="slide" id="s10" data-chapter="2" data-map="off" data-notes-sk="Máme dva študijné odbory. Jeden je o podnikaní a ekonomike, druhý o IT a digitálnych technológiách. V oboch sa učíme praxou: skutočný účtovný softvér, roboty, weby, videá a prezentácie." data-notes="We have two study programmes. One is about business and economics, the other about IT and digital technology. In both, we learn by doing: real accounting software, robots, websites, videos and presentations.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter III · Our school</div>
       <h2 class="h2 split" data-split style="--d:.1s">What we learn</h2>
     </div>
     <div class="tracks" data-a="fade" style="--d:.5s">
@@ -342,19 +325,8 @@
   <!-- ========================= 11 MINDSET ========================= -->
   <section class="slide" id="s11" data-chapter="2" data-map="off" data-notes-sk="Na toto sme najviac hrdí. Neučíme sa len teóriu. Naša študentská firma predáva skutočné výrobky za skutočné peniaze a na konci roka vypláca akcionárom dividendy. Staviame roboty, riešime problémy v tímoch a prezentujeme svoje nápady." data-notes="This is what we are most proud of. We don't just learn theory. Our student company sells real products for real money, and at the end of the year it pays dividends to its shareholders. We build robots, we solve problems in teams, and we present our ideas.">
     <div class="quote">
-      <div class="eyebrow" data-a="up">Chapter III · Our school</div>
       <div class="q1" data-a="up" style="--d:.25s" >“We don't only learn how business works.</div>
       <div class="q2 split" data-split style="--d:.6s">We learn how to <em>create, communicate</em> and take initiative.”</div>
-    </div>
-    <div class="traits">
-      <span class="chip" data-a="up" style="--d:1.1s"><i></i>Creativity</span>
-      <span class="chip" data-a="up" style="--d:1.15s"><i></i>Independent thinking</span>
-      <span class="chip" data-a="up" style="--d:1.2s"><i></i>Teamwork</span>
-      <span class="chip" data-a="up" style="--d:1.25s"><i></i>Problem solving</span>
-      <span class="chip" data-a="up" style="--d:1.3s"><i style="background:var(--teal)"></i>Presenting ideas</span>
-      <span class="chip" data-a="up" style="--d:1.35s"><i style="background:var(--teal)"></i>Real projects</span>
-      <span class="chip" data-a="up" style="--d:1.4s"><i style="background:var(--teal)"></i>Communication</span>
-      <span class="chip" data-a="up" style="--d:1.45s"><i style="background:var(--sk-red)"></i>Responsibility</span>
     </div>
     <div class="company glass soft" data-a="up" style="--d:1.6s">
       <div class="tag">NOVA</div>
@@ -370,7 +342,6 @@
   <!-- ========================= 12 WHY ERASMUS+ ========================= -->
   <section class="slide" id="s12" data-chapter="3" data-map="network" data-notes-sk="Prečo je pre nás táto cesta dôležitá? Lebo niektoré veci sa z knihy nenaučíš. Musíš stretnúť ľudí, hovoriť po anglicky každý deň a vidieť, ako žijú iní. To nám dáva Erasmus+." data-notes="Why is this trip important for us? Because some things you cannot learn from a book. You have to meet people, speak English every day, and see how others live. That's what Erasmus+ gives us.">
     <div class="head">
-      <div class="eyebrow" data-a="up">Chapter IV · Erasmus+</div>
       <h2 class="h2 split" data-split style="--d:.1s">Why Erasmus+?</h2>
       <p class="lead" data-a="up" style="--d:.5s">Some lessons only happen when you leave home.</p>
     </div>
@@ -447,15 +418,12 @@
         <div class="shared"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-link"/></svg>Trade is part of both cultures</div>
       </div>
     </div>
-    <div class="foot label" data-a="fade" style="--d:1.6s">Exchange · curiosity · learning from each other</div>
   </section>
 
   <!-- ========================= 14 SEE YOU ========================= -->
   <section class="slide" id="s14" data-chapter="3" data-map="route" data-notes-sk="Ďakujeme za pozornosť! Sme naozaj radi, že sme tu s vami v Mersine. Teşekkürler!" data-notes="Thank you for listening! We are really happy to be here in Mersin with you. Teşekkürler!">
     <div class="head">
-      <div class="eyebrow" data-a="up">Erasmus+ · Senica → Turkey</div>
-      <div class="mega split" data-split style="--d:.3s">SEE YOU<br>IN <span class="serif">Turkey</span></div>
-      <div class="sub" data-a="up" style="--d:1.2s">From Senica, Slovakia — with curiosity, ideas and an open mind.</div>
+      <div class="mega split" data-split style="--d:.3s">THANK YOU<br><span class="serif">Teşekkürler</span></div>
     </div>
     <div class="sign">
       <div class="school glass soft" data-a="up" style="--d:1.8s">
@@ -463,7 +431,6 @@
         <div><b>Súkromná stredná odborná škola podnikania</b><span>Hollého 1380, Senica, Slovakia · ssosp.sk</span></div>
       </div>
       <div class="right" data-a="up" style="--d:2s">
-        <span class="chip"><svg width="26" height="17" style="border-radius:3px"><use href="#flag-sk"/></svg>Teşekkürler · Ďakujeme · Thank you<svg width="26" height="17" style="border-radius:3px"><use href="#flag-tr"/></svg></span>
         <div class="credit">Photos: SSOŠP Senica and Wikimedia Commons contributors. Press C for credits.</div>
       </div>
     </div>
@@ -472,7 +439,6 @@
   <!-- ========================= chrome ========================= -->
   <div id="chrome" class="hidden">
     <div class="top">
-      <div class="brand"><svg viewBox="0 0 900 600" aria-hidden="true"><use href="#flag-sk"/></svg>Erasmus+ · Senica</div>
       <nav class="chapters" aria-label="Chapters">
         <button type="button" data-go="0"><span>Slovakia</span><span class="bar"><i></i></span></button>
         <button type="button" data-go="5"><span>Senica</span><span class="bar"><i></i></span></button>

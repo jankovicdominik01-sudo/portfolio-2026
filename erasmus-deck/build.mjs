@@ -80,7 +80,7 @@ const outDir = o !== -1 && process.argv[o + 1] ? process.argv[o + 1] : join(here
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, "index.html"), full);
 cpSync(join(here, "img"), join(outDir, "img"), { recursive: true });
-// films: media/intro.mp4 (+ poster) and, if you add it, media/hockey-2002.mp4
+// optional local films: media/films/*.mp4 and media/hockey-2002.mp4
 if (existsSync(join(here, "media"))) cpSync(join(here, "media"), join(outDir, "media"), { recursive: true });
 console.log(`slovakia/index.html      ${(full.length / 1024).toFixed(0)} KB`);
 

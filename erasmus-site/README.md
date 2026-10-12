@@ -9,6 +9,12 @@ Agriculture* (Mezitli / Mersin, 8–14 October 2026), built by the team from SSO
 | `/slovakia/` | **Slovakia & Senica** — who we are (the original deck from `../erasmus-deck`, unchanged, plus a faint *← Hub* control) |
 | `/agriculture/` | **Back to Soil?** — an interactive documentary: soil → agriculture → food → waste → recovery → back to soil |
 
+## What is public right now
+
+Only **Slovakia & Senica**: the site root opens it directly, without the hub. The agriculture
+deck is still built into `dist/agriculture/` but nothing links to it. To bring back the hub and
+the switch between the two decks, build with `SHOW_AGRICULTURE=1 npm run build`.
+
 ## Build
 
 ```

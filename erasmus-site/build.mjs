@@ -1,6 +1,6 @@
 // Builds the Erasmus+ Mersin 2026 site into dist/:
 //
-//   dist/index.html              hub: choose a presentation
+//   dist/index.html              opens the Slovakia deck (the hub, when SHOW_AGRICULTURE=1)
 //   dist/slovakia/index.html     "Slovakia & Senica" (built from ../erasmus-deck)
 //   dist/agriculture/index.html  "Back to Soil?" (this folder, src/agriculture)
 //   dist/vercel.json             trailing slashes so relative paths always work
@@ -104,19 +104,35 @@ const scriptHtml = renderScript(META, SCRIPT, PRESENTERS);
 writeFileSync(join(dist, "agriculture", "script.html"), scriptHtml);
 console.log(`agriculture/script.html  ${kb(scriptHtml)}`);
 
-// ---------- slovakia: the original deck, unchanged, plus a small hub control ----------
+// ---------- which presentations are public ----------
+// The agriculture deck is hidden for now: it is still built into dist/agriculture/,
+// but nothing links to it and the site opens straight on the Slovakia deck.
+// SHOW_AGRICULTURE=1 npm run build brings back the hub and the deck switch.
+const SHOW_AGRICULTURE = process.env.SHOW_AGRICULTURE === "1";
+
+// ---------- slovakia: the original deck (+ the small hub control when the hub is public) ----------
 const slovakDir = join(dist, "slovakia");
 execFileSync(process.execPath, [join(here, "..", "erasmus-deck", "build.mjs"), "--out", slovakDir], { stdio: "inherit" });
-const nav = read("src/hub/deck-nav.html");
-const slovakPath = join(slovakDir, "index.html");
-const slovakHtml = readFileSync(slovakPath, "utf8");
-const end = slovakHtml.lastIndexOf("</body>"); // the real one, not a string inside the deck's script
-writeFileSync(slovakPath, slovakHtml.slice(0, end) + nav + "\n" + slovakHtml.slice(end));
+if (SHOW_AGRICULTURE) {
+  const nav = read("src/hub/deck-nav.html");
+  const slovakPath = join(slovakDir, "index.html");
+  const slovakHtml = readFileSync(slovakPath, "utf8");
+  const end = slovakHtml.lastIndexOf("</body>"); // the real one, not a string inside the deck's script
+  writeFileSync(slovakPath, slovakHtml.slice(0, end) + nav + "\n" + slovakHtml.slice(end));
+}
 
-// ---------- hub ----------
-const hubHtml = read("src/hub/index.html").replace("/*FONTS*/", () => hubFontCss);
-writeFileSync(join(dist, "index.html"), hubHtml);
-console.log(`index.html (hub)         ${kb(hubHtml)}`);
+// ---------- site root ----------
+if (SHOW_AGRICULTURE) {
+  const hubHtml = read("src/hub/index.html").replace("/*FONTS*/", () => hubFontCss);
+  writeFileSync(join(dist, "index.html"), hubHtml);
+  console.log(`index.html (hub)         ${kb(hubHtml)}`);
+} else {
+  // straight to the Slovakia deck (works online and from a USB copy)
+  writeFileSync(join(dist, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Slovakia · Senica · SSOŠP</title>
+<meta http-equiv="refresh" content="0; url=slovakia/index.html"><style>html{background:#080d19}</style>
+<script>location.replace("slovakia/index.html" + location.hash)</script></head><body></body></html>\n`);
+  console.log("index.html               → slovakia/ (agriculture hidden)");
+}
 
 writeFileSync(join(dist, "vercel.json"), JSON.stringify({ trailingSlash: true, cleanUrls: false }, null, 2) + "\n");
 console.log("dist/ ready");
