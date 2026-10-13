@@ -5,7 +5,7 @@ export const PRESENTERS = {
   Dominik: { color: "#dcb45c", role: "systems, trade-offs, process, synthesis" },
   Adam: { color: "#7fb2ff", role: "data, landscape, machines, biogas" },
   Sara: { color: "#a7c96f", role: "opening, region, field visits, results" },
-  Karolína: { color: "#e59a7a", role: "the loop, biodiversity, drought, waste" }
+  Karolína: { color: "#e59a7a", role: "the loop, biodiversity, waste" }
 };
 export const slug = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -33,17 +33,6 @@ export const SCRIPT = [
       "Keep this ring in mind. It stays in the corner, so you always know where we are."
     ],
     point: "Step 1: follow the moving dot around the ring. Step 2: point at the three badges. Step 3: point at the corner.",
-    transition: "Sara will show you where all of this happens."
-  },
-  {
-    id: "s-region", presenter: "Sara", time: 40, level: "Easy",
-    message: "Every story is local — within 75 km of our school — and we went to two places ourselves.",
-    screen: "The distance from Senica to Mersin counts up to 1,923 km. Then a satellite map of western Slovakia with five pins and a legend.",
-    say: [
-      "From Senica to Mersin it is 1,923 kilometres — in a straight line.",
-      "This is our region from space. Every story today is within 75 kilometres of our school. The pins show how we know: a full dot means we went there — that's Senica. A ring means we asked them questions — the organic farm. A square means we read reliable reports — Statok Dubina and the biogas plant."
-    ],
-    point: "Step 2: point at Senica first, then the other pins. You can click a pin to open its card.",
     transition: "Adam starts with the landscape."
   },
   {
@@ -69,22 +58,7 @@ export const SCRIPT = [
       "Why? Partridges eat seeds and insects, and their chicks need insects. Insects need field margins and wild corners. When the landscape becomes too simple, this chain breaks."
     ],
     point: "Step 2: point at the one bird that stays. Step 3: follow the chain from left to right.",
-    transition: "Can damaged land recover? Dominik has a farm that tried."
-  },
-  {
-    id: "s-dubina", presenter: "Dominik", time: 85, level: "Advanced",
-    message: "Soil can recover — but it takes years, not one season.",
-    screen: "An illustrated panorama of a farm changing over time, with a slider and a satellite inset. At the end, the farmer's quote and a stamp.",
-    say: [
-      "Statok Dubina is a small farm, 44 kilometres from Senica: 8 hectares. For sixty years this land was farmed intensively. Look at the soil: pale, cracked, with a hard crust.",
-      "In 2012 the farmer, Stanislav, started with grass. Most of the field was grassed over.",
-      "Then horses. They graze, and their manure feeds the soil. He also grows green manure — plants grown only to go back into the soil.",
-      "He grows vegetables without ploughing, in manure and straw. And he planted a food forest: trees stop the wind, shade the soil and give fruit.",
-      "In 2022, after about nine years, experts saw a clear change: soil life coming back, more organic matter. That's an expert observation, not a lab measurement.",
-      "And this is how the farmer says it himself. [Read the quote slowly.] So soil can recover — but it takes years."
-    ],
-    point: "Point at the soil getting darker at every step. The slider can be dragged. Last step: read the quote, then point at the stamp.",
-    transition: "The second farm protects its plants in a surprising way. Adam."
+    transition: "So how can a farm protect its plants and keep nature? Adam."
   },
   {
     id: "s-ecofarm", presenter: "Adam", time: 80, level: "Medium",
@@ -97,18 +71,6 @@ export const SCRIPT = [
       "His order of protection: first diversity, then crop rotation, soil care and barriers. Products allowed in organic farming come last — only if necessary. The Ministry's analysis says the same for the whole country: more diverse crops, fewer sprays."
     ],
     point: "Step 3: point at the hedge on the left, then follow the ladybirds. Step 4: point at rung 1 and rung 5.",
-    transition: "But even a good farm can lose. Karolína."
-  },
-  {
-    id: "s-drought", presenter: "Karolína", time: 40, level: "Medium",
-    message: "Sustainable does not mean invulnerable: drought and economics hit even careful farms.",
-    screen: "Split screen: plants with drip irrigation on the left, dry plants on the right. Then two quotes from the farmer.",
-    say: [
-      "Summer 2026. On the left: plants the drip irrigation can reach. On the right: parts of the farm water can't reach. Sustainable does not mean invulnerable.",
-      "Mr Vince told us: [read the quote]. The farm is off-grid, so solar energy and groundwater limit how much water he can pump.",
-      "And about money, he wrote this: [read the quote]. On a small farm, nature, people and money pull in different directions."
-    ],
-    point: "You can drag the divider in the middle. Point at the drip line on the left.",
     transition: "Then something happened that was not in our plan. Sara."
   },
   {
@@ -249,33 +211,6 @@ export const SCRIPT = [
       "What is left is digestate. It can go back to the fields as fertiliser. A biogas plant is like a warm stomach without oxygen."
     ],
     point: "Step 3: the bubbles. Step 5: the storage tank on the right.",
-    transition: "Renewable sounds perfect. Dominik shows why it is not automatic."
-  },
-  {
-    id: "s-impact", presenter: "Dominik", time: 90, level: "Advanced",
-    message: "Renewable is not automatically impact-free: operation and leaks decide the result.",
-    screen: "A process map of the Horné Jatovo plant with trucks, three outputs and a leak. Then two global numbers about methane leaks over an animated pipe. Then the final sentence.",
-    say: [
-      "This is a real Slovak plant in Horné Jatovo, described by a journalist in July 2024. Kitchen waste from Bratislava travels about 70 kilometres. It is sorted, heated to kill germs and digested.",
-      "The result: energy, fertiliser and biochar. A real circular idea.",
-      "But the report also described a problem. Gas from one process had less than 40 percent methane. It could only go through a biofilter — and about 20 percent was lost this way. A fix was planned. One plant, in 2024 — not a number for all biogas plants.",
-      "Methane is a strong greenhouse gas. A 2022 study from Imperial College found that biogas supply chains can leak up to twice as much methane as the highest official estimate — and 62 percent of the leaks came from a few “super-emitters”. Biogas is still better for the climate than fossil fuels.",
-      "So the word “renewable” does not decide the result. Operation does."
-    ],
-    point: "Step 1: the trucks. Step 2: the three green outputs. Step 3: the leak. Step 4: the gas escaping at the joint in the pipe.",
-    transition: "Adam brings everything together."
-  },
-  {
-    id: "s-fail", presenter: "Adam", time: 75, level: "Advanced",
-    message: "Every step of the loop can fail — good management checks every step.",
-    screen: "The loop again with seven cards of what can fail. One case from 2021 is shown. Then every card flips to what good management looks like. Then the final sentence.",
-    say: [
-      "Let's go round the loop one more time — and look at what can fail. Huge uniform fields. Drought. Wildlife damage. Plastic in bio-waste. The wrong process. Methane leaks. And storage.",
-      "Storage sounds boring. But in July 2021 a storm made a tree fall on a bag full of digestate at a biogas plant in Budča. About 400 cubic metres leaked into a stream and the Hron river. Fish died. One storm, one weak point.",
-      "And this is what good management looks like: a mosaic landscape, saving water, clean sorting at home, the right material for the right process, measuring and repairing leaks — and storage that survives a storm; that one is our own conclusion. For wildlife, we honestly have no simple answer.",
-      "Every step of the loop can fail. Good management checks every step."
-    ],
-    point: "Step 1: point at each card as you name it. Step 2: the Hron card. Step 3: watch the cards turn.",
     transition: "Dominik closes the loop."
   },
   {
@@ -284,7 +219,7 @@ export const SCRIPT = [
     screen: "The soil from the opening rises again. Five lessons. The final sentence while a dot falls into the soil. Then a question for our hosts and a thank-you.",
     say: [
       "The loop closes here. Compost from Senica goes back to gardens and green areas in our town.",
-      "What did we learn? Soil is alive and slow to rebuild. A simple landscape loses water, soil and life. Good farms still face drought — and wildlife. Bio-waste is a resource only when it is clean. And renewable is not automatically impact-free.",
+      "What did we learn? A simple landscape loses water, soil and life. The first protection is diversity, not a spray. Farms adapt to the weather — wildlife is harder. Bio-waste is a resource only when it is clean. And every material needs the right process.",
       "So this is our conclusion. [Pause.] Sustainability is not a product. It is the quality of the whole system.",
       "(Karolína:) And now our question for you: what does this loop look like in Mersin? (All four:) Thank you — teşekkürler!"
     ],

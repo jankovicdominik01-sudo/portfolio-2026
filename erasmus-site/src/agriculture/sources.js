@@ -82,17 +82,6 @@ export const SOURCES = {
     avoid: "Not a source for environmental facts.",
     url: "https://www.instagram.com/mezitlitarimveorman/"
   },
-  kzdubina: {
-    pill: "Official · BROZ", level: "B",
-    title: "Statok Dubina — Krajina živá profile and article „Statok Dubina sa stará o pôdu, ktorá to potrebuje“",
-    author: "BROZ — Krajina živá programme (expert panel)",
-    date: "27 June 2022",
-    type: "Conservation NGO programme, farm award profile",
-    context: "8 ha of arable land between Horné and Dolné Zelenice, 60 years of intensive farming; restored since 2012 with grass, a herd of horses, green manure, no-till vegetables and a food forest.",
-    use: "Size, history, practices, the farmer's quote, the experts' observation.",
-    avoid: "No number of horses; no measured soil data; „9 years“ was written in 2022.",
-    url: "https://krajinaziva.sk/en/hospodari/statok-dubina/"
-  },
   kzecofarm: {
     pill: "Official · BROZ", level: "B",
     title: "Rodinná EkoFarma No. 5 — Krajina živá profile",
@@ -137,17 +126,6 @@ export const SOURCES = {
     avoid: "—",
     url: "https://eur-lex.europa.eu/eli/dir/2008/98/oj"
   },
-  oneearth: {
-    pill: "Peer-reviewed", level: "B",
-    title: "Methane emissions along biomethane and biogas supply chains are underestimated",
-    author: "Semra Bakkaloglu, Jasmin Cooper, Adam Hawkes — Imperial College London · One Earth 5(6)",
-    date: "17 June 2022",
-    type: "Peer-reviewed synthesis of measurement studies (+ Imperial College press release)",
-    context: "Up to twice as much methane as the International Energy Agency's highest estimate. 62 % of the leaks came from a small number of facilities and pieces of equipment („super-emitters“). Biogas and biomethane still remain climate-friendlier than fossil alternatives.",
-    use: "Why operation and leak control decide the result.",
-    avoid: "It is a global synthesis, not a measurement of Slovak plants.",
-    url: "https://doi.org/10.1016/j.oneear.2022.05.012"
-  },
   eox: {
     pill: "Satellite", level: "B",
     title: "Sentinel-2 cloudless mosaics 2016 and 2024",
@@ -181,17 +159,6 @@ export const SOURCES = {
     use: "A real Slovak circular plant — and a real problem it was fixing.",
     avoid: "Generalising to all biogas plants; assuming the 2024 problem still exists in 2026.",
     url: "https://ctzn.punkt.sk/bioodpad-od-bratislavcanov-menia-na-biouhlie-ktore-regeneruje-podu/"
-  },
-  tasrhron: {
-    pill: "TASR", level: "C",
-    title: "Únik digestátu z bioplynovej stanice spôsobil na Hrone masový úhyn rýb",
-    author: "TASR (teraz.sk), quoting the operator of Bioplyn Budča and the local fishing association",
-    date: "26 July 2021",
-    type: "Journalism (news agency)",
-    context: "A storm made a tree fall on the bag that stored digestate at the biogas plant in Budča (Zvolen district). About 400 m³ of digestate leaked into the Biensky stream and the Hron river; fish died. The fishermen called it an ecological catastrophe.",
-    use: "What can fail at the very end of the loop: storage.",
-    avoid: "Blame, money estimates, claims about other plants. Our teacher first sent us an Aktuality.sk report about the same event.",
-    url: "https://www.teraz.sk/regiony/policia-zaobera-sa-situaciou-na-riek/565617-clanok.html"
   },
   smepartridge: {
     pill: "SME · BirdLife", level: "C",
@@ -300,9 +267,9 @@ export const SOURCES = {
     author: "Our team",
     date: "28 September 2026",
     type: "Research leads",
-    context: "Summaries of Statok Dubina and EcoFarm No. 5 prepared by classmates.",
+    context: "Summaries of EcoFarm No. 5 prepared by classmates.",
     use: "As leads, checked against the original sources.",
-    avoid: "Details not confirmed by the original source (e.g. the exact number of horses).",
+    avoid: "Details not confirmed by the original source.",
     url: ""
   }
 };

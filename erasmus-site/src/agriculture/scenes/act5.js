@@ -1,4 +1,4 @@
-// ACT V · RECOVERY AND BACK TO SOIL — scenes 18–22
+// ACT V · RECOVERY AND BACK TO SOIL
 import { gsap } from "gsap";
 import { stepper, $, $$, svg, rng, loop } from "../lib/stepper.js";
 import { head, up, fade, out, count, pills } from "../lib/fx.js";
@@ -114,211 +114,13 @@ const s19 = stepper({
   onLeave(el, ctx) { ctx.whenHidden(el, () => dig && dig.stop()); }
 });
 
-// ---------------------------------------------------------------- 20 · renewable ≠ impact-free
-function createLeak(canvas, quality) {
-  const W = (canvas.width = 1920), H = (canvas.height = 1080), g = canvas.getContext("2d");
-  const PY = 820, st = { flow: 0, leak: 0, store: 0 };
-  const N = quality === "low" ? 160 : 320;
-  const ps = Array.from({ length: N }, () => ({ x: Math.random() * W, y: PY + (Math.random() - 0.5) * 30, mode: 0, a: 1, vx: 0, vy: 0 }));
-  const puffs = [];
-  function render(dt) {
-    const f = dt * 60;
-    g.clearRect(0, 0, W, H);
-    const at = g.createLinearGradient(0, 0, 0, PY);
-    at.addColorStop(0, "rgba(127,178,255,.08)"); at.addColorStop(1, "rgba(127,178,255,0)");
-    g.fillStyle = at; g.fillRect(0, 0, W, PY);
-    g.fillStyle = "#2c2a27"; g.fillRect(0, PY - 24, 1250, 48);
-    g.fillStyle = "#3a3733"; g.fillRect(0, PY - 24, 1250, 6);
-    g.fillStyle = "#4a4640"; g.fillRect(730, PY - 34, 36, 68);
-    g.fillStyle = "#3b2a1a"; g.fillRect(1380, PY - 90, 380, 150);
-    g.fillStyle = "#5a4029"; g.fillRect(1380, PY - 90, 380, 12);
-    g.fillStyle = "rgba(236,229,216,.55)"; g.font = "500 22px IBM Plex Mono, monospace";
-    g.fillText("DIGESTATE STORAGE", 1420, PY + 100);
-    g.fillText("GAS LINE → ENGINE", 40, PY + 70);
-    ps.forEach((p) => {
-      if (p.mode === 0) {
-        p.x += 7 * f * st.flow; p.y = PY + Math.sin(p.x / 40 + p.a * 9) * 10;
-        if (p.x > 1250) p.x = 0;
-        if (p.x > 730 && p.x < 766 && Math.random() < 0.015 * st.leak * f) { p.mode = 1; p.vx = 1 + Math.random(); p.vy = -1.2 - Math.random(); p.a = 1; }
-        g.fillStyle = `rgba(127,178,255,${0.9 * st.flow})`;
-        g.fillRect(p.x, p.y - 2, 5, 4);
-      } else {
-        p.x += p.vx * f; p.y += p.vy * f; p.vx += (Math.random() - 0.5) * 0.1; p.a -= 0.004 * f;
-        if (p.a <= 0 || p.y < 0) { p.mode = 0; p.x = 0; p.y = PY; return; }
-        g.fillStyle = `rgba(160,200,255,${p.a * 0.8})`; g.beginPath(); g.arc(p.x, p.y, 3, 0, 7); g.fill();
-      }
-    });
-    if (st.store > 0.01 && puffs.length < 260 && Math.random() < 0.8 * st.store) puffs.push({ x: 1390 + Math.random() * 360, y: PY - 92, vx: (Math.random() - 0.5) * 0.6, vy: -0.6 - Math.random() * 1.2, a: 1 });
-    for (let i = puffs.length - 1; i >= 0; i--) {
-      const p = puffs[i]; p.x += p.vx * f; p.y += p.vy * f; p.a -= 0.003 * f;
-      if (p.a <= 0) { puffs.splice(i, 1); continue; }
-      g.fillStyle = `rgba(160,200,255,${p.a * 0.7})`; g.beginPath(); g.arc(p.x, p.y, 3.4, 0, 7); g.fill();
-    }
-  }
-  const L = loop(render);
-  return { st, start: L.start, stop: L.stop };
-}
-const NODES = [
-  { id: "ba", x: 170, y: 560, t: "Bratislava", d: "Kitchen waste from the capital, about 70 km away (2024 report)." },
-  { id: "rc", x: 740, y: 560, t: "Reception & sorting", d: "Up to 12 % of deliveries were things that don't belong — even a printer and rebar." },
-  { id: "hy", x: 990, y: 560, t: "Hygienisation", d: "Heated to 70 °C for at least one hour, to kill germs." },
-  { id: "dg", x: 1240, y: 560, t: "Digestion", d: "Wet and dry digestion; biogas is collected." },
-  { id: "chp", x: 1640, y: 330, t: "Energy", d: "Gas with enough methane goes to an engine for electricity and heat." },
-  { id: "fert", x: 1640, y: 560, t: "Fertiliser", d: "Digestate is used as fertiliser." },
-  { id: "bc", x: 1640, y: 790, t: "Biochar", d: "Heated without air at 400–600 °C to make biochar (the company's claims about benefits are not proof)." }
-];
-let leak20;
-const s20 = stepper({
-  id: "s-impact", title: "Renewable does not mean impact-free", loop: 4, steps: 5,
-  html: `
-    <canvas class="s16-canvas" aria-hidden="true"></canvas>
-    <div class="s17-text"><p class="kicker fx">A real Slovak plant · Horné Jatovo · as reported in July 2024</p><h2 class="head split">Renewable does not mean <em>impact-free</em></h2></div>
-    <svg class="s17-svg" viewBox="0 0 1920 1080" aria-label="Process map of the Horné Jatovo plant">
-      <path id="s20route" class="route" d="M170 560C300 460 420 680 560 560S700 520 740 560"/>
-      <text x="460" y="470" class="rt17" text-anchor="middle">≈ 70 km</text>
-      <path class="pipe17" d="M740 560H1240"/>
-      <path class="pipe17 br" d="M1240 560C1380 560 1450 330 1640 330"/>
-      <path class="pipe17 br" d="M1240 560H1640"/>
-      <path class="pipe17 br" d="M1240 560C1380 560 1450 790 1640 790"/>
-      <path id="s20leak" class="leak17" d="M1380 470C1400 400 1360 330 1400 250S1380 150 1420 110"/>
-      <g class="nodes"></g><g class="trucks"></g>
-    </svg>
-    <div class="s17-tip"></div>
-    <p class="s20-circ fx">Food waste → <b>energy</b>, <b>fertiliser</b> and <b>biochar</b>. A real circular idea.</p>
-    <div class="s17-leak fx">
-      <p><b>The problem they were fixing:</b> gas from dry digestion with less than 40 % methane could only go through a biofilter — “about 20 %” was lost this way, the report says. A biomethane upgrade was planned.</p>
-      <span class="stamp">One plant · July 2024 · a fix was planned</span>
-      <p class="mono s17-never">Not a figure for biogas plants in general — and we don't know the situation in 2026.</p>
-    </div>
-    <div class="s16-facts">
-      <div class="fx"><p class="kicker">All over the world · peer-reviewed study, 2022</p><p class="big">up to 2×</p><p>Biogas and biomethane supply chains can leak up to twice as much methane as the highest estimate of the International Energy Agency.</p></div>
-      <div class="fx"><p class="big">62 %</p><p>of the leaks came from a small number of facilities and pieces of equipment — “super-emitters”.</p></div>
-      <div class="fx small"><p>The same researchers say biogas still remains more climate-friendly than fossil fuels.</p></div>
-    </div>
-    <p class="s20-end quote split">The label “renewable” does not decide the result. <em>Operation does.</em></p>
-    <div class="s20-src">${pills(["ctzn", "Denník N · 30 Jul 2024"], ["oneearth", "Peer-reviewed · One Earth 2022"])}</div>
-    <span class="visnote s20-vis">Schematic · positions not geographic</span>`,
-  setup(el, ctx) {
-    leak20 = createLeak($(el, ".s16-canvas"), ctx.quality);
-    const g = $(el, ".nodes"), tip = $(el, ".s17-tip");
-    NODES.forEach((n) => {
-      const k = svg("g", { class: "n17 interactive", "data-id": n.id }, g);
-      svg("circle", { cx: n.x, cy: n.y, r: n.id === "ba" ? 26 : 34, class: "c" }, k);
-      const t = svg("text", { x: n.x, y: n.y + (n.id === "ba" ? 64 : 74), "text-anchor": "middle", class: "t" }, k);
-      t.textContent = n.t;
-      const show = (e) => {
-        e && e.stopPropagation();
-        tip.innerHTML = `<b>${n.t}</b>${n.d}`;
-        tip.style.left = Math.min(1440, n.x - 150) + "px"; tip.style.top = n.y + 110 + "px";
-        tip.classList.add("on");
-      };
-      k.addEventListener("mouseenter", show); k.addEventListener("click", show);
-      k.addEventListener("mouseleave", () => tip.classList.remove("on"));
-    });
-    const tr = $(el, ".trucks");
-    for (let i = 0; i < 3; i++) { const t = svg("g", { class: "truck" }, tr); t.innerHTML = '<rect x="-22" y="-12" width="30" height="22" rx="3" fill="#dcb45c"/><rect x="8" y="-6" width="14" height="16" rx="2" fill="#c9a24c"/><circle cx="-12" cy="12" r="5" fill="#111"/><circle cx="14" cy="12" r="5" fill="#111"/>'; }
-    el._trucks = gsap.timeline({ paused: true, repeat: -1 });
-    $$(el, ".truck").forEach((t, i) => el._trucks.fromTo(t, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, i * 1.4)
-      .to(t, { motionPath: { path: "#s20route", align: "#s20route", alignOrigin: [0.5, 0.5], autoRotate: false }, duration: 4.2, ease: "none" }, i * 1.4)
-      .to(t, { autoAlpha: 0, duration: 0.3 }, i * 1.4 + 3.9));
-    el._leak = gsap.timeline({ paused: true, repeat: -1 });
-    const lk = $(el, "#s20leak");
-    for (let i = 0; i < 6; i++) {
-      const c = svg("circle", { r: 4, class: "gasdot" }, $(el, ".s17-svg"));
-      el._leak.fromTo(c, { autoAlpha: 0.9 }, { motionPath: { path: lk, align: lk, alignOrigin: [0.5, 0.5] }, autoAlpha: 0, duration: 3, ease: "none" }, i * 0.5);
-    }
-    gsap.set($(el, ".s16-canvas"), { autoAlpha: 0 });
-  },
-  timelines: [
-    (tl, el) => {
-      head(tl, $(el, ".s17-text .head"), 0);
-      up(tl, [$(el, ".s17-text .kicker"), $(el, ".s20-src"), $(el, ".s20-vis")], 0.2);
-      tl.fromTo($(el, ".route"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.4, immediateRender: false }, 0.4)
-        .fromTo($$(el, ".n17"), { autoAlpha: 0, scale: 0.5, transformOrigin: "50% 50%" }, { autoAlpha: 1, scale: 1, duration: 0.5, stagger: 0.3, immediateRender: false }, 0.4)
-        .fromTo($(el, ".pipe17:not(.br)"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1, immediateRender: false }, 1.2)
-        .fromTo($(el, ".rt17"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5, immediateRender: false }, 1.2);
-    },
-    (tl, el) => {
-      tl.fromTo($$(el, ".pipe17.br"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.2, stagger: 0.2, immediateRender: false }, 0)
-        .to($$(el, '.n17[data-id="chp"] .c, .n17[data-id="fert"] .c, .n17[data-id="bc"] .c'), { fill: "rgba(167,201,111,.85)", stroke: "#a7c96f", duration: 0.4, stagger: 0.3 }, 0.8);
-      up(tl, $(el, ".s20-circ"), 1.2);
-    },
-    (tl, el) => {
-      tl.fromTo($(el, ".leak17"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.4, immediateRender: false }, 0)
-        .to($(el, ".s20-circ"), { autoAlpha: 0, duration: 0.4 }, 0);
-      up(tl, $(el, ".s17-leak"), 0.6);
-    },
-    (tl, el) => {
-      tl.to([$(el, ".s17-svg"), $(el, ".s17-leak"), $(el, ".s20-vis")], { autoAlpha: 0, duration: 0.6 }, 0)
-        .to($(el, ".s17-text .kicker"), { autoAlpha: 0, duration: 0.3 }, 0)
-        .fromTo($(el, ".s16-canvas"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 1, immediateRender: false }, 0.3)
-        .fromTo(leak20.st, { flow: 0, leak: 0, store: 0 }, { flow: 1, leak: 1, store: 1, duration: 2, immediateRender: false }, 0.4);
-      up(tl, $$(el, ".s16-facts > div"), 0.6, { s: 0.7 });
-    },
-    (tl, el) => {
-      tl.to($(el, ".s16-facts"), { autoAlpha: 0.15, duration: 0.5 }, 0).to($(el, ".s16-canvas"), { opacity: 0.35, duration: 0.6 }, 0);
-      head(tl, $(el, ".s20-end"), 0.3, { s: 0.07 });
-    }
-  ],
-  onEnter(el) { el._trucks.play(0); leak20.start(); },
-  onStep(step, dir, el) { if (step >= 2) el._leak.play(); else el._leak.pause(0); },
-  onLeave(el, ctx) { ctx.whenHidden(el, () => { el._trucks.pause(); el._leak.pause(); leak20.stop(); }); }
-});
-
-// ---------------------------------------------------------------- 21 · what can fail
-const FAILS = [
-  { n: 0, x: 960, y: 250, bad: "Huge uniform fields", badd: "erosion, runoff, no shelter", good: "A mosaic", goodd: "strips, hedges, trees", src: "iep", st: "B" },
-  { n: 1, x: 1500, y: 335, bad: "Drought", badd: "even a careful farm loses trees", good: "Save water", goodd: "drip irrigation — but limits remain", src: "vince", st: "I" },
-  { n: 1, x: 1560, y: 570, bad: "Wildlife damage", badd: "deer and wild boar eat crops", good: "No simple fix", goodd: "a local conflict of needs", src: "coopphotos", st: "?" },
-  { n: 3, x: 1380, y: 850, bad: "Plastic in bio-waste", badd: "we saw it ourselves", good: "Clean sorting at home", goodd: "the operator's one request", src: "visitcompost", st: "A" },
-  { n: 4, x: 560, y: 860, bad: "Wrong process", badd: "the wrong material, the wrong plant", good: "Right material, right process", goodd: "woody → compost · wet → digestion", src: "sba", st: "D" },
-  { n: 4, x: 370, y: 600, bad: "Methane leaks", badd: "a few sites cause most leaks", good: "Measure and repair", goodd: "check every pipe and tank", src: "oneearth", st: "B" },
-  { n: 5, x: 430, y: 335, bad: "Storage fails", badd: "Hron river, 2021", good: "Storage that survives a storm", goodd: "our conclusion", src: "tasrhron", st: "C" }
-];
-const s21 = stepper({
-  id: "s-fail", title: "What can fail — and what good management looks like", loop: 5, steps: 4,
-  html: `
-    <div class="s21f-text"><p class="kicker fx">The whole loop, one more time</p><h2 class="head split">What can fail — <em>and what good management looks like</em></h2></div>
-    <svg class="s21f-ring" viewBox="0 0 1920 1080" aria-hidden="true"><circle cx="960" cy="590" r="250" class="ring"/>${["Soil", "Agriculture", "Food", "Waste", "Recovery", "Back to soil"].map((t, i) => { const a = -Math.PI / 2 + (i / 6) * Math.PI * 2, x = 960 + Math.cos(a) * 250, y = 590 + Math.sin(a) * 250; return `<g class="rn"><circle cx="${x}" cy="${y}" r="12"/><text x="${960 + Math.cos(a) * 200}" y="${590 + Math.sin(a) * 200 + 8}" text-anchor="middle">${t}</text></g>`; }).join("")}</svg>
-    <div class="s21f-cards">${FAILS.map((f, i) => `<div class="fc fx" style="left:${f.x}px;top:${f.y}px" data-i="${i}"><div class="bad"><b>${f.bad}</b><span>${f.badd}</span></div><div class="good"><b>${f.good}</b><span>${f.goodd}</span></div><span data-src="${f.src}"></span></div>`).join("")}</div>
-    <div class="s21f-hron fx">
-      <p class="kicker">What can fail at the very end · Budča, central Slovakia · July 2021</p>
-      <p>A storm made a tree fall on the bag that stored <b>digestate</b> at a biogas plant. About <b>400 m³</b> leaked into a stream and then into the <b>Hron river</b>. Fish died.</p>
-      <span data-src="tasrhron"></span>
-    </div>
-    <p class="s21f-end quote split">Every step of the loop can fail. Good management <em>checks every step.</em></p>`,
-  timelines: [
-    (tl, el) => {
-      head(tl, $(el, ".s21f-text .head"), 0);
-      up(tl, $(el, ".s21f-text .kicker"), 0.2);
-      tl.fromTo($(el, ".s21f-ring .ring"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.6, ease: "power2.inOut", immediateRender: false }, 0.3)
-        .fromTo($$(el, ".s21f-ring .rn"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4, stagger: 0.15, immediateRender: false }, 0.6);
-      up(tl, $$(el, ".fc"), 1.4, { s: 0.35 });
-    },
-    (tl, el) => {
-      tl.to($$(el, ".fc:not([data-i='6'])"), { autoAlpha: 0.25, duration: 0.5 }, 0)
-        .to($(el, ".fc[data-i='6']"), { scale: 1.08, duration: 0.5 }, 0);
-      up(tl, $(el, ".s21f-hron"), 0.4);
-    },
-    (tl, el) => {
-      tl.to($(el, ".s21f-hron"), { autoAlpha: 0, duration: 0.4 }, 0)
-        .to($$(el, ".fc"), { autoAlpha: 1, scale: 1, duration: 0.4 }, 0.2);
-      $$(el, ".fc").forEach((c, i) => tl.to(c, { "--flip": 1, duration: 0.6, ease: "power2.inOut", onStart: () => c.classList.add("flipped"), onReverseComplete: () => c.classList.remove("flipped") }, 0.5 + i * 0.25));
-    },
-    (tl, el) => {
-      tl.to([$(el, ".s21f-cards"), $(el, ".s21f-ring")], { autoAlpha: 0.12, duration: 0.6 }, 0);
-      head(tl, $(el, ".s21f-end"), 0.3, { s: 0.07 });
-    }
-  ]
-});
-
 // ---------------------------------------------------------------- 22 · back to soil
 const LESSONS = [
-  ["Soil is alive — and slow to rebuild.", "Statok Dubina needed about nine years to show a clear change."],
   ["A simple landscape loses water, soil and life.", "Huge fields, fewer partridges."],
-  ["Good farms still face drought — and wildlife.", "Sustainable does not mean invulnerable."],
+  ["The first protection is diversity, not a spray.", "Hedges bring the ladybirds."],
+  ["Farms adapt to the weather — wildlife is harder.", "Reality is local."],
   ["Bio-waste is a resource only when it is clean.", "Plastic does not become soil."],
-  ["Renewable is not automatically impact-free.", "Operation decides the result."]
+  ["The right material for the right process.", "Compost and biogas work together."]
 ];
 let soil22;
 const s22 = stepper({
@@ -375,4 +177,4 @@ const s22 = stepper({
   onLeave(el, ctx) { ctx.whenHidden(el, () => soil22.stop()); }
 });
 
-export default [s18, s19, s20, s21, s22];
+export default [s18, s19, s22];

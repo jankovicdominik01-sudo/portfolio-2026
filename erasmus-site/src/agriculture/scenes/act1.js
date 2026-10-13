@@ -169,77 +169,6 @@ const s02 = stepper({
   ]
 });
 
-// ---------------------------------------------------------------- 03 · our region
-// region-2024.webp: Sentinel-2 mosaic, lon 16.75–18.45, lat 47.85–48.98 (Web Mercator)
-const MAP = { lon0: 16.75, lon1: 18.45, lat0: 47.85, lat1: 48.98, w: 1920, h: 1924 };
-const merc = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
-const mx = (lon) => ((lon - MAP.lon0) / (MAP.lon1 - MAP.lon0)) * MAP.w;
-const my = (lat) => ((merc(MAP.lat1) - merc(lat)) / (merc(MAP.lat1) - merc(MAP.lat0))) * MAP.h;
-const PINS = [
-  { n: "Senica", sub: "our school · composting plant · farming cooperative", lon: 17.3667, lat: 48.6797, src: "visitcompost", k: "visit", card: "Our school is here. On 30 September 2026 we visited the town's composting plant — and, unplanned, the farming cooperative." },
-  { n: "Statok Dubina", sub: "restored farm · 44 km", lon: 17.749417, lat: 48.381333, src: "kzdubina", k: "read", card: "8 ha of land farmed intensively for 60 years; restored by the farmer Stanislav since 2012. We use the conservation programme's profile." },
-  { n: "Family EcoFarm No. 5", sub: "organic farm · 60 km", lon: 17.711087, lat: 48.193255, src: "vince", k: "ask", card: "A former vineyard near Galanta, now an organic farm. The farmer answered our questions by email on 22 Sep 2026." },
-  { n: "Horné Jatovo ≈", sub: "biogas plant · 75 km", lon: 17.95, lat: 48.13, src: "ctzn", k: "read", card: "A biogas plant that treats bio-waste, including kitchen waste from Bratislava (report from July 2024). Approximate location." },
-  { n: "Bratislava", sub: "capital", lon: 17.1077, lat: 48.1486, src: "ctzn", k: "read", card: "Bratislava's kitchen waste travelled about 70 km to Horné Jatovo (as reported in July 2024)." }
-];
-const s03 = stepper({
-  id: "s-region", title: "Our region — and where we went", loop: 0, steps: 2,
-  html: `
-    <div class="s3-map"><img data-img="img/region-2024.webp" alt="Satellite mosaic of western Slovakia"><div class="s3-pins"></div></div>
-    <div class="s3-vig"></div>
-    <div class="s3-far">
-      <svg viewBox="0 0 1920 1080" aria-hidden="true"><path class="arc" d="M520 420 Q 960 120 1400 700"/><circle class="p1" cx="520" cy="420" r="10"/><circle class="p2" cx="1400" cy="700" r="10"/></svg>
-      <p class="mono s3-l1">SENICA · 48.68° N 17.37° E</p><p class="mono s3-l2">MERSIN · 36.81° N 34.64° E</p>
-      <p class="s3-km"><span class="num">0</span> <small>km</small></p><p class="mono s3-kmn">straight-line distance</p>
-    </div>
-    <div class="s3-text fx"><p class="kicker">Western Slovakia</p><h2 class="head">Our region — <em>and where we went</em></h2><p class="sub">Every story in this talk is within 75 km of our school.</p></div>
-    <ul class="s3-legend mono fx"><li><i class="k-visit"></i>we went there</li><li><i class="k-ask"></i>we asked them</li><li><i class="k-read"></i>we read about it</li></ul>
-    <div class="s3-scale mono fx"><i></i>20 km</div>
-    <div class="s3-card"></div>
-    <div class="s3-src">${pills("eox", ["visitcompost", "Our field visit"], "vince", "kzdubina", "ctzn")}</div>`,
-  setup(el, ctx) {
-    const box = $(el, ".s3-pins");
-    PINS.forEach((p) => {
-      const b = document.createElement("button");
-      b.className = `pin interactive k-${p.k}`;
-      b.style.left = mx(p.lon) + "px"; b.style.top = my(p.lat) + "px";
-      b.innerHTML = `<i></i><span><b>${p.n}</b><em>${p.sub}</em></span>`;
-      b.onclick = (e) => {
-        e.stopPropagation();
-        const c = $(el, ".s3-card");
-        c.innerHTML = `<b>${p.n}</b><p>${p.card}</p><span data-src="${p.src}"></span>`;
-        ctx.decorate(c);
-        const r = b.getBoundingClientRect(), st = el.getBoundingClientRect(), k = ctx.scale;
-        c.style.left = Math.min(1480, (r.left - st.left) / k + 30) + "px"; c.style.top = Math.max(120, (r.top - st.top) / k - 40) + "px";
-        gsap.fromTo(c, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.35 });
-      };
-      box.appendChild(b);
-    });
-    const K = 0.62, xs = PINS.map((p) => mx(p.lon)), ys = PINS.map((p) => my(p.lat));
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    el._mapT = { x: 1180 - cx * K, y: 560 - cy * K, K };
-    $(el, ".s3-map").style.cssText = `left:0;top:0;transform-origin:0 0`;
-    $(el, ".s3-scale i").style.width = K * (20 / (111.32 * Math.cos((48.4 * Math.PI) / 180)) / (MAP.lon1 - MAP.lon0)) * MAP.w + "px";
-    el.addEventListener("click", () => gsap.to($(el, ".s3-card"), { autoAlpha: 0, duration: 0.2 }));
-  },
-  timelines: [
-    (tl, el) => {
-      tl.fromTo($(el, ".s3-far .arc"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 2, ease: "power2.inOut", immediateRender: false }, 0.2);
-      fade(tl, [$(el, ".s3-far .p1"), $(el, ".s3-l1")], 0.1);
-      fade(tl, [$(el, ".s3-far .p2"), $(el, ".s3-l2")], 1.9);
-      fade(tl, [$(el, ".s3-km"), $(el, ".s3-kmn")], 0.4);
-      count(tl, $(el, ".s3-km .num"), 1923, 0.4, { d: 2 });
-    },
-    (tl, el) => {
-      tl.to($(el, ".s3-far"), { autoAlpha: 0, scale: 1.3, duration: 0.8, ease: "power2.in" }, 0)
-        .fromTo($(el, ".s3-map"), { autoAlpha: 0, x: el._mapT.x, y: el._mapT.y, scale: el._mapT.K * 0.5 }, { autoAlpha: 1, x: el._mapT.x, y: el._mapT.y, scale: el._mapT.K, duration: 2.2, ease: "expo.out", immediateRender: false }, 0.5)
-        .fromTo($(el, ".s3-vig"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 1, immediateRender: false }, 0.8)
-        .fromTo($$(el, ".pin"), { autoAlpha: 0, y: -40 }, { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.25, ease: "bounce.out", immediateRender: false }, 1.6);
-      up(tl, [$(el, ".s3-text"), $(el, ".s3-legend"), $(el, ".s3-scale"), $(el, ".s3-src")], 1.2);
-    }
-  ]
-});
-
 // ---------------------------------------------------------------- 04 · landscape
 // galanta-2024.webp spans 0.28° of longitude at 48.2° N → 20.8 km over 1920 px = 10.8 m/px.
 const M_PER_PX = (0.28 * 111320 * Math.cos((48.2 * Math.PI) / 180)) / 1920;
@@ -400,4 +329,4 @@ const s05 = stepper({
   ]
 });
 
-export default [s01, s02, s03, s04, s05];
+export default [s01, s02, s04, s05];

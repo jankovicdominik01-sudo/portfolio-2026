@@ -17,15 +17,6 @@
   "artist": "TRinaud",
   "page": "https://commons.wikimedia.org/wiki/File:Grey_partridge_(Perdix_perdix)_2022.jpg"
  },
- "drip": {
-  "title": "File:Drip irrigation (2552390830).jpg",
-  "w": 2832,
-  "h": 4256,
-  "url": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Drip_irrigation_%282552390830%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-  "license": "CC BY 2.0",
-  "artist": "Dwight Sipler from Stow, MA, USA",
-  "page": "https://commons.wikimedia.org/wiki/File:Drip_irrigation_(2552390830).jpg"
- },
  "garden-waste": {
   "title": "File:Garden waste dumping.jpg",
   "w": 4355,
@@ -61,14 +52,5 @@
   "license": "CC BY 2.0",
   "artist": "Smithsonian Environmental Research Center",
   "page": "https://commons.wikimedia.org/wiki/File:Coccinella_septempunctata_SERC_06-02-16_(27363991161).jpg"
- },
- "cracked": {
-  "title": "File:Dry cracked soil ground.jpg",
-  "w": 4032,
-  "h": 3024,
-  "url": "https://upload.wikimedia.org/wikipedia/commons/0/01/Dry_cracked_soil_ground.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-  "license": "CC BY-SA 4.0",
-  "artist": "Ibrahim Achiri",
-  "page": "https://commons.wikimedia.org/wiki/File:Dry_cracked_soil_ground.jpg"
  }
 }

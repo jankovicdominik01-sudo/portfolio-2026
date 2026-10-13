@@ -36,7 +36,7 @@ links to the others with relative paths, so it works fully offline.
 
 ## Presenting the agriculture deck
 
-22 scenes (+2 backup scenes in the menu), ~23 min of speaking. Four presenters:
+17 scenes (+2 backup scenes in the menu), ~17–18 min of speaking. Four presenters:
 Dominik, Adam, Sara, Karolína. **Print `agriculture/script.html`** (menu → *Speaker script*):
 presenter map, timings, and step-by-step notes for every scene.
 
@@ -77,7 +77,7 @@ src/agriculture/engine.js       navigation, presenter link, sources, menu, overv
 src/agriculture/notes.js        speaker script (presenter, time, level, notes per step)
 src/agriculture/sources.js      every source, its level and what we do / don't claim
 src/agriculture/evidence.js     photo log
-src/agriculture/scenes/act1-5   the 22 scenes · scenes/backup.js the 2 backup scenes
+src/agriculture/scenes/act1-5   the 17 scenes · scenes/backup.js the 2 backup scenes
 src/agriculture/lib/photo.js    annotated photos: camera moves, labels with evidence status, loupes
 src/agriculture/lib/rail.js     the "follow one load" station rail
 src/agriculture/presenter.html  presenter window
