@@ -1,8 +1,11 @@
 // Builds the Erasmus+ Mersin 2026 site into dist/:
 //
-//   dist/index.html              opens the Slovakia deck (the hub, when SHOW_AGRICULTURE=1)
+//   dist/index.html              opens the public deck (the hub, when both are public)
 //   dist/slovakia/index.html     "Slovakia & Senica" (built from ../erasmus-deck)
 //   dist/agriculture/index.html  "Back to Soil?" (this folder, src/agriculture)
+//
+// Which decks are public: PUBLIC=agriculture (default), PUBLIC=slovakia or PUBLIC=both.
+// Only public decks are built.
 //   dist/vercel.json             trailing slashes so relative paths always work
 //
 // Every page inlines its fonts, CSS and JS, and links to the others with
@@ -30,6 +33,13 @@ const kb = (s) => `${(Buffer.byteLength(s) / 1024).toFixed(0)} KB`;
 
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
+
+// ---------- which presentations are public ----------
+const PUBLIC = process.env.PUBLIC || "agriculture";
+if (!["agriculture", "slovakia", "both"].includes(PUBLIC)) throw new Error(`PUBLIC must be agriculture, slovakia or both, not "${PUBLIC}"`);
+const SHOW_AGRICULTURE = PUBLIC !== "slovakia";
+const SHOW_SLOVAKIA = PUBLIC !== "agriculture";
+const HUB = SHOW_AGRICULTURE && SHOW_SLOVAKIA;
 
 // ---------- fonts (inlined as base64: file:// pages can't load font files cross-origin) ----------
 const LATIN = "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2190-2199,U+2212,U+2215,U+FEFF,U+FFFD";
@@ -59,79 +69,79 @@ const hubFontCss = [
   face("IBM Plex Mono", "normal", 500, `${PM}latin-ext-500-normal.woff2`)
 ].join("\n");
 
-// ---------- agriculture: images ----------
-// img/*.webp (Wikimedia + Sentinel-2), img/field/* (our visit to the composting
-// plant), img/coop/* (photos the farming cooperative shared with us)
-const imgOut = join(dist, "agriculture", "img");
-mkdirSync(imgOut, { recursive: true });
-for (const f of readdirSync(join(here, "assets", "agriculture", "img"))) cpSync(join(here, "assets", "agriculture", "img", f), join(imgOut, f));
-for (const d of ["field", "coop"]) {
-  const src = join(here, "assets", "agriculture", d);
-  if (existsSync(src)) cpSync(src, join(imgOut, d), { recursive: true });
+if (SHOW_AGRICULTURE) {
+  // ---------- agriculture: images ----------
+  // img/*.webp (Wikimedia + Sentinel-2), img/field/* (our visit to the composting
+  // plant), img/coop/* (photos the farming cooperative shared with us)
+  const imgOut = join(dist, "agriculture", "img");
+  mkdirSync(imgOut, { recursive: true });
+  for (const f of readdirSync(join(here, "assets", "agriculture", "img"))) cpSync(join(here, "assets", "agriculture", "img", f), join(imgOut, f));
+  for (const d of ["field", "coop"]) {
+    const src = join(here, "assets", "agriculture", d);
+    if (existsSync(src)) cpSync(src, join(imgOut, d), { recursive: true });
+  }
+  const credits = Object.entries(JSON.parse(read("assets/agriculture/credits.json"))).map(([, c]) =>
+    `${c.title.replace(/^File:/, "").replace(/\.[a-z]+$/i, "")} — ${c.artist} · ${c.license} · Wikimedia Commons`);
+  credits.push("Satellite images: Sentinel-2 cloudless 2024 by EOX IT Services GmbH (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0");
+  const assets = { credits };
+
+  // ---------- agriculture: bundle ----------
+  const js = await build({
+    entryPoints: [join(here, "src/agriculture/main.js")],
+    bundle: true, minify: true, format: "iife", target: "es2020", write: false, legalComments: "none",
+    define: { __ASSETS__: JSON.stringify(assets), __HUB__: JSON.stringify(HUB) }
+  });
+  const agriJs = js.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
+  const agriCss = fontCss + "\n" + read("src/agriculture/style.css") + "\n" + read("src/agriculture/scenes.css");
+  const agriHtml = read("src/agriculture/index.html")
+    .replace("/*INLINE_CSS*/", () => agriCss)
+    .replace("/*INLINE_JS*/", () => agriJs);
+  writeFileSync(join(dist, "agriculture", "index.html"), agriHtml);
+  console.log(`agriculture/index.html   ${kb(agriHtml)}  (js ${kb(agriJs)})`);
+
+  // ---------- agriculture: presenter window (P) ----------
+  const presenterHtml = read("src/agriculture/presenter.html").replace("/*FONTS*/", () => hubFontCss + "\n" + face("IBM Plex Sans", "normal", 500, `${PS}latin-500-normal.woff2`) + "\n" + face("IBM Plex Mono", "normal", 400, `${PM}latin-400-normal.woff2`));
+  writeFileSync(join(dist, "agriculture", "presenter.html"), presenterHtml);
+  console.log(`agriculture/presenter.html ${kb(presenterHtml)}`);
+
+  // ---------- agriculture: printable speaker script + presenter map ----------
+  const metaBuild = await build({ entryPoints: [join(here, "src/agriculture/meta.js")], bundle: true, platform: "node", format: "esm", write: false, logLevel: "silent", define: { __HUB__: JSON.stringify(HUB) } });
+  const metaFile = join(here, ".meta.tmp.mjs");
+  writeFileSync(metaFile, metaBuild.outputFiles[0].text);
+  const { META } = await import(pathToFileURL(metaFile).href + "?t=" + Date.now());
+  rmSync(metaFile, { force: true });
+  const { SCRIPT, PRESENTERS } = await import(pathToFileURL(join(here, "src/agriculture/notes.js")).href);
+  const scriptHtml = renderScript(META, SCRIPT, PRESENTERS);
+  writeFileSync(join(dist, "agriculture", "script.html"), scriptHtml);
+  console.log(`agriculture/script.html  ${kb(scriptHtml)}`);
 }
-const credits = Object.entries(JSON.parse(read("assets/agriculture/credits.json"))).map(([, c]) =>
-  `${c.title.replace(/^File:/, "").replace(/\.[a-z]+$/i, "")} — ${c.artist} · ${c.license} · Wikimedia Commons`);
-credits.push("Satellite images: Sentinel-2 cloudless 2024 by EOX IT Services GmbH (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0");
-const assets = { credits };
-
-// ---------- agriculture: bundle ----------
-const js = await build({
-  entryPoints: [join(here, "src/agriculture/main.js")],
-  bundle: true, minify: true, format: "iife", target: "es2020", write: false, legalComments: "none",
-  define: { __ASSETS__: JSON.stringify(assets) }
-});
-const agriJs = js.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
-const agriCss = fontCss + "\n" + read("src/agriculture/style.css") + "\n" + read("src/agriculture/scenes.css");
-const agriHtml = read("src/agriculture/index.html")
-  .replace("/*INLINE_CSS*/", () => agriCss)
-  .replace("/*INLINE_JS*/", () => agriJs);
-writeFileSync(join(dist, "agriculture", "index.html"), agriHtml);
-console.log(`agriculture/index.html   ${kb(agriHtml)}  (js ${kb(agriJs)})`);
-
-// ---------- agriculture: presenter window (P) ----------
-const presenterHtml = read("src/agriculture/presenter.html").replace("/*FONTS*/", () => hubFontCss + "\n" + face("IBM Plex Sans", "normal", 500, `${PS}latin-500-normal.woff2`) + "\n" + face("IBM Plex Mono", "normal", 400, `${PM}latin-400-normal.woff2`));
-writeFileSync(join(dist, "agriculture", "presenter.html"), presenterHtml);
-console.log(`agriculture/presenter.html ${kb(presenterHtml)}`);
-
-// ---------- agriculture: printable speaker script + presenter map ----------
-const metaBuild = await build({ entryPoints: [join(here, "src/agriculture/meta.js")], bundle: true, platform: "node", format: "esm", write: false, logLevel: "silent" });
-const metaFile = join(here, ".meta.tmp.mjs");
-writeFileSync(metaFile, metaBuild.outputFiles[0].text);
-const { META } = await import(pathToFileURL(metaFile).href + "?t=" + Date.now());
-rmSync(metaFile, { force: true });
-const { SCRIPT, PRESENTERS } = await import(pathToFileURL(join(here, "src/agriculture/notes.js")).href);
-const scriptHtml = renderScript(META, SCRIPT, PRESENTERS);
-writeFileSync(join(dist, "agriculture", "script.html"), scriptHtml);
-console.log(`agriculture/script.html  ${kb(scriptHtml)}`);
-
-// ---------- which presentations are public ----------
-// The agriculture deck is hidden for now: it is still built into dist/agriculture/,
-// but nothing links to it and the site opens straight on the Slovakia deck.
-// SHOW_AGRICULTURE=1 npm run build brings back the hub and the deck switch.
-const SHOW_AGRICULTURE = process.env.SHOW_AGRICULTURE === "1";
 
 // ---------- slovakia: the original deck (+ the small hub control when the hub is public) ----------
-const slovakDir = join(dist, "slovakia");
-execFileSync(process.execPath, [join(here, "..", "erasmus-deck", "build.mjs"), "--out", slovakDir], { stdio: "inherit" });
-if (SHOW_AGRICULTURE) {
-  const nav = read("src/hub/deck-nav.html");
-  const slovakPath = join(slovakDir, "index.html");
-  const slovakHtml = readFileSync(slovakPath, "utf8");
-  const end = slovakHtml.lastIndexOf("</body>"); // the real one, not a string inside the deck's script
-  writeFileSync(slovakPath, slovakHtml.slice(0, end) + nav + "\n" + slovakHtml.slice(end));
+if (SHOW_SLOVAKIA) {
+  const slovakDir = join(dist, "slovakia");
+  execFileSync(process.execPath, [join(here, "..", "erasmus-deck", "build.mjs"), "--out", slovakDir], { stdio: "inherit" });
+  if (HUB) {
+    const nav = read("src/hub/deck-nav.html");
+    const slovakPath = join(slovakDir, "index.html");
+    const slovakHtml = readFileSync(slovakPath, "utf8");
+    const end = slovakHtml.lastIndexOf("</body>"); // the real one, not a string inside the deck's script
+    writeFileSync(slovakPath, slovakHtml.slice(0, end) + nav + "\n" + slovakHtml.slice(end));
+  }
 }
 
 // ---------- site root ----------
-if (SHOW_AGRICULTURE) {
+if (HUB) {
   const hubHtml = read("src/hub/index.html").replace("/*FONTS*/", () => hubFontCss);
   writeFileSync(join(dist, "index.html"), hubHtml);
   console.log(`index.html (hub)         ${kb(hubHtml)}`);
 } else {
-  // straight to the Slovakia deck (works online and from a USB copy)
-  writeFileSync(join(dist, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Slovakia · Senica · SSOŠP</title>
-<meta http-equiv="refresh" content="0; url=slovakia/index.html"><style>html{background:#080d19}</style>
-<script>location.replace("slovakia/index.html" + location.hash)</script></head><body></body></html>\n`);
-  console.log("index.html               → slovakia/ (agriculture hidden)");
+  // straight to the one public deck (works online and from a USB copy)
+  const deck = SHOW_AGRICULTURE ? "agriculture" : "slovakia";
+  const title = SHOW_AGRICULTURE ? "Back to Soil? · SSOŠP Senica" : "Slovakia · Senica · SSOŠP";
+  writeFileSync(join(dist, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title}</title>
+<meta http-equiv="refresh" content="0; url=${deck}/index.html"><style>html{background:#080d19}</style>
+<script>location.replace("${deck}/index.html" + location.hash)</script></head><body></body></html>\n`);
+  console.log(`index.html               → ${deck}/ (only public deck)`);
 }
 
 writeFileSync(join(dist, "vercel.json"), JSON.stringify({ trailingSlash: true, cleanUrls: false }, null, 2) + "\n");

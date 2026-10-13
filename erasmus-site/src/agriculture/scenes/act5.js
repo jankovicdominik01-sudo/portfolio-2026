@@ -334,7 +334,7 @@ const s22 = stepper({
     <div class="s21-ask fx">
       <p class="quote">What does this loop look like in <em>Mersin?</em></p>
       <p class="mono s21-thanks">Thank you · Teşekkürler · Ďakujeme — Dominik, Adam, Sara, Karolína · SSOŠP Senica</p>
-      <div class="s21-btns"><button class="b-src interactive">Our research</button><button class="b-top interactive">↺ Back to the start</button><a class="b-hub" href="../index.html">Erasmus hub</a></div>
+      <div class="s21-btns"><button class="b-src interactive">Our research</button><button class="b-top interactive">↺ Back to the start</button>${__HUB__ ? `<a class="b-hub" href="../index.html">Erasmus hub</a>` : ""}</div>
     </div>`,
   setup(el, ctx) {
     soil22 = createSoil($(el, ".s21-soil"), { quality: ctx.quality, surface: 620 });

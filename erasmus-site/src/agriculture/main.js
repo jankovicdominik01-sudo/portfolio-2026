@@ -26,10 +26,11 @@ function grain() {
 
 function start() {
   grain();
-  window.__deck = createEngine([...act1, ...act2, ...act3, ...act4, ...act5, ...backup], {
+  // the hub and the switch to the Slovakia deck exist only when both decks are public
+  window.__deck = createEngine([...act1, ...act2, ...act3, ...act4, ...act5, ...backup], __HUB__ ? {
     otherDeck: { title: "Slovakia & Senica", href: "../slovakia/index.html" },
     hubHref: "../index.html"
-  });
+  } : {});
   // arriving from the hub: fade the curtain away
   const c = document.getElementById("curtain");
   if (c) gsap.to(c, { autoAlpha: 0, duration: 0.9, delay: 0.1, ease: "power2.out", onComplete: () => c.remove() });

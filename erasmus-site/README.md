@@ -11,9 +11,15 @@ Agriculture* (Mezitli / Mersin, 8–14 October 2026), built by the team from SSO
 
 ## What is public right now
 
-Only **Slovakia & Senica**: the site root opens it directly, without the hub. The agriculture
-deck is still built into `dist/agriculture/` but nothing links to it. To bring back the hub and
-the switch between the two decks, build with `SHOW_AGRICULTURE=1 npm run build`.
+Only **Back to Soil?** (agriculture): the site root opens it directly, without the hub, and
+the Slovakia deck is not built at all. The deck's menu has no hub link or deck switch then.
+Pick what is public when you build:
+
+```
+npm run build                    # agriculture only (default)
+PUBLIC=slovakia npm run build    # Slovakia & Senica only
+PUBLIC=both npm run build        # the hub with both decks
+```
 
 ## Build
 

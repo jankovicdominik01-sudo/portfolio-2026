@@ -328,9 +328,9 @@ export function createEngine(allScenes, opts) {
         <div class="menu-side">
           <p class="mono dim">Presenting</p>
           <div class="menu-actions"><button class="act" data-act="presenter">Presenter view <kbd>P</kbd></button><button class="act" data-act="overview">Scene overview <kbd>G</kbd></button><button class="act" data-act="sources">Our research <kbd>S</kbd></button><button class="act" data-act="full">Fullscreen <kbd>F</kbd></button><a class="act" href="script.html" target="_blank" rel="noopener">Speaker script & presenter map ↗</a></div>
-          <p class="mono dim">Presentations</p>
-          <ul class="decks"><li class="cur">✓ Ecological agriculture</li><li><button class="switch">${other.title}</button><button class="confirm" hidden>Switch now →</button></li></ul>
-          <a class="hub" href="${opts.hubHref}">← Back to the Erasmus hub</a>
+          ${other ? `<p class="mono dim">Presentations</p>
+          <ul class="decks"><li class="cur">✓ Ecological agriculture</li><li><button class="switch">${other.title}</button><button class="confirm" hidden>Switch now →</button></li></ul>` : ""}
+          ${opts.hubHref ? `<a class="hub" href="${opts.hubHref}">← Back to the Erasmus hub</a>` : ""}
           <dl class="keys mono"><dt>→ Space PgDn</dt><dd>next</dd><dt>← PgUp</dt><dd>back</dd><dt>12 Enter</dt><dd>go to scene 12</dd><dt>B</dt><dd>black screen</dd><dt>N</dt><dd>notes on this screen</dd><dt>Home / End</dt><dd>first / last scene</dd></dl>
         </div>
       </div>`;
@@ -344,8 +344,10 @@ export function createEngine(allScenes, opts) {
       else if (a === "full") { closeOverlay(true); toggleFullscreen(); }
     }));
     const sw = m.querySelector(".switch"), cf = m.querySelector(".confirm");
-    sw.onclick = () => { cf.hidden = false; sw.classList.add("armed"); };
-    cf.onclick = () => (location.href = other.href);
+    if (sw) {
+      sw.onclick = () => { cf.hidden = false; sw.classList.add("armed"); };
+      cf.onclick = () => (location.href = other.href);
+    }
   })();
   document.getElementById("menubtn").onclick = (e) => { e.stopPropagation(); openOverlay("menu"); };
 
